@@ -1,0 +1,376 @@
+{
+  "recordedAt": "2026-11-01T22:06:46.519Z",
+  "note": "real PayPal sandbox responses, redacted",
+  "tape": [
+    {
+      "method": "POST",
+      "path": "/v1/oauth2/token",
+      "status": 200,
+      "body": {
+        "scope": "https://uri.paypal.com/services/invoicing https://uri.paypal.com/services/checkout/one-click-with-merchant-issued-token https://uri.paypal.com/services/payments/futurepayments https://uri.paypal.com/services/vault/payment-tokens/read https://uri.paypal.com/services/disputes/read-buyer https://uri.paypal.com/services/payments/realtimepayment https://uri.paypal.com/services/subscriptions/confirm-payment https://uri.paypal.com/services/payments/client-payments-eligibility https://api.paypal.com/v1/vault/credit-card https://api.paypal.com/v1/payments/.* https://uri.paypal.com/services/vault/payment-tokens/readwrite https://uri.paypal.com/services/applications/webhooks https://uri.paypal.com/services/pricing/exchange-currency/read https://uri.paypal.com/services/credit/client-offer-presentment/read https://uri.paypal.com/services/disputes/update-seller https://uri.paypal.com/services/payments/payment/authcapture openid Braintree:Vault https://uri.paypal.com/services/disputes/read-seller https://uri.paypal.com/services/payments/orders/client_sdk_orders_api https://uri.paypal.com/services/payments/refund https://uri.paypal.com/services/disputes/create https://uri.paypal.com/services/pricing/quote-exchange-rates/read https://uri.paypal.com/services/documents/disputes/download https://uri.paypal.com/services/billing-agreements https://uri.paypal.com/services/checkout/payment-resources https://uri.paypal.com/payments/payouts https://api.paypal.com/v1/vault/credit-card/.* https://uri.paypal.com/services/subscriptions",
+        "access_token": "REDACTED",
+        "token_type": "Bearer",
+        "app_id": "APP-REDACTED",
+        "expires_in": 32131,
+        "nonce": "REDACTED"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notifications/webhooks",
+      "requestBody": {
+        "url": "https://example.com/yv-recording/mvydqwvf",
+        "event_types": [
+          {
+            "name": "CHECKOUT.ORDER.APPROVED"
+          },
+          {
+            "name": "PAYMENT.CAPTURE.COMPLETED"
+          }
+        ]
+      },
+      "status": 201,
+      "body": {
+        "id": "21X12801ET971292B",
+        "url": "https://example.com/yv-recording/mvydqwvf",
+        "event_types": [
+          {
+            "name": "CHECKOUT.ORDER.APPROVED",
+            "description": "An order has been approved by buyer."
+          },
+          {
+            "name": "PAYMENT.CAPTURE.COMPLETED",
+            "description": "A payment capture completes."
+          }
+        ],
+        "links": [
+          {
+            "href": "https://api.sandbox.paypal.com/v1/notifications/webhooks/21X12801ET971292B",
+            "rel": "self",
+            "method": "GET"
+          },
+          {
+            "href": "https://api.sandbox.paypal.com/v1/notifications/webhooks/21X12801ET971292B",
+            "rel": "update",
+            "method": "PATCH"
+          },
+          {
+            "href": "https://api.sandbox.paypal.com/v1/notifications/webhooks/21X12801ET971292B",
+            "rel": "delete",
+            "method": "DELETE"
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v1/oauth2/token",
+      "status": 200,
+      "body": {
+        "scope": "https://uri.paypal.com/services/invoicing https://uri.paypal.com/services/checkout/one-click-with-merchant-issued-token https://uri.paypal.com/services/payments/futurepayments https://uri.paypal.com/services/vault/payment-tokens/read https://uri.paypal.com/services/disputes/read-buyer https://uri.paypal.com/services/payments/realtimepayment https://uri.paypal.com/services/subscriptions/confirm-payment https://uri.paypal.com/services/payments/client-payments-eligibility https://api.paypal.com/v1/vault/credit-card https://api.paypal.com/v1/payments/.* https://uri.paypal.com/services/vault/payment-tokens/readwrite https://uri.paypal.com/services/applications/webhooks https://uri.paypal.com/services/pricing/exchange-currency/read https://uri.paypal.com/services/credit/client-offer-presentment/read https://uri.paypal.com/services/disputes/update-seller https://uri.paypal.com/services/payments/payment/authcapture openid Braintree:Vault https://uri.paypal.com/services/disputes/read-seller https://uri.paypal.com/services/payments/orders/client_sdk_orders_api https://uri.paypal.com/services/payments/refund https://uri.paypal.com/services/disputes/create https://uri.paypal.com/services/pricing/quote-exchange-rates/read https://uri.paypal.com/services/documents/disputes/download https://uri.paypal.com/services/billing-agreements https://uri.paypal.com/services/checkout/payment-resources https://uri.paypal.com/payments/payouts https://api.paypal.com/v1/vault/credit-card/.* https://uri.paypal.com/services/subscriptions",
+        "access_token": "REDACTED",
+        "token_type": "Bearer",
+        "app_id": "APP-REDACTED",
+        "expires_in": 32130,
+        "nonce": "REDACTED"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v2/checkout/orders",
+      "requestBody": {
+        "intent": "AUTHORIZE",
+        "purchase_units": [
+          {
+            "reference_id": "rec_mvydqwvf:reel1",
+            "custom_id": "rec_mvydqwvf:reel1",
+            "description": "Recording: Reel 1 launch cut",
+            "amount": {
+              "currency_code": "USD",
+              "value": "400.00"
+            }
+          }
+        ],
+        "payment_source": {
+          "paypal": {
+            "experience_context": {
+              "brand_name": "yv.",
+              "user_action": "CONTINUE",
+              "shipping_preference": "NO_SHIPPING",
+              "return_url": "https://example.com/return",
+              "cancel_url": "https://example.com/cancel"
+            }
+          }
+        }
+      },
+      "status": 200,
+      "body": {
+        "id": "9KF338501T967270D",
+        "intent": "AUTHORIZE",
+        "status": "PAYER_ACTION_REQUIRED",
+        "payment_source": {
+          "paypal": {}
+        },
+        "purchase_units": [
+          {
+            "reference_id": "rec_mvydqwvf:reel1",
+            "amount": {
+              "currency_code": "USD",
+              "value": "400.00"
+            },
+            "payee": {
+              "email_address": "merchant@example.com",
+              "merchant_id": "REDACTED",
+              "display_data": {
+                "brand_name": "yv."
+              }
+            },
+            "description": "Recording: Reel 1 launch cut",
+            "custom_id": "rec_mvydqwvf:reel1"
+          }
+        ],
+        "links": [
+          {
+            "href": "https://api.sandbox.paypal.com/v2/checkout/orders/9KF338501T967270D",
+            "rel": "self",
+            "method": "GET"
+          },
+          {
+            "href": "https://www.sandbox.paypal.com/checkoutnow?token=9KF338501T967270D",
+            "rel": "payer-action",
+            "method": "GET"
+          }
+        ]
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/v2/checkout/orders/9KF338501T967270D",
+      "status": 200,
+      "body": {
+        "id": "9KF338501T967270D",
+        "intent": "AUTHORIZE",
+        "status": "PAYER_ACTION_REQUIRED",
+        "payment_source": {
+          "paypal": {}
+        },
+        "purchase_units": [
+          {
+            "reference_id": "rec_mvydqwvf:reel1",
+            "amount": {
+              "currency_code": "USD",
+              "value": "400.00",
+              "breakdown": {}
+            },
+            "payee": {
+              "email_address": "merchant@example.com",
+              "merchant_id": "REDACTED",
+              "display_data": {
+                "brand_name": "yv."
+              }
+            },
+            "description": "Recording: Reel 1 launch cut",
+            "custom_id": "rec_mvydqwvf:reel1"
+          }
+        ],
+        "create_time": "2026-11-01T22:06:44Z",
+        "links": [
+          {
+            "href": "https://api.sandbox.paypal.com/v2/checkout/orders/9KF338501T967270D",
+            "rel": "self",
+            "method": "GET"
+          },
+          {
+            "href": "https://www.sandbox.paypal.com/checkoutnow?token=9KF338501T967270D",
+            "rel": "payer-action",
+            "method": "GET"
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v2/checkout/orders/9KF338501T967270D/authorize",
+      "requestBody": {},
+      "status": 422,
+      "body": {
+        "name": "UNPROCESSABLE_ENTITY",
+        "details": [
+          {
+            "issue": "ORDER_NOT_APPROVED",
+            "description": "Payer has not yet approved the Order for payment. Please redirect the payer to the 'rel':'approve' url returned as part of the HATEOAS links within the Create Order call or provide a valid payment_source in the request."
+          }
+        ],
+        "message": "The requested action could not be performed, semantically incorrect, or failed business validation.",
+        "debug_id": "f6164859042bb",
+        "links": [
+          {
+            "href": "https://developer.paypal.com/api/rest/reference/orders/v2/errors/#ORDER_NOT_APPROVED",
+            "rel": "information_link",
+            "method": "GET"
+          }
+        ]
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v2/invoicing/invoices",
+      "requestBody": {
+        "detail": {
+          "currency_code": "USD",
+          "note": "Recording: change order priced from the signed rate card."
+        },
+        "items": [
+          {
+            "name": "Extra 15s cut",
+            "description": "per cut",
+            "quantity": "2",
+            "unit_amount": {
+              "currency_code": "USD",
+              "value": "60.00"
+            },
+            "unit_of_measure": "QUANTITY"
+          }
+        ]
+      },
+      "status": 201,
+      "body": {
+        "id": "INV2-R94Q-K83H-XDNW-J622",
+        "status": "DRAFT",
+        "detail": {
+          "currency_code": "USD",
+          "note": "Recording: change order priced from the signed rate card.",
+          "category_code": "SHIPPABLE",
+          "invoice_number": "0003",
+          "invoice_date": "2026-11-01",
+          "payment_term": {
+            "term_type": "NO_DUE_DATE"
+          },
+          "viewed_by_recipient": false,
+          "group_draft": false,
+          "metadata": {
+            "create_time": "2026-11-01T22:06:45Z",
+            "last_update_time": "2026-11-01T22:06:45Z",
+            "created_by_flow": "REGULAR_SINGLE",
+            "recipient_view_url": "https://www.sandbox.paypal.com/invoice/p/#R94QK83HXDNWJ622",
+            "invoicer_view_url": "https://www.sandbox.paypal.com/invoice/details/INV2-R94Q-K83H-XDNW-J622",
+            "caller_type": "API_V2_INVOICE",
+            "spam_info": {}
+          },
+          "archived": false
+        },
+        "invoicer": {},
+        "items": [
+          {
+            "id": "ITEM-9JU98410SK6030106",
+            "name": "Extra 15s cut",
+            "description": "per cut",
+            "quantity": "2",
+            "unit_amount": {
+              "currency_code": "USD",
+              "value": "60.00"
+            },
+            "unit_of_measure": "QUANTITY"
+          }
+        ],
+        "configuration": {
+          "tax_calculated_after_discount": false,
+          "tax_inclusive": false,
+          "allow_tip": false,
+          "allow_only_pay_by_bank": false,
+          "allow_vba_payments": false,
+          "save_item_for_future": true,
+          "template_id": "TEMP-94J93418AX356531M"
+        },
+        "amount": {
+          "breakdown": {
+            "item_total": {
+              "currency_code": "USD",
+              "value": "120.00"
+            },
+            "discount": {
+              "invoice_discount": {
+                "amount": {
+                  "currency_code": "USD",
+                  "value": "0.00"
+                }
+              },
+              "item_discount": {
+                "currency_code": "USD",
+                "value": "0.00"
+              }
+            },
+            "tax_total": {
+              "currency_code": "USD",
+              "value": "0.00"
+            }
+          },
+          "currency_code": "USD",
+          "value": "120.00"
+        },
+        "due_amount": {
+          "currency_code": "USD",
+          "value": "120.00"
+        },
+        "links": [
+          {
+            "href": "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-R94Q-K83H-XDNW-J622",
+            "rel": "self",
+            "method": "GET"
+          },
+          {
+            "href": "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-R94Q-K83H-XDNW-J622/send",
+            "rel": "send",
+            "method": "POST"
+          },
+          {
+            "href": "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-R94Q-K83H-XDNW-J622",
+            "rel": "replace",
+            "method": "PUT"
+          },
+          {
+            "href": "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-R94Q-K83H-XDNW-J622",
+            "rel": "delete",
+            "method": "DELETE"
+          },
+          {
+            "href": "https://api.sandbox.paypal.com/v2/invoicing/invoices/INV2-R94Q-K83H-XDNW-J622/payments",
+            "rel": "record-payment",
+            "method": "POST"
+          }
+        ],
+        "unilateral": false,
+        "settings": {}
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/v1/notifications/verify-webhook-signature",
+      "requestBody": {
+        "auth_algo": "SHA256withRSA",
+        "cert_url": "https://api.sandbox.paypal.com/v1/notifications/certs/CERT-360caa42-fca2a594-a5cafa77",
+        "transmission_id": "69cd13f0-d67a-11e5-baa3-778b53f4ae55",
+        "transmission_sig": "bm90LWEtcmVhbC1zaWduYXR1cmU=",
+        "transmission_time": "2026-11-01T22:06:45.969Z",
+        "webhook_id": "21X12801ET971292B",
+        "webhook_event": {
+          "id": "WH-X",
+          "event_type": "CHECKOUT.ORDER.APPROVED",
+          "resource": {
+            "id": "9KF338501T967270D"
+          }
+        }
+      },
+      "status": 200,
+      "body": {
+        "verification_status": "FAILURE"
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/v1/notifications/webhooks/21X12801ET971292B",
+      "status": 204,
+      "body": null
+    }
+  ]
+}

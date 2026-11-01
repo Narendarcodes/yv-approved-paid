@@ -72,7 +72,7 @@ function makeRestGateway(opts: {
     };
   }
 
-  const gw: PaymentGateway = {
+  const gw: PaymentGateway & { createWebhook(url: string, eventTypes: string[]): Promise<{ id: string; url: string }>; listWebhooks(): Promise<{ id: string; url: string; events: string[] }[]>; deleteWebhook(id: string): Promise<void> } = {
     name: base.includes('sandbox') ? 'paypal-sandbox' : 'paypal-live',
     async createAuthorizeOrder(input) {
       const o = await call(
@@ -197,7 +197,12 @@ function makeRestGateway(opts: {
         return false;
       }
       const h = (k: string) => headers[k] || headers[k.toLowerCase()];
-      const r = await call('POST', '/v1/notifications/verify-webhook-signature', {
+      for (const k of ['paypal-auth-algo', 'paypal-cert-url', 'paypal-transmission-id', 'paypal-transmission-sig', 'paypal-transmission-time']) if (!h(k)) return false;
+      // PayPal only fetches certs from its own hosts; refuse anything else before calling out
+      if (!/^https:\/\/api(-m)?\.(sandbox\.)?paypal\.com\//.test(String(h('paypal-cert-url')))) return false;
+      let r: any;
+      try {
+        r = await call('POST', '/v1/notifications/verify-webhook-signature', {
         auth_algo: h('paypal-auth-algo'),
         cert_url: h('paypal-cert-url'),
         transmission_id: h('paypal-transmission-id'),
@@ -205,8 +210,23 @@ function makeRestGateway(opts: {
         transmission_time: h('paypal-transmission-time'),
         webhook_id: opts.webhookId,
         webhook_event: event,
-      });
+        });
+      } catch (e) {
+        if ((e as { status?: number }).status && (e as { status: number }).status < 500) return false; // malformed proof = not verified
+        throw e; // PayPal down: let the caller answer 5xx so PayPal retries later
+      }
       return r?.verification_status === 'SUCCESS';
+    },
+    async createWebhook(url: string, eventTypes: string[]) {
+      const r = await call('POST', '/v1/notifications/webhooks', { url, event_types: eventTypes.map((name) => ({ name })) });
+      return { id: r.id as string, url: r.url as string };
+    },
+    async listWebhooks() {
+      const r = await call('GET', '/v1/notifications/webhooks');
+      return (r.webhooks || []).map((w: any) => ({ id: w.id, url: w.url, events: (w.event_types || []).map((e: any) => e.name) }));
+    },
+    async deleteWebhook(id: string) {
+      await call('DELETE', `/v1/notifications/webhooks/${encodeURIComponent(id)}`);
     },
   };
   return gw;
