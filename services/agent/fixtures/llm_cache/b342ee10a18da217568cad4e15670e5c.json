@@ -1,0 +1,18 @@
+{
+ "purpose": "fix_taste",
+ "provider": "river",
+ "data": {
+  "tags": [
+   {
+    "i": 0,
+    "tag": "taste",
+    "checklistId": null
+   },
+   {
+    "i": 1,
+    "tag": "taste",
+    "checklistId": null
+   }
+  ]
+ }
+}

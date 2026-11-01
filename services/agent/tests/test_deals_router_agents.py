@@ -148,3 +148,13 @@ def test_video_qa_llm_note_cannot_flip_a_result(tmp_path, monkeypatch):
     _, prop = run(VideoQAAgent(r).run("d1", M, {"id": "v1", "sha256": "x" * 64}, "f.mp4", str(tmp_path)))
     assert prop.body["passed"] is False and prop.body["failed"] == ["c_len"]
     assert prop.body["notes"] == {"c_len": "Trim 1.5 s."}
+
+
+def test_offline_replays_recorded_river_answer():
+    """fixtures/llm_cache holds one real River reply (Qwen3.8-27B, Nov 2 2026) for this exact redacted ask; CI replays it for free."""
+    r = LLMRouter(chain=P, caller=None, offline=True)  # default cache dir = fixtures/llm_cache
+    red = Redactor.for_deal(TERMS, reviewers=["Asha Rao"])
+    p = run(ReviewAgent(r).run("d1", M, [{"text": "John, the transition in the middle is off"},
+                                         {"text": "the ending gets cut before the last spoken line"}], redactor=red))
+    assert r.calls == [{"provider": "river", "ok": True, "cached": True, "purpose": "fix_taste"}]
+    assert [i["tag"] for i in p.body["items"]] == ["taste", "taste"]
