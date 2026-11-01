@@ -147,7 +147,7 @@ class ReviewAgent:
                     # a Fix that cites nothing signed is Taste: it costs a revision round, not pay
                     it.update(tag="taste", checklistId=None, basis="llm")
         contradictions = self.contradictions(items)
-        merged = self.merge(items)
+        merged = self.merge(items, contradictions)
         fix_n = sum(1 for x in merged if x["tag"] == "fix")
         body = {"items": [{"text": x["text"], "tag": x["tag"], "checklistId": x["checklistId"] or None,
                            "disputed": any(x["i"] in (c["a"], c["b"]) for c in contradictions)} for x in merged],
@@ -156,12 +156,15 @@ class ReviewAgent:
                         needs_human=True, rationale=f"{fix_n} fix, {len(merged) - fix_n} taste, {len(contradictions)} contradiction(s)")
 
     @staticmethod
-    def merge(items: list[dict]) -> list[dict]:
-        """Same ask from two reviewers (same tag+checklist line, near-identical words) becomes one item."""
+    def merge(items: list[dict], contradictions: list[dict] | None = None) -> list[dict]:
+        """Same ask from two reviewers (same tag+checklist line, near-identical words) becomes one item.
+        Two asks that contradict each other are never merged: both stay visible for the people to settle."""
+        clash = {frozenset((c["a"], c["b"])) for c in (contradictions or [])}
         out: list[dict] = []
         for it in items:
             w = set(words(it["text"]))
             dup = next((o for o in out if o["tag"] == it["tag"] and o["checklistId"] == it["checklistId"]
+                        and frozenset((o["i"], it["i"])) not in clash
                         and len(w & set(words(o["text"]))) / max(1, len(w | set(words(o["text"])))) >= 0.5), None)
             if dup:
                 dup.setdefault("also", []).append(it["i"])

@@ -104,8 +104,9 @@ class Redactor:
     def restore(self, text: str) -> str:
         """For showing an agent's note to the people on the deal. Never fed back to an LLM."""
         rev: dict[str, str] = {}
+        rank = lambda lit: ("@" not in lit, " " in lit, len(lit))  # prefer a display name over an email or id
         for lit, tok in self.names.items():
-            if tok not in rev or len(lit) > len(rev[tok]):
+            if tok not in rev or rank(lit) > rank(rev[tok]):
                 rev[tok] = lit
         for tok, lit in rev.items():
             text = text.replace(tok, lit)

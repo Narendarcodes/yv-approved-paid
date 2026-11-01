@@ -330,13 +330,16 @@ class VideoChecker:
             return None, [Evidence(0, 0, "needs the signed script and a transcript")]
         lines = [l.strip() for l in re.split(r"[\n.!?]+", self.script) if len(words(l)) >= 2]
         segs = [(float(s["start"]), float(s["end"]), " ".join(words(s["text"]))) for s in self.transcript]
-        ev, ok = [], 0
+        ev, ok, last_end = [], 0, 0.0
         for line in lines:
             lw = " ".join(words(line))
-            best = max(segs, key=lambda sg: SequenceMatcher(None, lw, sg[2]).ratio())
+            # script lines are spoken in order: look only after the last matched line
+            cands = [sg for sg in segs if sg[0] >= last_end - 0.05] or segs
+            best = max(cands, key=lambda sg: SequenceMatcher(None, lw, sg[2]).ratio())
             r = SequenceMatcher(None, lw, best[2]).ratio()
             if r >= 0.75:
                 ok += 1
+                last_end = best[1]
             else:
                 ev.append(Evidence(best[0], best[1], f"script line '{line[:60]}' not matched (closest: '{best[2][:60]}', {r:.2f})", self._shot(cid, best[0])))
         cov = round(ok / max(1, len(lines)), 3)
