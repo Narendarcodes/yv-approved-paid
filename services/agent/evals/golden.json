@@ -1,0 +1,17 @@
+{
+  "description": "Golden questions against the seeded Little Steps demo org. Post keys resolve via the seed output.",
+  "questions": [
+    {"id": "viral-spike", "q": "Why did the 3 breathing cues short go viral?", "flow": "insight",
+     "citePost": "breath", "citeMetricPrefix": "retention@0:42", "answerAnyOf": ["0:42", "42"], "limitAnyOf": ["YouTube Analytics"]},
+    {"id": "ig-limits", "q": "Why did the Telugu lullaby reel perform so well?", "flow": "insight",
+     "citePost": "lullaby", "citeMetricPrefix": "saveRate", "answerAnyOf": ["save", "Save"], "limitAnyOf": ["aggregate reel metrics only"]},
+    {"id": "brand-cta", "q": "Can we use 'Buy now' as the call to action?", "flow": "brand_qa",
+     "citeMetricPrefix": "brandRule", "answerAnyOf": ["Join the next workshop"], "limitAnyOf": ["brand knowledge hub"]},
+    {"id": "brand-medical", "q": "What is our brand rule on medical advice and disclaimers?", "flow": "brand_qa",
+     "citeMetricPrefix": "brandRule", "answerAnyOf": ["doctor", "disclaimer", "Not medical advice"], "limitAnyOf": ["brand knowledge hub"]},
+    {"id": "review-digest", "q": "Merge the reviewers' comments on What dads can do in week 30 into one change list", "flow": "review_digest",
+     "citePost": "dads", "citeMetricPrefix": "reviewComments", "answerAnyOf": ["music", "Music"], "limitAnyOf": ["comments stored"]},
+    {"id": "planner", "q": "Plan next week's posts based on what worked", "flow": "planner",
+     "citePost": "breath", "citeMetricPrefix": "viewsVsOrgMedian", "answerAnyOf": ["workshop", "Workshop"], "limitAnyOf": ["suggestions, not forecasts"]}
+  ]
+}

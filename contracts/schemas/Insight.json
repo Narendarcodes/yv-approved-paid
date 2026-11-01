@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "Insight.json",
+  "title": "Insight",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "postId",
+    "kind",
+    "summary",
+    "citations",
+    "dataLimits"
+  ],
+  "properties": {
+    "postId": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "retention_spike",
+        "outperformer",
+        "underperformer",
+        "review_digest",
+        "plan"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "atSecond": {
+      "type": "number"
+    },
+    "spokenText": {
+      "type": "string"
+    },
+    "onScreen": {
+      "type": "string"
+    },
+    "liftVsBaseline": {
+      "type": "number"
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "$ref": "Citation.json"
+      }
+    },
+    "dataLimits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "jobId": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "@yv/contracts",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "gen": "./gen.sh",
+    "check": "./gen.sh && git diff --exit-code -- ../apps/api/src/contracts ../apps/web/src/contracts ../services/agent/app/contracts"
+  },
+  "devDependencies": { "json-schema-to-typescript": "^15.0.4" }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "RetentionPoint.json",
+  "title": "RetentionPoint",
+  "type": "object",
+  "required": [
+    "postId",
+    "second",
+    "audienceWatchRatio"
+  ],
+  "properties": {
+    "postId": {
+      "type": "string"
+    },
+    "second": {
+      "type": "number"
+    },
+    "audienceWatchRatio": {
+      "type": "number",
+      "description": "YouTube elapsedVideoTimeRatio-based audienceWatchRatio; >1 means rewatches"
+    },
+    "relativeRetentionPerformance": {
+      "type": "number"
+    }
+  }
+}

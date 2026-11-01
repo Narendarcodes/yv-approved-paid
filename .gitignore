@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Test coverage and artifacts
+coverage/
+mongodb-memory-server/
+*.tgz
+
+# Uploaded files (local storage adapter)
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# Personal agent config (junctions to .agents/skills)
+.claude/
+__pycache__/
+*.pyc
+.pytest_cache/

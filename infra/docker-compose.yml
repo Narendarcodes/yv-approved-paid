@@ -1,0 +1,100 @@
+# yv. full stack: web, api (system of record), agent + worker (Python), mongo, redis, qdrant, objectstore (S3).
+#   docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
+name: ${COMPOSE_PROJECT_NAME:-yv}
+x-agent-env: &agent-env
+  # Node's PRIVATE /internal listener: port 3001 on the api's 'backend' network
+  # address only (never published). Plus the shared token it requires.
+  NODE_INTERNAL_URL: http://api-internal:3001/internal
+  INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}
+  REDIS_URL: redis://redis:6379
+  QDRANT_URL: http://qdrant:6333
+  S3_ENDPOINT: http://objectstore:9000
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  LLM_MODEL: ${LLM_MODEL:-stub}
+  LLM_API_BASE: ${LLM_API_BASE:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  ORG_DAILY_TOKEN_BUDGET: ${ORG_DAILY_TOKEN_BUDGET:-200000}
+  STT_URL: ${STT_URL:-}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+services:
+  mongo:
+    image: mongo:7
+    networks: [backend]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      {
+        test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"],
+        interval: 5s,
+        timeout: 5s,
+        retries: 20,
+      }
+  redis:
+    image: redis:7-alpine
+    networks: [backend]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 20 }
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    networks: [backend]
+    volumes: [qdrant-data:/qdrant/storage]
+  # S3-compatible object store (MinIO community images are no longer published on Docker Hub,
+  # so local dev uses the SeaweedFS S3 gateway; prod points S3_ENDPOINT at R2/S3/MinIO).
+  objectstore:
+    image: chrislusf/seaweedfs:3.80
+    networks: [backend]
+    command: ["server", "-s3", "-s3.port=9000", "-dir=/data"]
+    volumes: [objectstore-data:/data]
+  api:
+    build: { context: ../apps/api }
+    depends_on: { mongo: { condition: service_healthy }, redis: { condition: service_healthy } }
+    # default: public port + outbound (Postiz). backend: data stores + the private
+    # /internal listener, reachable as api-internal:3001 from agent/worker only.
+    networks:
+      default: {}
+      backend: { aliases: [api-internal] }
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGO_URI: mongodb://mongo:27017/yv
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      CSRF_SECRET: ${CSRF_SECRET:?set CSRF_SECRET}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?set SERVICE_JWT_SECRET}
+      AGENT_URL: http://agent:8100
+      REDIS_URL: redis://redis:6379
+      SCHEDULER_INTERVAL_MS: 0
+      RATE_LIMIT_MAX: 100000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      # /internal: bind to the api's address on the 'backend' network only
+      # (api-internal resolves to it inside the container), port NOT published.
+      INTERNAL_PORT: 3001
+      INTERNAL_HOST: api-internal
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}
+    ports: ["127.0.0.1:${API_PORT:-3000}:3000"]
+  agent:
+    build: { context: ../services/agent }
+    networks: [default, backend]
+    environment: *agent-env
+    depends_on: [api, qdrant, redis]
+  worker:
+    build: { context: ../services/agent }
+    command: ["python", "-m", "app.worker"]
+    networks: [default, backend]
+    environment: *agent-env
+    depends_on: [api, redis, objectstore, qdrant]
+  web:
+    # Vite inlines VITE_* at BUILD time, so the API URL is a build arg, not runtime env.
+    # This stack has no reverse proxy, so the browser calls the api port directly.
+    # Behind a same-origin proxy (/api/v1 -> api), leave VITE_API_BASE_URL empty.
+    build:
+      context: ../apps/web
+      args: { VITE_API_BASE_URL: "http://localhost:${API_PORT:-3000}/api/v1" }
+    ports: ["127.0.0.1:${WEB_PORT:-5173}:5173"]
+    depends_on: [api]
+networks:
+  default: {}
+  # Private service network: data stores and the api's /internal listener.
+  # internal: true = no route to the outside world from this network.
+  backend: { internal: true }
+volumes: { mongo-data: {}, redis-data: {}, qdrant-data: {}, objectstore-data: {} }

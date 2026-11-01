@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "AgentAnswer.json",
+  "title": "AgentAnswer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "flow",
+    "answer",
+    "citations",
+    "dataLimits"
+  ],
+  "properties": {
+    "flow": {
+      "type": "string",
+      "enum": [
+        "brand_qa",
+        "insight",
+        "planner",
+        "review_digest",
+        "unknown"
+      ]
+    },
+    "answer": {
+      "type": "string"
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "$ref": "Citation.json"
+      }
+    },
+    "dataLimits": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model": {
+      "type": "string"
+    },
+    "usage": {
+      "type": "object",
+      "properties": {
+        "promptTokens": {
+          "type": "integer"
+        },
+        "completionTokens": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

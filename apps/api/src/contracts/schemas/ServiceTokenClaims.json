@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "ServiceTokenClaims.json",
+  "title": "ServiceTokenClaims",
+  "type": "object",
+  "required": [
+    "orgId",
+    "userId",
+    "scopes",
+    "iss",
+    "aud",
+    "exp"
+  ],
+  "properties": {
+    "orgId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "posts:read",
+          "metrics:read",
+          "brand:read",
+          "reviews:read",
+          "insights:write",
+          "jobs:write",
+          "assets:write",
+          "digests:write"
+        ]
+      }
+    },
+    "iss": {
+      "type": "string",
+      "const": "yv-api"
+    },
+    "aud": {
+      "type": "string",
+      "const": "yv-internal"
+    },
+    "exp": {
+      "type": "integer"
+    },
+    "jti": {
+      "type": "string"
+    }
+  }
+}

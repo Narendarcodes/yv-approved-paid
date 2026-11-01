@@ -1,0 +1,7 @@
+# yv. pre-commit (husky v9). Skip in an emergency with: git commit --no-verify
+# 1) staged files only: eslint --fix (apps/web, apps/api) then prettier
+npx --no-install lint-staged --concurrent false
+# 2) fast whole-repo gates (~15s): web + api typecheck, deep-module boundaries
+npm run -s typecheck
+npm run -s lint:boundaries
+# API tests (jest + mongodb-memory-server, ~55s and growing) run in CI only.

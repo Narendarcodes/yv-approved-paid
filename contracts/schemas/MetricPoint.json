@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "MetricPoint.json",
+  "title": "MetricPoint",
+  "type": "object",
+  "required": [
+    "postId",
+    "metric",
+    "value",
+    "ts"
+  ],
+  "properties": {
+    "postId": {
+      "type": "string"
+    },
+    "metric": {
+      "type": "string",
+      "enum": [
+        "views",
+        "likes",
+        "comments",
+        "shares",
+        "saves",
+        "reach",
+        "watchTimeSec",
+        "avgViewDurationSec",
+        "followersGained"
+      ]
+    },
+    "value": {
+      "type": "number"
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string"
+    }
+  }
+}

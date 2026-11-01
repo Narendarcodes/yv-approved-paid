@@ -1,0 +1,24 @@
+{
+  // Incremental TypeScript (ADR-0013). Existing JS is parsed but not type-checked
+  // (allowJs + checkJs:false); new modules may be written in .ts and are checked
+  // strictly. erasableSyntaxOnly keeps .ts runnable by Node's type stripping
+  // (Node >= 22.18 / 24): no enums, namespaces or parameter properties.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": false,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*", "tests/**/*", "scripts/**/*", "migrations/**/*"],
+  "exclude": ["node_modules", "coverage", "uploads"]
+}

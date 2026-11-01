@@ -1,0 +1,33 @@
+# Prettier runs only on STAGED files (lint-staged, pre-commit). The repo is not
+# bulk-formatted; files get formatted as they are touched. Never format these:
+
+# Dependencies and lockfiles
+node_modules/
+package-lock.json
+**/package-lock.json
+skills-lock.json
+
+# Build output, coverage, uploads, caches
+dist/
+build/
+coverage/
+uploads/
+**/*.tsbuildinfo
+
+# Generated code (contracts/gen.sh): regenerate, don't hand-format
+apps/web/src/contracts/
+apps/api/src/contracts/
+services/agent/app/contracts/
+
+# Python agent and worker (ruff/black territory, not Prettier)
+services/agent/
+
+# Vendored / tool-managed folders
+.agents/
+.hermes/
+.stitch/
+*.pdf
+
+# Hand-written prose (README, ADRs, GLOSSARY, DESIGN): Prettier reflows tables
+# and lists, so a one-line doc edit would rewrite the whole file.
+*.md

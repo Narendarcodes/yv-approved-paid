@@ -1,0 +1,22 @@
+{
+ "posts": [
+  {
+   "id": "pz_1",
+   "content": "A Telugu lullaby for your bump (30s)",
+   "publishDate": "2026-10-01T12:30:00Z",
+   "integration": {
+    "providerIdentifier": "instagram"
+   },
+   "state": "PUBLISHED"
+  },
+  {
+   "id": "pz_2",
+   "content": "3 breathing cues for the third trimester",
+   "publishDate": "2026-10-04T13:00:00Z",
+   "integration": {
+    "providerIdentifier": "youtube"
+   },
+   "state": "PUBLISHED"
+  }
+ ]
+}

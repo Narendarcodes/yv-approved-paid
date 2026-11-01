@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "feat/**", "fix/**", "chore/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Node 24 everywhere, matching the node:24-alpine Dockerfiles (native .ts type
+# stripping for incremental TypeScript, ADR-0013).
+env:
+  NODE_VERSION: "24"
+  # Root `npm ci` runs `prepare: husky || true`; HUSKY=0 makes it a no-op in CI.
+  HUSKY: "0"
+
+jobs:
+  api:
+    name: API - lint, typecheck, test, boundaries (apps/api)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/api } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          {
+            node-version: "${{ env.NODE_VERSION }}",
+            cache: npm,
+            cache-dependency-path: "apps/api/package-lock.json",
+          }
+      - name: Install MongoDB deps (libcrypto.so.1.1 for mongodb-memory-server)
+        run: |
+          wget -q http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          rm libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+      - run: npm ci --no-audit --no-fund
+      - name: Lint (eslint)
+        run: npm run lint
+      - name: Typecheck (tsc --noEmit; allowJs, checkJs off)
+        run: npm run typecheck
+      - name: Test (jest)
+        run: npm test
+      - name: Audit production dependencies (fails on high/critical)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Install root tooling (dependency-cruiser)
+        working-directory: .
+        run: npm ci --no-audit --no-fund
+      - name: Deep-module boundaries (dependency-cruiser)
+        working-directory: .
+        run: npm run lint:boundaries
+
+  web:
+    name: Web - lint, typecheck + build (apps/web)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          {
+            node-version: "${{ env.NODE_VERSION }}",
+            cache: npm,
+            cache-dependency-path: "apps/web/package-lock.json",
+          }
+      - run: npm ci --no-audit --no-fund
+      - name: Lint (eslint; warnings allowed)
+        run: npm run lint
+      - name: Typecheck + build (tsc -b && vite build)
+        run: npm run build
+
+  agent:
+    name: Agent - pytest (services/agent)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: services/agent } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt -r requirements-media.txt -r requirements-dev.txt
+      - run: python -m pytest -q
+      - name: Golden-question evals are well-formed
+        run: python -c "import json;q=json.load(open('evals/golden.json'))['questions'];assert len(q)>=6"
+
+  contracts:
+    name: Contracts - codegen drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install datamodel-code-generator==0.84.0
+      - run: cd contracts && npm ci --no-audit --no-fund
+      - name: Regenerate TS + Pydantic and fail on drift
+        run: cd contracts && npm run check
+
+  docker:
+    name: Docker - build images (no push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build apps/web image (same-origin /api/v1 default)
+        run: docker build -t yv-web:ci apps/web
+      - name: Build apps/api image
+        run: docker build -t yv-api:ci apps/api

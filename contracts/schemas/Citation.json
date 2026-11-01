@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "Citation.json",
+  "title": "Citation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "postId",
+    "metric",
+    "value"
+  ],
+  "properties": {
+    "postId": {
+      "type": "string"
+    },
+    "metric": {
+      "type": "string",
+      "description": "metric key, e.g. views, retention@42s, brandRule"
+    },
+    "value": {
+      "type": [
+        "number",
+        "string"
+      ]
+    },
+    "note": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "JobEnvelope.json",
+  "title": "JobEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobId",
+    "type",
+    "orgId",
+    "userId",
+    "payload",
+    "attempt",
+    "createdAt",
+    "serviceToken"
+  ],
+  "properties": {
+    "jobId": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "insights.analyze_post.v1",
+        "ingest.transcribe.v1",
+        "review.digest.v1",
+        "brand.index.v1"
+      ]
+    },
+    "orgId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "serviceToken": {
+      "type": "string",
+      "description": "short-lived service JWT scoped to this job (orgId,userId,scopes)"
+    },
+    "traceparent": {
+      "type": "string"
+    }
+  }
+}

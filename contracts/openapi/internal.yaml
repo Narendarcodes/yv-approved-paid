@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: yv. internal API (Node <-> Python agent)
+  version: 1.0.0
+  description: |
+    Private API exposed by apps/api under /internal. Only the agent service and
+    worker call it. Every request carries a short-lived service JWT
+    (aud=yv-internal, iss=yv-api) with orgId, userId and scopes. orgId is taken
+    from the token, never from the request, so a caller cannot read another org.
+servers: [{ url: http://api:3000/internal }]
+components:
+  securitySchemes:
+    serviceJwt: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    Post: { $ref: '../schemas/Post.json' }
+    MetricPoint: { $ref: '../schemas/MetricPoint.json' }
+    RetentionPoint: { $ref: '../schemas/RetentionPoint.json' }
+    TranscriptSegment: { $ref: '../schemas/TranscriptSegment.json' }
+    SceneCut: { $ref: '../schemas/SceneCut.json' }
+    BrandRule: { $ref: '../schemas/BrandRule.json' }
+    ReviewComment: { $ref: '../schemas/ReviewComment.json' }
+    Insight: { $ref: '../schemas/Insight.json' }
+    JobResult: { $ref: '../schemas/JobResult.json' }
+security: [{ serviceJwt: [] }]
+paths:
+  /posts:
+    get:
+      summary: List the org's posts (scope posts:read)
+      parameters: [{ in: query, name: platform, schema: { type: string } }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/Post' } } } } } } } }
+  /metrics:
+    get:
+      summary: Latest cumulative metrics per post, all org posts or one (scope metrics:read)
+      parameters: [{ in: query, name: postId, schema: { type: string } }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/MetricPoint' } } } } } } } }
+  /posts/{postId}/retention:
+    get:
+      summary: Per-second retention curve (YouTube only) (scope metrics:read)
+      parameters: [{ in: path, name: postId, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/RetentionPoint' } } } } } } } }
+  /posts/{postId}/media:
+    get:
+      summary: Transcript segments + scene cuts for the post's primary video asset (scope posts:read)
+      parameters: [{ in: path, name: postId, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok } }
+    put:
+      summary: Store transcript / scene cuts produced by the ingest worker (scope assets:write)
+      parameters: [{ in: path, name: postId, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok } }
+  /brand/rules:
+    get:
+      summary: Org brand knowledge (rules, resources, purposes) (scope brand:read)
+      responses: { '200': { description: ok, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/BrandRule' } } } } } } } }
+  /review-comments:
+    get:
+      summary: Review comments for a post (scope reviews:read)
+      parameters: [{ in: query, name: postId, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { type: object, properties: { data: { type: array, items: { $ref: '#/components/schemas/ReviewComment' } } } } } } } }
+  /insights:
+    post:
+      summary: Create an insight (scope insights:write)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Insight' } } } }
+      responses: { '201': { description: created } }
+  /jobs/{jobId}/result:
+    post:
+      summary: Worker reports a job outcome; Node emits socket.io `job:update` (scope jobs:write)
+      parameters: [{ in: path, name: jobId, required: true, schema: { type: string } }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/JobResult' } } } }
+      responses: { '200': { description: ok } }

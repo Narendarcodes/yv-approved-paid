@@ -1,0 +1,3 @@
+# scene-cut detection (worker only)
+scenedetect==0.6.*
+opencv-python-headless==4.10.*

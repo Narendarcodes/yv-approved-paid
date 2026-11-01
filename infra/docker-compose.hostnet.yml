@@ -1,0 +1,112 @@
+# Variant for a shared GPU host (e.g. the MI300X droplet): every service uses host networking
+# on high, non-conflicting 127.0.0.1 ports so the agent/worker can reach GPU sidecars that
+# only listen on loopback (vLLM OpenAI endpoint, Whisper STT). Separate project name.
+#   COMPOSE_PROJECT_NAME=yvagent docker compose -f infra/docker-compose.hostnet.yml --env-file infra/.env.gpu up -d --build
+name: ${COMPOSE_PROJECT_NAME:-yvagent}
+x-agent-env: &agent-env # Node's private /internal listener (loopback only) + its shared token.
+  NODE_INTERNAL_URL: http://127.0.0.1:${INTERNAL_PORT:-18301}/internal
+  INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}
+  REDIS_URL: redis://127.0.0.1:${REDIS_PORT:-18379}
+  QDRANT_URL: http://127.0.0.1:${QDRANT_PORT:-18333}
+  S3_ENDPOINT: http://127.0.0.1:${S3_PORT:-18900}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+  LLM_MODEL: ${LLM_MODEL:-stub}
+  LLM_API_BASE: ${LLM_API_BASE:-}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:-900}
+  ORG_DAILY_TOKEN_BUDGET: ${ORG_DAILY_TOKEN_BUDGET:-200000}
+  STT_URL: ${STT_URL:-}
+  STT_ENGINE: ${STT_ENGINE:-whisper-turbo}
+services:
+  mongo:
+    image: mongo:7
+    network_mode: host
+    command: ["mongod", "--bind_ip", "127.0.0.1", "--port", "${MONGO_PORT:-18017}"]
+    volumes: [mongo-data:/data/db]
+    healthcheck:
+      {
+        test:
+          [
+            "CMD",
+            "mongosh",
+            "--port",
+            "${MONGO_PORT:-18017}",
+            "--quiet",
+            "--eval",
+            "db.adminCommand('ping').ok",
+          ],
+        interval: 5s,
+        timeout: 5s,
+        retries: 30,
+      }
+  redis:
+    image: redis:7-alpine
+    network_mode: host
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "${REDIS_PORT:-18379}"]
+    healthcheck:
+      {
+        test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-18379}", "ping"],
+        interval: 5s,
+        timeout: 3s,
+        retries: 20,
+      }
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    network_mode: host
+    environment:
+      {
+        QDRANT__SERVICE__HOST: 127.0.0.1,
+        QDRANT__SERVICE__HTTP_PORT: "${QDRANT_PORT:-18333}",
+        QDRANT__SERVICE__GRPC_PORT: "${QDRANT_GRPC_PORT:-18334}",
+      }
+    volumes: [qdrant-data:/qdrant/storage]
+  objectstore:
+    image: chrislusf/seaweedfs:3.80
+    network_mode: host
+    command:
+      [
+        "server",
+        "-ip=127.0.0.1",
+        "-ip.bind=127.0.0.1",
+        "-s3",
+        "-s3.port=${S3_PORT:-18900}",
+        "-master.port=${SW_MASTER_PORT:-18933}",
+        "-volume.port=${SW_VOLUME_PORT:-18980}",
+        "-filer.port=${SW_FILER_PORT:-18988}",
+        "-dir=/data",
+      ]
+    volumes: [objectstore-data:/data]
+  api:
+    build: { context: ../apps/api }
+    network_mode: host
+    depends_on: { mongo: { condition: service_healthy }, redis: { condition: service_healthy } }
+    environment:
+      NODE_ENV: production
+      HOST: 127.0.0.1
+      PORT: ${API_PORT:-18300}
+      MONGO_URI: mongodb://127.0.0.1:${MONGO_PORT:-18017}/yv
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      CSRF_SECRET: ${CSRF_SECRET:?set CSRF_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN}
+      SERVICE_JWT_SECRET: ${SERVICE_JWT_SECRET:?set SERVICE_JWT_SECRET}
+      AGENT_URL: http://127.0.0.1:${AGENT_PORT:-18100}
+      INTERNAL_PORT: ${INTERNAL_PORT:-18301}
+      INTERNAL_HOST: 127.0.0.1
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}
+      REDIS_URL: redis://127.0.0.1:${REDIS_PORT:-18379}
+      SCHEDULER_INTERVAL_MS: 0
+      RATE_LIMIT_MAX: 100000
+  agent:
+    build: { context: ../services/agent }
+    network_mode: host
+    command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "${AGENT_PORT:-18100}"]
+    environment: *agent-env
+    depends_on: [api, qdrant, redis]
+  worker:
+    build: { context: ../services/agent }
+    network_mode: host
+    command: ["python", "-m", "app.worker"]
+    environment: *agent-env
+    depends_on: [api, redis, objectstore, qdrant]
+volumes: { mongo-data: {}, qdrant-data: {}, objectstore-data: {} }
