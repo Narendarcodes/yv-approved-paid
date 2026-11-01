@@ -112,6 +112,10 @@ app.use(`${config.apiPrefix}/organizations`, schedulingRouter);
 app.use(`${config.apiPrefix}/organizations`, require('./routes/analytics'));
 app.use(`${config.apiPrefix}/organizations`, require('./routes/agent'));
 app.use(`${config.apiPrefix}/webhooks`, webhooksRouter);
+// Approved = Paid: signed deals, PayPal holds, the Money Agent (modules/deals)
+const deals = require('./modules/deals/http.cts');
+app.use(`${config.apiPrefix}/webhooks`, deals.webhookRouter);
+app.use(`${config.apiPrefix}/organizations/:organizationId/deals`, deals.router);
 app.use(`${config.apiPrefix}/projects`, projectsRouter);
 app.use(`${config.apiPrefix}/users`, usersRouter);
 app.use(`${config.apiPrefix}/notifications`, notificationsRouter);

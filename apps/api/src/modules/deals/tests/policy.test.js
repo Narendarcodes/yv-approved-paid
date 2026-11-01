@@ -94,6 +94,15 @@ describe('red team: the Money Agent tries to break the deal', () => {
     expect(rules(r)).toContain('P10_payee');
   });
 
+  test('pay out while PayPal reports a reversed capture -> P13_flagged', async () => {
+    const h = await approvedDeal();
+    const cap = await engine.execute(h.deps, h.deal, capture());
+    const flagged = { ...cap.deal, alerts: [{ at: h.clock.now(), milestoneKey: 'reel1', eventType: 'PAYMENT.CAPTURE.REVERSED', message: 'reversed' }] };
+    const r = await engine.execute(h.deps, flagged, { kind: 'payout', milestoneKey: 'reel1', amountMinor: 28000, email: 'ravi@example.com' });
+    expect(rules(r)).toEqual(['P13_flagged']);
+    expect(h.gateway.calls.filter((c) => c.op === 'payout')).toHaveLength(0);
+  });
+
   test('pay a payee more than their share -> P10_payee', async () => {
     const h = await approvedDeal();
     const cap = await engine.execute(h.deps, h.deal, capture());

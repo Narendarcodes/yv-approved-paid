@@ -16,6 +16,7 @@
  *   P10_payee        payouts go only to payees named in the signed deal, within what was captured
  *   P11_rate_card    change orders are priced from the signed rate card, never invented
  *   P12_milestone    the milestone exists in the signed deal
+ *   P13_flagged      no payout while PayPal reports a denied or reversed capture on the milestone
  */
 import type { DealDoc, MoneyAction, PolicyDecision, MilestoneRuntime, MilestoneTerms, Role } from './types.cts';
 
@@ -206,6 +207,8 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
       if (m.state !== 'CAPTURED') v('P1_state', `payouts go out after capture (milestone is ${m.state})`);
       const payee = terms.payees.find((p) => p.email.toLowerCase() === action.email.toLowerCase());
       if (!payee) v('P10_payee', `${action.email} is not a payee in the signed deal`);
+      if ((deal.alerts || []).some((x) => x.milestoneKey === m.key && /CAPTURE\.(DENIED|REVERSED)$/.test(x.eventType)))
+        v('P13_flagged', 'PayPal reported a denied or reversed capture on this milestone; a person has to clear it first');
       const available = m.capturedMinor - m.paidOutMinor;
       if (action.amountMinor > available) v('P10_payee', `payout ${action.amountMinor} exceeds captured-but-unpaid ${available}`);
       if (payee) {

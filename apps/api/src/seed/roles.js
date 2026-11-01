@@ -18,6 +18,7 @@ const DEFAULT_ROLES = [
       'chat.post',
       'contract.manage',
       'invoice.manage',
+      'deal.manage',
     ],
     description: 'Creates and works on projects',
   },

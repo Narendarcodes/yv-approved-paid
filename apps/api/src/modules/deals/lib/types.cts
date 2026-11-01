@@ -150,6 +150,8 @@ export type DealDoc = {
   lastBlocked?: Record<string, string>;
   /** Keys a human approved (one tap). */
   humanApprovals: string[];
+  /** Things PayPal told us that a person has to look at (reversed capture, failed payout, hold voided outside yv.). */
+  alerts?: { at: string; milestoneKey: string; eventType: string; message: string }[];
   /** Change orders drafted by the Scope Agent (priced from the rate card). */
   changeOrders: { id: string; milestoneKey: string; rateCardItemId: string; quantity: number; amountMinor: number; reason: string; status: 'draft' | 'invoiced' | 'accepted' | 'declined'; invoiceId?: string; at: string }[];
 };

@@ -37,6 +37,9 @@ async function start() {
     // Social publishing scheduler (local fallback + Postiz polling).
     require('./services/scheduler').start();
 
+    // Money Agent: keeps holds alive, auto-approves lapsed reviews, captures, pays out.
+    require('./modules/deals/service.cts').startMoneyAgent(logger);
+
     process.on('SIGINT', async () => {
       logger.info('SIGINT received, shutting down');
       require('./services/scheduler').stop();

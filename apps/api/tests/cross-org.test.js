@@ -45,6 +45,7 @@ const MOUNTS = [
   { prefix: `${API}/organizations`, file: 'analytics' },
   { prefix: `${API}/organizations`, file: 'agent' },
   { prefix: `${API}/users`, file: 'users' },
+  { prefix: `${API}/organizations/:organizationId/deals`, file: 'deals' },
 ];
 
 // Routes that are not about one org's records.
@@ -64,7 +65,10 @@ const NOT_ORG_OWNED = new Set([
 ]);
 
 function routesOf({ prefix, file }) {
-  const router = require(`../src/routes/${file}`);
+  const router =
+    file === 'deals'
+      ? require('../src/modules/deals/http.cts').router
+      : require(`../src/routes/${file}`);
   const out = [];
   for (const layer of router.stack) {
     if (!layer.route) continue;
@@ -228,6 +232,15 @@ beforeAll(async () => {
     type: 'brand.index.v1',
     status: 'queued',
   });
+  A.dealId = 'deal_orgA';
+  await mongoose.model('Deal').create({
+    _id: A.dealId,
+    orgId: A.orgId,
+    clientUserId: A.userId,
+    workerUserId: 'someone',
+    title: 'A deal',
+    doc: { id: A.dealId, orgId: A.orgId, terms: { title: 'A deal' }, milestones: [] },
+  });
   A.notificationId = String(
     (await Notification.create({ userId: A.userId, type: 'comment_added', title: 'for A' }))._id,
   );
@@ -254,6 +267,9 @@ const PARAMS = () => ({
   memberUserId: A.userId,
   postId: A.postId,
   jobId: A.jobId,
+  dealId: A.dealId,
+  key: 'm1',
+  approvalKey: 'capture:x:m1',
 });
 
 function fill(p) {
@@ -285,6 +301,7 @@ describe('route table coverage', () => {
       invoicesRouter: 'invoices',
       schedulingRouter: 'scheduling',
       usersRouter: 'users',
+      deals: 'deals',
     };
     const files = mounted.map((m) => m[2] || varToFile[m[3]]);
     expect(files.length).toBeGreaterThanOrEqual(9);
