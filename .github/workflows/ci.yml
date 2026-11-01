@@ -17,6 +17,17 @@ env:
   HUSKY: "0"
 
 jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: gitleaks (tree + history)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks git . --no-banner --config .gitleaks.toml --redact
+
   api:
     name: API - lint, typecheck, test, boundaries (apps/api)
     runs-on: ubuntu-latest
