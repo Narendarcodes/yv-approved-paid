@@ -208,6 +208,10 @@ describe('analytics API (demo mode, simulated series)', () => {
       }),
     };
     const lastMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 12, 13, 30));
+    // "This month" fixtures must stay inside the current UTC month even in the
+    // first days of a month (now - 10 days would land in last month).
+    const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    const daysAgoThisMonth = (d) => new Date(Math.max(now - d * DAY, monthStart + (now - monthStart) / (d + 1)));
     projects = [
       await Project.create({
         organizationId: orgId,
@@ -223,7 +227,7 @@ describe('analytics API (demo mode, simulated series)', () => {
         status: 'PUBLISHED',
         client: 'Kalpa Crafts',
         campaign: 'Evergreen',
-        publishedAt: new Date(now - 3 * DAY),
+        publishedAt: daysAgoThisMonth(3),
       }),
       await Project.create({
         organizationId: orgId,
@@ -231,7 +235,7 @@ describe('analytics API (demo mode, simulated series)', () => {
         status: 'PUBLISHED',
         client: 'Clay Co',
         campaign: 'Evergreen',
-        publishedAt: new Date(now - 10 * DAY),
+        publishedAt: daysAgoThisMonth(10),
       }),
     ];
     concept = await Concept.create({
