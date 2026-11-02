@@ -118,3 +118,5 @@ jobs:
         run: docker build -t yv-web:ci apps/web
       - name: Build apps/api image
         run: docker build -t yv-api:ci apps/api
+      - name: Build lean deal-agent image (Render free, services/agent/Dockerfile.deals)
+        run: docker build -f services/agent/Dockerfile.deals -t yv-deals-agent:ci services/agent

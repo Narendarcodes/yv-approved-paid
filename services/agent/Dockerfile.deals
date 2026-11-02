@@ -1,0 +1,17 @@
+# Lean image for the deal copilot agent (Render free web service: 512 MB RAM).
+# Build from services/agent:  docker build -f Dockerfile.deals -t yv-deals-agent .
+# Only app/ code is copied; fixtures/evals/media deps stay out (~40-60 MB RSS at runtime).
+# Health: GET /health (Render healthCheckPath).
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    LLM_CALLER=httpx LLM_CACHE_DIR=/tmp/llm_cache PORT=8100
+WORKDIR /app
+COPY requirements-deals.txt ./
+RUN pip install -r requirements-deals.txt
+COPY app ./app
+RUN python -c "import app.deals_service"  # fail the build if a lean dep is missing
+RUN useradd -m agent
+USER agent
+EXPOSE 8100
+# Render injects PORT; one worker keeps memory flat.
+CMD ["sh", "-c", "exec uvicorn app.deals_service:app --host 0.0.0.0 --port ${PORT:-8100} --workers 1 --no-access-log"]

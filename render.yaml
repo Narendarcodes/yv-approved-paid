@@ -1,0 +1,32 @@
+# Render Blueprint: the lean deal agent (live copilot for Approved = Paid).
+# The existing API service (srv-dbk9cg5g1s2s739mtm4g) is managed in the Render
+# dashboard and is NOT defined here. Secrets are `sync: false`: fill them in the
+# dashboard; nothing secret lives in this file.
+services:
+  - type: web
+    name: yv-deals-agent
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: services/agent
+    dockerfilePath: ./Dockerfile.deals
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: AGENT_SHARED_SECRET # secret; same value as on the API service; >= 32 chars
+        sync: false
+      - key: RIVER_API_KEY # secret; River AI (api.river.ai)
+        sync: false
+      - key: NVIDIA_API_KEY # secret; NVIDIA NIM (integrate.api.nvidia.com)
+        sync: false
+      - key: LLM_CHAIN
+        value: river,nim
+      - key: RIVER_MODEL
+        value: Qwen/Qwen3.8-27B-FP8
+      - key: NIM_MODEL
+        value: nvidia/nemotron-3.5-lightning-30b-a3b
+      - key: LLM_TIMEOUT_S
+        value: "12"
+      - key: LLM_CALLER
+        value: httpx

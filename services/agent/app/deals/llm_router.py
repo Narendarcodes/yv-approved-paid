@@ -65,6 +65,8 @@ def default_chain() -> list[Provider]:
             os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"),  # llama-3.3-70b now 410 Gone on NIM
             os.environ.get("NIM_API_BASE", "https://integrate.api.nvidia.com/v1"),
             "NVIDIA_API_KEY",
+            # Nemotron 3.5 reasons by default and can spend the whole budget thinking (empty content).
+            {"chat_template_kwargs": {"enable_thinking": False}},
         ),
     }
     # OmniRoute: local only, API-key providers only. Opt-in by URL so it never runs by accident.
@@ -91,6 +93,35 @@ async def litellm_caller(p: Provider, messages: list[dict], max_tokens: int) -> 
     return (getattr(msg, "content", None) or "").strip()
 
 
+async def httpx_caller(p: Provider, messages: list[dict], max_tokens: int) -> str:
+    """Plain OpenAI-compatible POST with httpx. Same contract as litellm_caller, but no litellm
+    import (~150 MB RSS), so the lean deals service fits a 512 MB Render free instance."""
+    import httpx
+
+    body = {"model": p.model, "messages": messages, "max_tokens": max_tokens, "temperature": 0, **(p.extra or {})}
+    async with httpx.AsyncClient(timeout=float(os.environ.get("LLM_TIMEOUT_S", "45"))) as c:
+        r = await c.post(f"{p.api_base.rstrip('/')}/chat/completions", json=body,
+                         headers={"Authorization": f"Bearer {p.api_key}"})
+        r.raise_for_status()
+        msg = (r.json().get("choices") or [{}])[0].get("message") or {}
+    return (msg.get("content") or "").strip()
+
+
+def default_caller() -> Caller:
+    """LLM_CALLER=httpx|litellm; default litellm when installed (full image), else httpx (lean image)."""
+    want = os.environ.get("LLM_CALLER", "").lower()
+    if want == "httpx":
+        return httpx_caller
+    if want == "litellm":
+        return litellm_caller
+    try:
+        import importlib.util
+
+        return litellm_caller if importlib.util.find_spec("litellm") else httpx_caller
+    except Exception:  # pragma: no cover
+        return httpx_caller
+
+
 def _strip_fences(s: str) -> str:
     s = re.sub(r"<think>.*?</think>", "", s, flags=re.S).strip()
     m = re.search(r"```(?:json)?\s*(.*?)```", s, flags=re.S)
@@ -104,7 +135,7 @@ class LLMRouter:
     def __init__(self, chain: list[Provider] | None = None, caller: Caller | None = None,
                  cache_dir: str | Path | None = None, offline: bool | None = None):
         self.chain = chain if chain is not None else default_chain()
-        self.caller = caller or litellm_caller
+        self.caller = caller or default_caller()
         self.cache_dir = Path(cache_dir or os.environ.get("LLM_CACHE_DIR") or DEFAULT_CACHE)
         self.offline = (os.environ.get("LLM_OFFLINE") == "1") if offline is None else offline
         self.calls: list[dict] = []  # trace of attempts (provider, ok, ms, cached)
