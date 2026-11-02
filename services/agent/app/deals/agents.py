@@ -83,13 +83,16 @@ METRIC_WORDS = {
     "true_peak_dbtp": {"peak", "distort", "distortion"},
     "clipping": {"clip", "clipping", "crackle", "distorted"},
     "logo_present": {"logo", "brand mark", "watermark"},
-    "caption_present": {"caption", "captions", "subtitle", "subtitles", "script", "line", "missing line"},
+    "caption_present": {"caption", "captions", "subtitle", "subtitles", "script", "line", "missing line", "last line", "final line",
+                        "sentence", "cut off", "cuts off", "mid sentence", "finishes speaking", "ends before", "ending is cut"},
     "aspect_ratio": {"vertical", "horizontal", "aspect", "9:16", "16:9", "square", "crop"},
     "resolution_p": {"resolution", "blurry", "1080", "720", "4k", "pixelated"},
     "fps": {"fps", "frame rate", "choppy", "stutter"},
     "hook_by_s": {"hook", "intro", "opening", "first seconds"},
     "cut_interval_s": {"pace", "pacing", "cuts", "slow", "drags"},
 }
+# checklist-text words too generic to point at one line ("H.264 video" must not catch "the video ends early")
+GENERIC_WORDS = {"the", "a", "is", "in", "of", "to", "be", "and", "must", "by", "video", "audio", "first", "least", "between", "match"}
 OPPOSITES = [("louder", "quieter"), ("longer", "shorter"), ("faster", "slower"), ("bigger", "smaller"),
              ("brighter", "darker"), ("more music", "less music"), ("add", "remove"), ("keep", "cut"), ("earlier", "later")]
 
@@ -111,7 +114,7 @@ class ReviewAgent:
         hits = []
         for c in _checks_of(milestone):
             metric = (c.get("measure") or {}).get("metric", "")
-            kw = METRIC_WORDS.get(metric, set()) | set(words(c.get("text", ""))) - {"the", "a", "is", "in", "of", "to", "be", "and", "must", "by"}
+            kw = METRIC_WORDS.get(metric, set()) | set(words(c.get("text", ""))) - GENERIC_WORDS
             score = sum(1 for k in kw if len(k) > 2 and _has(low, k))
             if score:
                 hits.append((score + (2 if c["id"] in failed else 0), c["id"]))

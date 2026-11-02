@@ -1,0 +1,138 @@
+{
+ "description": "Labelled reviewer comments for the Fix/Taste tagger, against TERMS milestone 0 in tests/deals_fixtures.py. 'fix' must cite the checklist id; 'taste' cites none. swap_of marks a swap-pair: same ask with names/roles/countries swapped, label must not change.",
+ "cases": [
+  {
+   "id": "ending-cut",
+   "text": "The ending is cut before the last line",
+   "tag": "fix",
+   "metric": "caption_present"
+  },
+  {
+   "id": "last-line-missing",
+   "text": "Her final sentence never shows up in the subtitles",
+   "tag": "fix",
+   "metric": "caption_present"
+  },
+  {
+   "id": "ends-mid-sentence",
+   "text": "The end cuts off mid sentence",
+   "tag": "fix",
+   "metric": "caption_present"
+  },
+  {
+   "id": "ends-early",
+   "text": "The video ends before she finishes speaking",
+   "tag": "fix",
+   "metric": "caption_present"
+  },
+  {
+   "id": "logo-missing",
+   "text": "I can't see the logo anywhere",
+   "tag": "fix",
+   "metric": "logo_present"
+  },
+  {
+   "id": "too-quiet",
+   "text": "Audio is way too quiet on my phone",
+   "tag": "fix",
+   "metric": "loudness_lufs"
+  },
+  {
+   "id": "crackle",
+   "text": "There is a crackle when the music peaks",
+   "tag": "fix",
+   "metric": "clipping"
+  },
+  {
+   "id": "too-long",
+   "text": "It runs too long, the brief said under a minute",
+   "tag": "fix",
+   "metric": "duration_s"
+  },
+  {
+   "id": "wrong-aspect",
+   "text": "This needs to be vertical for reels",
+   "tag": "fix",
+   "metric": "aspect_ratio"
+  },
+  {
+   "id": "blurry",
+   "text": "Looks blurry, is this 720?",
+   "tag": "fix",
+   "metric": "resolution_p"
+  },
+  {
+   "id": "late-hook",
+   "text": "The hook comes too late, nothing happens in the first seconds",
+   "tag": "fix",
+   "metric": "hook_by_s"
+  },
+  {
+   "id": "vibe",
+   "text": "The vibe feels a bit off to me",
+   "tag": "taste"
+  },
+  {
+   "id": "font",
+   "text": "Can we try a rounder font?",
+   "tag": "taste"
+  },
+  {
+   "id": "colour",
+   "text": "I'd prefer warmer colours overall",
+   "tag": "taste"
+  },
+  {
+   "id": "music-swap",
+   "text": "Not loving the music choice, something more upbeat",
+   "tag": "taste"
+  },
+  {
+   "id": "transition",
+   "text": "The transition in the middle is off",
+   "tag": "taste"
+  },
+  {
+   "id": "boring-open",
+   "text": "Feels boring, can it be more fun?",
+   "tag": "taste"
+  },
+  {
+   "id": "swap-a",
+   "text": "Priya from Hyderabad says the logo is missing at the end",
+   "tag": "fix",
+   "metric": "logo_present"
+  },
+  {
+   "id": "swap-b",
+   "text": "John from Texas says the logo is missing at the end",
+   "tag": "fix",
+   "metric": "logo_present",
+   "swap_of": "swap-a"
+  },
+  {
+   "id": "swap-c",
+   "text": "As the agency owner, I think the colours look dull",
+   "tag": "taste"
+  },
+  {
+   "id": "swap-d",
+   "text": "As the intern, I think the colours look dull",
+   "tag": "taste",
+   "swap_of": "swap-c"
+  },
+  {
+   "id": "swap-e",
+   "text": "Our CEO Mr. Rao wants it louder, we can barely hear the voice",
+   "tag": "fix",
+   "metric": "loudness_lufs"
+  },
+  {
+   "id": "swap-f",
+   "text": "Our volunteer Ms. Smith wants it louder, we can barely hear the voice",
+   "tag": "fix",
+   "metric": "loudness_lufs",
+   "swap_of": "swap-e"
+  }
+ ]
+}
