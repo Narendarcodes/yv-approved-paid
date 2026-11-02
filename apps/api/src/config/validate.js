@@ -11,6 +11,7 @@
  *   MONGO_URI             set
  *   SERVICE_JWT_SECRET +  >= 32 chars each, only when the agent platform is
  *   INTERNAL_API_TOKEN    enabled (AGENT_ENABLED != 'false')
+ *   AGENT_SHARED_SECRET   >= 32 chars when set (live deal copilot, Node -> agent)
  *   POSTIZ_WEBHOOK_SECRET >= 32 chars when POSTIZ_API_URL is set
  */
 const DEFAULT_SECRETS = [
@@ -75,6 +76,7 @@ function validateEnv(env) {
     strongSecret(errors, env, 'SERVICE_JWT_SECRET');
     strongSecret(errors, env, 'INTERNAL_API_TOKEN');
   }
+  if (env.AGENT_SHARED_SECRET) strongSecret(errors, env, 'AGENT_SHARED_SECRET');
   if (env.POSTIZ_API_URL) strongSecret(errors, env, 'POSTIZ_WEBHOOK_SECRET');
   for (const [name, v] of [
     ['PORT', env.PORT],

@@ -132,6 +132,12 @@ module.exports = {
     jobsStream: process.env.JOBS_STREAM || 'yv:jobs',
     deadLetterStream: process.env.JOBS_DLQ_STREAM || 'yv:jobs:dead',
     chatTimeoutMs: parseInt(process.env.AGENT_CHAT_TIMEOUT_MS || '120000', 10),
+    // Live deal copilot (modules/deals/copilot.cts): Node -> lean deal agent, server to
+    // server, with this shared secret in X-Agent-Secret (same value on the agent).
+    // Unset -> the copilot answers { source: 'offline' } and the web replays offline.
+    sharedSecret: process.env.AGENT_SHARED_SECRET || '',
+    // Render free instances cold-start slowly; past this the web falls back to the replay.
+    copilotTimeoutMs: parseInt(process.env.AGENT_COPILOT_TIMEOUT_MS || '15000', 10),
   },
   // Private listener for /internal (agent + worker only). Bound to loopback by
   // default; in docker-compose it binds to the api's address on the private

@@ -19,6 +19,9 @@ const { validateTerms } = require('./lib/validate.cts');
 const { actorRole } = require('./lib/engine.cts');
 const { verifyChain } = require('./lib/ledger.cts');
 const { resolveEvidence } = require('./lib/evidence.cts');
+const { askCopilot } = require('./copilot.cts');
+const config = require('../../config');
+const rateLimit = require('express-rate-limit');
 
 import type { DealDoc, DealTerms } from './lib/types.cts';
 
@@ -240,6 +243,39 @@ router.post(
   wrap(async (req, res) => {
     await readable(req, req.params.dealId);
     res.json({ data: await dealService().dryRun(req.params.dealId, org(req), req.body) });
+  }),
+);
+
+/* ------------------------------------------------------------ live copilot */
+
+/**
+ * Ask the live deal copilot which cards answer a question. Always 200: when the
+ * agent is off, unreachable, slow or gives nothing usable the answer is
+ * { source: 'offline', reason } and the web serves its deterministic replay.
+ * The model picks cards and ids only; no amount, verdict or policy answer.
+ */
+const copilotLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req: Req) => `copilot:${uid(req)}`,
+  handler: (_req: Req, res: Res) => res.status(200).json({ data: { source: 'offline', reason: 'rate_limited' } }),
+});
+router.post(
+  '/:dealId/copilot',
+  copilotLimit,
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    const q = str(req.body?.question, 'question', 500);
+    const a = config.agent;
+    const reply = await askCopilot(
+      { enabled: a.enabled, url: a.url, secret: a.sharedSecret, timeoutMs: a.copilotTimeoutMs },
+      d,
+      actorRole(d, uid(req)) ?? null,
+      q,
+    );
+    res.json({ data: reply });
   }),
 );
 

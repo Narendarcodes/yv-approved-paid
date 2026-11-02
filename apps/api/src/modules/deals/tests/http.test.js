@@ -181,6 +181,14 @@ describe('deal lifecycle over HTTP', () => {
     expect(l.chain.ok).toBe(true);
   });
 
+  test('copilot: with no agent configured it answers offline (the web replays), and only for parties', async () => {
+    const r = await request(app).post(`${base()}/${dealId}/copilot`).set(auth(U.client)).send({ question: 'where is the money?' });
+    expect(r.status).toBe(200);
+    expect(r.body.data).toEqual({ source: 'offline', reason: 'agent_disabled' });
+    expect((await request(app).post(`${base()}/${dealId}/copilot`).set(auth(U.bystander)).send({ question: 'x' })).status).toBe(404);
+    expect((await request(app).post(`${base()}/${dealId}/copilot`).set(auth(U.client)).send({})).status).toBe(422);
+  });
+
   test('the ledger collection refuses updates and deletes', async () => {
     const Ledger = mongoose.model('DealLedger');
     await expect(Ledger.updateOne({ dealId }, { $set: { amountMinor: 1 } })).rejects.toThrow(/append-only/);
