@@ -168,6 +168,8 @@ export type MilestoneRuntime = {
   split?: { client?: number; worker?: number };
   firstSubmittedAt?: string;
   approvedAt?: string;
+  /** The latest agent proposals for this milestone, each dry-run through policy before it was stored. */
+  proposals?: { review?: ReviewProposal; dispute?: DisputeProposal };
   history: { at: string; from: MilestoneState; to: MilestoneState; event: string; actor: Role }[];
 };
 
@@ -191,6 +193,48 @@ export type DealDoc = {
   alerts?: { at: string; milestoneKey: string; eventType: string; message: string }[];
   /** Change orders drafted by the Scope Agent (priced from the rate card). */
   changeOrders: ChangeOrder[];
+};
+
+/** What a proposal looked like to policy when it was stored (the UI shows a blocked one as a rule chip, never a button). */
+export type StoredDecision = { allowed: boolean; violations: { rule: string; message: string }[]; needsHumanApproval?: boolean; assumed?: string[] };
+
+/** Review Agent: reviewer comments merged into Fix / Taste items, dry-run as a request_changes. */
+export type ReviewProposal = {
+  id: string;
+  agent: 'review';
+  at: string;
+  versionId: string;
+  items: ChangeItem[];
+  /** Items the agent called Fix that the engine would treat as Taste (they cite a line that passed, or none). */
+  downgraded: string[];
+  /** Pairs of item indexes that ask for opposite things; people settle them. */
+  contradictions: { a: number; b: number; why: string }[];
+  costsRevisionRound?: boolean;
+  roundsLeftAfter?: number;
+  rationale?: string;
+  decision: StoredDecision;
+};
+
+/** Scope & Dispute Agent: the evidence pack plus a split computed in Node from the checklist arithmetic. */
+export type DisputeProposal = {
+  id: string;
+  agent: 'scope_dispute';
+  at: string;
+  versionId?: string;
+  /** passed / total signed check lines -> shareBp of the milestone amount (never an AI number). */
+  basis: { passedChecks: number; totalChecks: number; shareBp: number; amountMinor: number; remainingMinor: number };
+  workerMinor: number;
+  clientMinor: number;
+  evidence: {
+    checks: { id: string; text: string; passed: boolean | null; measured?: number | string | boolean | null; evidence: CheckEvidence[] }[];
+    unmeasured: string[];
+    tasteLines: string[];
+    rounds: { included: number; used: number; tasteRounds: number };
+    changeRequests: { at: string; versionId?: string; items: ChangeItem[]; tasteRound: boolean }[];
+    versions: number;
+  };
+  notes?: string;
+  decision: StoredDecision;
 };
 
 /** A money action an agent (or a human) asks to run. */

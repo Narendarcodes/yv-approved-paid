@@ -196,6 +196,13 @@ function makeDealService(opts: {
         const r = proposals.draftChangeOrder(d, input, id, now());
         return { deal: r.deal, out: { changeOrder: r.changeOrder, decision: r.decision } };
       }),
+    /** Store a Review Agent or Scope & Dispute Agent proposal on the milestone, after its policy dry-run. */
+    storeProposal: (dealId: string, orgId: string, key: string, kind: 'review' | 'dispute', body: any) =>
+      withDeal(dealId, orgId, async (d) => {
+        const id = `${kind === 'review' ? 'rvw' : 'dsp'}_${crypto.randomBytes(6).toString('base64url')}`;
+        const r = kind === 'review' ? proposals.storeReview(d, key, body, id, now()) : proposals.storeDispute(d, key, body, id, now());
+        return { deal: r.deal, out: r.proposal };
+      }),
     /** The client's one tap. Accepting also drafts the PayPal invoice through policy. */
     decideChangeOrder: (dealId: string, orgId: string, userId: string, coId: string, accept: boolean) =>
       withDeal(dealId, orgId, async (d) => {

@@ -10,6 +10,11 @@
  *   POST /:dealId/milestones/:key/checks   Video QA report (deals:checks)
  *   POST /:dealId/policy-check             dry-run a proposal through policy (deals:propose)
  *   POST /:dealId/change-orders            Scope Agent drafts a priced change order (deals:propose)
+ *   POST /:dealId/milestones/:key/review            Review Agent merge, dry-run then stored (deals:propose)
+ *   POST /:dealId/milestones/:key/dispute-proposal  Scope & Dispute evidence pack + split, dry-run then stored (deals:propose)
+ *
+ * Agents never send amounts: a body with an amount-like field is refused, and
+ * the split in a dispute proposal is computed in Node from the signed checklist.
  */
 const express = require('express');
 const { requireService } = require('../../middleware/serviceAuth');
@@ -35,7 +40,7 @@ router.get(
     const milestones = d.terms.milestones.map(({ payees, ...m }: any) => m);
     const runtime = d.milestones.map((m: any) => ({
       key: m.key, state: m.state, versions: m.versions, revisionRoundsUsed: m.revisionRoundsUsed, tasteRoundsUsed: m.tasteRoundsUsed,
-      capturedMinor: m.capturedMinor, changeRequests: m.changeRequests, history: m.history, split: m.split,
+      capturedMinor: m.capturedMinor, changeRequests: m.changeRequests, history: m.history, split: m.split, proposals: m.proposals,
     }));
     res.json({ data: { id: d.id, termsHash: d.termsHash, terms: { title: d.terms.title, currency: d.terms.currency, rateCard: d.terms.rateCard, killFeeBp: d.terms.killFeeBp, milestones }, milestones: runtime, changeOrders: d.changeOrders } });
   }),
@@ -69,5 +74,16 @@ router.post(
     res.status(201).json({ data: r.out });
   }),
 );
+
+for (const [path, kind] of [['review', 'review'], ['dispute-proposal', 'dispute']] as const) {
+  router.post(
+    `/:dealId/milestones/:key/${path}`,
+    requireService('deals:propose'),
+    wrap(async (req, res) => {
+      const r = await dealService().storeProposal(req.params.dealId, org(req), req.params.key, kind, req.body);
+      res.status(201).json({ data: r.out });
+    }),
+  );
+}
 
 module.exports = { router };

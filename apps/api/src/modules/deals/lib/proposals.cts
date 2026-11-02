@@ -5,15 +5,18 @@
  *   draftChangeOrder(deal, input, ...) a change order priced from the signed rate card (never by the caller)
  *   decideChangeOrder(deal, id, ...)   the client accepts or declines it (one human tap)
  *   dryRun(deal, proposal, ...)        what policy.evaluate (or the engine) would say, without changing anything
+ *   storeReview(deal, key, body, ...)  Review Agent output, dry-run, kept on the milestone for the UI
+ *   storeDispute(deal, key, body, ...) Scope & Dispute evidence pack + a split computed HERE from the checklist
  *
  * The Python agents only propose. Every proposal is dry-run here before a person
  * sees it, and the routes that act on it run the same checks again.
  */
-import type { DealDoc, MoneyAction, ChangeItem, ChangeOrder, CheckResultRecord, PolicyDecision } from './types.cts';
+import type { DealDoc, MoneyAction, ChangeItem, ChangeOrder, CheckResultRecord, PolicyDecision, ReviewProposal, DisputeProposal, MilestoneRuntime } from './types.cts';
 
 const { evaluate } = require('./policy.cts');
 const { DealError } = require('./engine.cts');
 const engine = require('./engine.cts');
+const { percentOf } = require('./money.cts');
 
 const MAX_RESULTS = 100;
 const MAX_EVIDENCE = 10;
@@ -230,4 +233,123 @@ function dryRun(deal: DealDoc, input: DryRunInput, now: string) {
   return { ...decision, action, assumed };
 }
 
-module.exports = { checkReport, draftChangeOrder, decideChangeOrder, dryRun, invoiceAction };
+/* -------------------------------------------------- stored agent proposals */
+
+const MAX_ITEMS = 50;
+/** Any key that looks like money. Agents propose words and checklist ids; amounts come from the deal. */
+const AMOUNT_KEY = /(minor|amount|price|split|share|fee|bp|usd|inr)$/i;
+
+function refuseAmounts(v: unknown, path = 'body', depth = 0): void {
+  if (depth > 6 || !v || typeof v !== 'object') return;
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+    if (AMOUNT_KEY.test(k)) throw bad('ai_amount_refused', `${path}.${k}: agents do not supply amounts; they come from the signed deal`, 422);
+    refuseAmounts(x, `${path}.${k}`, depth + 1);
+  }
+}
+
+function latestVersionFor(deal: DealDoc, key: string, versionId: unknown) {
+  const m = deal.milestones.find((x) => x.key === key);
+  const t = deal.terms.milestones.find((x) => x.key === key);
+  if (!m || !t) throw bad('milestone_not_found', `milestone ${key} is not in this deal`, 404);
+  const latest = m.versions[m.versions.length - 1];
+  if (versionId !== undefined && (!latest || versionId !== latest.id)) throw bad('stale_version', 'the proposal is for an older version', 409);
+  return { m, t, latest };
+}
+
+function withProposal(deal: DealDoc, m: MilestoneRuntime, kind: 'review' | 'dispute', p: ReviewProposal | DisputeProposal): DealDoc {
+  const next = { ...m, proposals: { ...(m.proposals || {}), [kind]: p } };
+  return { ...deal, milestones: deal.milestones.map((x) => (x.key === m.key ? next : x)) };
+}
+
+/**
+ * Review Agent output -> stored proposal. The items are dry-run exactly as the
+ * client's "Send changes" would run them, so what is stored is what the engine
+ * would do (a Fix that cites a passing line already shows as Taste). A blocked
+ * dry-run is stored too, with its violations, so the UI can say why.
+ */
+function storeReview(deal: DealDoc, key: string, body: any, id: string, at: string): { deal: DealDoc; proposal: ReviewProposal } {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw bad('invalid_input', 'proposal body required');
+  refuseAmounts(body);
+  const { m, latest } = latestVersionFor(deal, key, body.versionId);
+  if (!latest) throw bad('no_version', 'nothing has been submitted on this milestone yet', 409);
+  if (!Array.isArray(body.items) || !body.items.length || body.items.length > MAX_ITEMS) throw bad('invalid_input', `items must be a list of 1 to ${MAX_ITEMS}`);
+  const items: ChangeItem[] = body.items.map((i: any) => {
+    if (!isStr(i?.text, 2000)) throw bad('invalid_input', 'each item needs text');
+    return {
+      text: i.text.trim(),
+      tag: i.tag === 'fix' ? 'fix' : 'taste',
+      ...(isStr(i.checklistId, 100) ? { checklistId: i.checklistId } : {}),
+      disputed: i.disputed === true,
+    };
+  });
+  const raw = Array.isArray(body.contradictions) ? body.contradictions.slice(0, MAX_ITEMS) : [];
+  const contradictions = raw
+    .filter((c: any) => Number.isSafeInteger(c?.a) && Number.isSafeInteger(c?.b) && c.a >= 0 && c.b >= 0 && c.a < items.length && c.b < items.length)
+    .map((c: any) => ({ a: c.a, b: c.b, why: typeof c.why === 'string' ? c.why.slice(0, 200) : '' }));
+  const r: any = dryRun(deal, { kind: 'request_changes', milestoneKey: key, items }, at);
+  const proposal: ReviewProposal = {
+    id,
+    agent: 'review',
+    at,
+    versionId: latest.id,
+    items: r.allowed ? r.items : items,
+    downgraded: r.allowed ? r.downgraded : [],
+    contradictions,
+    ...(r.allowed ? { costsRevisionRound: r.costsRevisionRound, roundsLeftAfter: r.roundsLeftAfter } : {}),
+    ...(isStr(body.rationale, 300) ? { rationale: body.rationale } : {}),
+    decision: { allowed: !!r.allowed, violations: r.violations || [] },
+  };
+  return { deal: withProposal(deal, m, 'review', proposal), proposal };
+}
+
+/**
+ * Scope & Dispute Agent output -> stored proposal. The agent may send a note;
+ * everything else is built here from the deal: the evidence pack from the stored
+ * checks, and the split from checklist arithmetic (passed / total signed check
+ * lines x the milestone amount, never above what is still held). The split is
+ * dry-run as the partial capture the Money Agent would run if both sides accept it.
+ */
+function storeDispute(deal: DealDoc, key: string, body: any, id: string, at: string): { deal: DealDoc; proposal: DisputeProposal } {
+  if (body !== undefined && (body === null || typeof body !== 'object' || Array.isArray(body))) throw bad('invalid_input', 'proposal body must be an object');
+  const b = body || {};
+  refuseAmounts(b);
+  const { m, t, latest } = latestVersionFor(deal, key, b.versionId);
+  const lines = t.checklist.filter((c) => c.kind === 'check' && c.measure);
+  const checked = [...m.versions].reverse().find((v) => v.checks?.results);
+  const byId = new Map((checked?.checks?.results || []).map((r) => [r.checklistId, r]));
+  const checks = lines.map((c) => {
+    const r = byId.get(c.id);
+    return { id: c.id, text: c.text, passed: r ? r.passed : null, ...(r ? { measured: r.measured } : {}), evidence: r ? r.evidence : [] };
+  });
+  const passedChecks = checks.filter((c) => c.passed === true).length;
+  const totalChecks = lines.length;
+  const shareBp = totalChecks ? Math.floor((passedChecks * 10000) / totalChecks) : 0;
+  const remainingMinor = Math.max(0, t.amountMinor - m.capturedMinor);
+  const workerMinor = Math.max(0, Math.min(percentOf(t.amountMinor, shareBp), remainingMinor));
+  const action = workerMinor > 0
+    ? { kind: 'partial_capture', milestoneKey: key, amountMinor: workerMinor, reason: 'dispute_split' }
+    : { kind: 'void', milestoneKey: key, reason: 'dispute_split' };
+  const r: any = dryRun(deal, { kind: 'money', action }, at);
+  const proposal: DisputeProposal = {
+    id,
+    agent: 'scope_dispute',
+    at,
+    ...(latest ? { versionId: latest.id } : {}),
+    basis: { passedChecks, totalChecks, shareBp, amountMinor: t.amountMinor, remainingMinor },
+    workerMinor,
+    clientMinor: remainingMinor - workerMinor,
+    evidence: {
+      checks,
+      unmeasured: lines.filter((c) => !byId.has(c.id)).map((c) => c.id),
+      tasteLines: t.checklist.filter((c) => c.kind === 'taste').map((c) => c.text),
+      rounds: { included: t.revisionRoundsIncluded, used: m.revisionRoundsUsed, tasteRounds: m.tasteRoundsUsed },
+      changeRequests: m.changeRequests.map(({ at: a, versionId, items, tasteRound }) => ({ at: a, versionId, items, tasteRound })),
+      versions: m.versions.length,
+    },
+    ...(isStr(b.notes, 1000) ? { notes: b.notes } : {}),
+    decision: { allowed: !!r.allowed, violations: r.violations || [], needsHumanApproval: !!r.needsHumanApproval, assumed: r.assumed || [] },
+  };
+  return { deal: withProposal(deal, m, 'dispute', proposal), proposal };
+}
+
+module.exports = { checkReport, draftChangeOrder, decideChangeOrder, dryRun, invoiceAction, storeReview, storeDispute, refuseAmounts };
