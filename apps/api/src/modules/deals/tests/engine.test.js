@@ -126,7 +126,7 @@ describe('fairness rules', () => {
     expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now())).toThrow(/change order/);
     // an invented or unaccepted change order unlocks nothing
     expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now(), { changeOrderId: 'co_1' })).toThrow(/not an accepted/);
-    const { draftChangeOrder, decideChangeOrder } = require('../lib/proposals.cts');
+    const { draftChangeOrder, decideChangeOrder } = require('../engine.cts').proposals;
     h.deal = draftChangeOrder(h.deal, { milestoneKey: 'reel1', rateCardItemId: 'revision_round', quantity: 1, ask: 'one more round', by: 'agent' }, 'co_1', h.clock.now()).deal;
     expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now(), { changeOrderId: 'co_1' })).toThrow(/not an accepted/);
     h.deal = decideChangeOrder(h.deal, 'co_1', 'u_client', true, h.clock.now());

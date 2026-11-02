@@ -1,6 +1,6 @@
 /* Agent proposals against the signed deal: Video QA reports, priced change orders, policy dry-runs (pure). */
 const { engine } = require('../engine.cts');
-const { checkReport, draftChangeOrder, decideChangeOrder, dryRun } = require('../lib/proposals.cts');
+const { checkReport, draftChangeOrder, decideChangeOrder, dryRun } = require('../engine.cts').proposals;
 const { harness, signedAndFunded, ms, HOUR } = require('./fixtures');
 
 const V1 = { id: 'v1', sha256: 'a'.repeat(64) };

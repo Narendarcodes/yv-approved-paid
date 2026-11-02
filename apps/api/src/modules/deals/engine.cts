@@ -15,6 +15,7 @@ const money = require('./lib/money.cts');
 const { hashOf, canonicalize } = require('./lib/canonical.cts');
 const { validateTerms } = require('./lib/validate.cts');
 const { explain } = require('./lib/explain.cts');
+const proposals = require('./lib/proposals.cts');
 
 export type * from './lib/types.cts';
 export type { LedgerEntry } from './lib/ledger.cts';
@@ -22,4 +23,4 @@ export type { PaymentGateway } from './lib/gateway.cts';
 export type { EngineDeps, LedgerStore, ExecOutcome } from './lib/engine.cts';
 export type { PolicyContext } from './lib/policy.cts';
 
-module.exports = { states, policy, engine, ledger, money, hashOf, canonicalize, validateTerms, explain };
+module.exports = { states, policy, engine, ledger, money, proposals, hashOf, canonicalize, validateTerms, explain };
