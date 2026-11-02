@@ -2,6 +2,21 @@
 
 Motto: **AI checks facts, people own taste, the deal decides the money.**
 
+## Live AI agents for the deal copilot (Nov 3, 2026): code ready, not deployed
+
+The copilot can now answer through a real LLM, and still falls back to the offline replay. Nothing is deployed to Render yet and the API still runs with `AGENT_ENABLED=false`, so production keeps the offline replay until the agent service and keys are added.
+
+| What | Where | Commit |
+|---|---|---|
+| LLM router fixes found by a live smoke test: NIM crashed in litellm 1.55 on `extra_body=None`; `meta/llama-3.3-70b-instruct` now answers 410 Gone, so NIM defaults to `nvidia/nemotron-3.5-lightning-30b-a3b` with thinking off (otherwise it can spend the whole budget reasoning and return empty content). New `httpx_caller` (no litellm) used automatically when litellm is not installed. | `services/agent/app/deals/llm_router.py` | `812485e`, `9fe6abd` |
+| Lean deal agent for a Render **free** web service: `app/deals_service.py` (`GET /health`, `POST /v1/deals/copilot` behind `X-Agent-Secret`, refuses to run with no/weak `AGENT_SHARED_SECRET`), `app/deals/copilot.py` (model picks from 9 whitelisted card actions and ids in the deal; amounts and money notes dropped), `Dockerfile.deals` + `requirements-deals.txt` (fastapi, uvicorn, httpx, pydantic; no torch/litellm/numpy; ~40 MB RSS measured), `render.yaml` (free plan, secrets `sync: false`). CI builds the lean image. | `services/agent/`, `render.yaml`, `.github/workflows/ci.yml` | `9fe6abd` |
+| API: `POST /organizations/:org/deals/:dealId/copilot` (party or `deal.manage`, 20/min per user). Sends an identity- and money-free view of the deal plus the party names to strip, re-checks the actions, and always answers 200: `{source:'live', actions, note, provider, model}` or `{source:'offline', reason}` (`agent_disabled`, `agent_timeout`, `agent_unreachable`, `agent_error`, `agent_no_answer`, `rate_limited`). | `apps/api/src/modules/deals/copilot.cts`, `http.cts`, `config/index.js`, `config/validate.js` | `d516c00` |
+| Web: the copilot asks the API first and replays offline when the answer is offline, slow (18 s), or the route is missing; it stops asking for the visit once the API says `agent_disabled`. Each reply is labelled **live AI · provider** or **offline replay**; the header badge follows the last reply. Live actions are checked a third time; a capture's amount still comes from the signed terms or the typed number. | `apps/web/src/components/deals/DealCopilot.tsx`, `lib/copilot.tsx` (`fromLive`), `services/api.ts` (`dealCopilot`) | `4079ce9` |
+
+Smoke tests (from the build sandbox, keys injected on the wire): River `Qwen/Qwen3.8-27B-FP8` OK (~1.2-2.6 s); NIM `nvidia/nemotron-3.5-lightning-30b-a3b` OK (~0.7-2.7 s with thinking off). A real copilot question through the lean service ("what did the checks say on reel 1") came back live as `showChecks` + `showReviewMerge` for `reel1`; "dispute split on reel 2" via NIM came back as `showDisputeSplit reel2`.
+
+To turn it on: create the Render service from `render.yaml` (env: `AGENT_SHARED_SECRET`, `RIVER_API_KEY`, `NVIDIA_API_KEY`), then on the API service set `AGENT_ENABLED=true`, `AGENT_URL`, the same `AGENT_SHARED_SECRET`, and (required by the existing boot checks once the agent is on) `SERVICE_JWT_SECRET` and `INTERNAL_API_TOKEN`.
+
 ## Real PayPal sandbox (Nov 3, 2026)
 
 `PAYPAL_MODE=sandbox` now runs the demo on the real PayPal sandbox (app `APP-7ML73805E1390660U`). Mock mode is unchanged.

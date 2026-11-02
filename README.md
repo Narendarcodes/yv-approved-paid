@@ -56,7 +56,8 @@ Built for the PayPal AI Hackathon; the use case comes from a real case study: an
 
 - **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded "Diwali launch reels" deal.
 - **Cards** (`apps/web/src/components/deals/`): DealCard (terms hash, both signatures, per-milestone amount, due + grace, review window, rounds left, kill fee), LiveChecksCard (measured vs target per checklist line, screenshot evidence from `GET .../deals/:dealId/evidence/:file`; taste lines say "people decide"), ReviewMergeCard (Fix cites a failed line, Taste costs a round, never pay), MoneyTimeline (hash-chained ledger, live over Socket.IO `deal:join` -> `deal:ledger`; blocked attempts show the rule and "No money moved"), ChangeOrderCard (priced from the signed rate card; Accept drafts the PayPal invoice), DisputeSplitCard (split from checklist arithmetic; agreed only when both sides accept the same number), PolicyBlockedChip.
-- **Deal copilot:** a side panel that answers by rendering those cards. It runs as an offline replay (deterministic intent matching, no model call), so the demo works with no LLM. It only proposes: a "capture $450" or "pay the old version" ask is dry-run through `POST .../policy-check` and comes back as a PolicyBlockedChip. No copilot action takes an amount it wrote.
+- **Deal copilot:** a side panel that answers by rendering those cards. With the live agent on, an LLM picks which cards answer the question (`POST .../deals/:dealId/copilot` -> the lean deal agent); otherwise, or when the agent is slow or down, it runs as an offline replay (deterministic intent matching, no model call), so the demo always works. Every reply is labelled **live AI · <provider>** or **offline replay**. It only proposes: a "capture $450" or "pay the old version" ask is dry-run through `POST .../policy-check` and comes back as a PolicyBlockedChip. No copilot action takes an amount it wrote: the model only names cards and ids from the deal (checked by the agent, the API and the web), and a capture uses the signed amount or the number the person typed.
+- **Live AI agent (optional):** `services/agent/app/deals_service.py`, a lean FastAPI service (`Dockerfile.deals`, `requirements-deals.txt`: fastapi, uvicorn, httpx, pydantic; ~40 MB RSS) that fits a Render **free** web service (`render.yaml`, `GET /health`). LLM routing (`app/deals/llm_router.py`): River AI (`Qwen/Qwen3.8-27B-FP8`) -> NVIDIA NIM (`nvidia/nemotron-3.5-lightning-30b-a3b`) -> OmniRoute (only if `OMNIROUTE_URL` is set). Names are stripped before any prompt leaves; the model never sees amounts. The API calls it only when `AGENT_ENABLED=true`, `AGENT_URL` and `AGENT_SHARED_SECRET` (sent as `X-Agent-Secret`, same value on both services) are set; it gives up after `AGENT_COPILOT_TIMEOUT_MS` (15 s; a free instance cold-starts slowly) and answers `{ source: 'offline' }`.
 - **Agents** (`services/agent/app/deals/`): the Review Agent's Fix/Taste merge and the Scope & Dispute proposal are stored on the milestone through `POST /internal/deals/:id/milestones/:key/review` and `.../dispute-proposal`. The dispute call sends no amount; Node computes the split.
 - **Shared types:** `contracts/schemas/deal.schema.json` (DealView, ledger view, `deal:ledger` payload), generated into the API, web and agent by `contracts/gen.sh`.
 
@@ -73,6 +74,14 @@ cd apps/api && DEMO_MODE=1 PAYPAL_MODE=mock npm run dev   # seeds the demo deal 
 # or on the real PayPal sandbox (real order + INV2 invoice ids; buyer approval simulated):
 # DEMO_MODE=1 PAYPAL_MODE=sandbox PAYPAL_CLIENT_ID=... PAYPAL_CLIENT_SECRET=... npm run dev
 cd apps/web && npm run dev                                 # open /login, tap "Try the demo"
+```
+
+Run the live copilot locally (needs a River or NIM key in the agent's env):
+
+```
+cd services/agent && pip install -r requirements-deals.txt
+AGENT_SHARED_SECRET=<32+ chars> RIVER_API_KEY=... NVIDIA_API_KEY=... uvicorn app.deals_service:app --port 8100
+cd apps/api && AGENT_ENABLED=true AGENT_URL=http://127.0.0.1:8100 AGENT_SHARED_SECRET=<same> DEMO_MODE=1 PAYPAL_MODE=mock npm run dev
 ```
 
 Design and status: [docs/phase4-ui-plan.md](docs/phase4-ui-plan.md), [PROGRESS.md](PROGRESS.md).
@@ -234,6 +243,10 @@ All variables are read from `.env`. API prefix defaults to `/api/v1`.
 | `STORAGE_LOCAL_DIR` | `./uploads` | Upload directory (local driver) |
 | `RATE_LIMIT_WINDOW_MS` | `900000` | Global per-IP rate-limit window (15 min) |
 | `RATE_LIMIT_MAX` | `100` | Max requests per window |
+| `AGENT_ENABLED` | *(on in dev)* | `false` turns the agent platform off. In production it also needs `SERVICE_JWT_SECRET` + `INTERNAL_API_TOKEN` (>= 32 chars) |
+| `AGENT_URL` | `http://127.0.0.1:8100` | Base URL of the agent (the live deal copilot calls `POST /v1/deals/copilot`) |
+| `AGENT_SHARED_SECRET` | *(unset = copilot offline)* | Sent as `X-Agent-Secret`; same value on the agent service; >= 32 chars |
+| `AGENT_COPILOT_TIMEOUT_MS` | `15000` | Past this the copilot answers offline (web replays) |
 
 Frontend env (`apps/web/.env`):
 
