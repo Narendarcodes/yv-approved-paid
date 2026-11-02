@@ -13,8 +13,8 @@ import { useToast } from '../toast'
 import { ErrorBanner, Skeleton } from '../states'
 import * as api from '../../services/api'
 import type { DealLedgerEntry, DealView } from '../../contracts/types'
-import { blockedSummary, money, useDealLedger, when } from '../../lib/deals'
-import { DealCardShell, PaypalInvoiceId, Stat } from './common'
+import { blockedSummary, invoiceSent, money, useDealLedger, when } from '../../lib/deals'
+import { DealCardShell, PaypalId, PaypalInvoiceId, Stat } from './common'
 import PolicyBlockedChip from './PolicyBlockedChip'
 
 const LABEL: Record<DealLedgerEntry['type'], string> = {
@@ -25,7 +25,7 @@ const LABEL: Record<DealLedgerEntry['type'], string> = {
   void: 'Hold released',
   refund: 'Refunded',
   payout: 'Paid out',
-  invoice: 'Invoice drafted',
+  invoice: 'Invoice',
   blocked: 'Blocked',
   pending_approval: 'Waiting for one tap',
   webhook: 'PayPal confirmed',
@@ -156,6 +156,7 @@ export default function MoneyTimeline({
                     <>
                       <LineHead entry={e} currency={cur} />
                       <p className="mt-0.5 text-[12px] text-umber">{e.explanation}</p>
+                      {e.paypalRef && <PaypalId id={e.paypalRef} className="mt-1 max-w-full" />}
                     </>
                   )}
                 </li>
@@ -198,7 +199,7 @@ function InvoiceLine({ entry: e, deal }: { entry: DealLedgerEntry; deal: DealVie
             {co.quantity} × {item.label} @ {money(item.unitPriceMinor, cur)}
           </span>
         )}
-        <span className="status-chip !h-5 bg-ink/[0.05] !text-[11px] text-umber">Draft · not charged</span>
+        <span className="status-chip !h-5 bg-ink/[0.05] !text-[11px] text-umber">{invoiceSent(id) ? 'Sent · not paid yet' : 'Draft · not charged'}</span>
         {id && <PaypalInvoiceId id={id} />}
       </div>
       <Details>{e.explanation}</Details>

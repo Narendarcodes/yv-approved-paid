@@ -14,7 +14,7 @@ import Chip from '../primitives'
 import { useToast } from '../toast'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
-import { INVOICE_STATUS, changeOrderStage, dateOnly, money, roleWord, when } from '../../lib/deals'
+import { INVOICE_STATUS, changeOrderStage, dateOnly, invoiceSent, money, roleWord, when } from '../../lib/deals'
 import { DealCardShell, PaypalInvoiceId } from './common'
 
 const STEPS = ['Requested', 'Accepted', 'Invoiced'] as const
@@ -52,7 +52,7 @@ export default function ChangeOrderCard({
       toast(
         'success',
         verb === 'accept' ? 'Change order accepted' : 'Change order declined',
-        verb === 'accept' ? (inv ? `PayPal invoice ${inv} drafted for ${money(co.amountMinor, cur)}.` : 'Accepted; the invoice is drafted through policy.') : 'Nothing is owed for it.',
+        verb === 'accept' ? (inv ? `PayPal invoice ${inv} ${invoiceSent(inv) ? 'created and sent' : 'drafted'} for ${money(co.amountMinor, cur)}.` : 'Accepted; the invoice is drafted through policy.') : 'Nothing is owed for it.',
       )
       onChanged?.()
     } catch (e: any) {
@@ -82,14 +82,14 @@ export default function ChangeOrderCard({
         <X size={15} strokeWidth={2} />
         Decline
       </button>
-      <span className="text-[12px] text-umber sm:ml-auto">One tap drafts the PayPal invoice.</span>
+      <span className="text-[12px] text-umber sm:ml-auto">One tap creates the PayPal invoice.</span>
     </div>
   ) : co.status === 'invoiced' ? (
     <div className="flex w-full flex-wrap items-center gap-2">
       <Link to="/invoices" className="btn-secondary btn-sm" data-testid="view-invoice">
         View in Invoices <ArrowUpRight size={14} strokeWidth={2} />
       </Link>
-      <span className="text-[12px] text-umber">Drafted in PayPal; it is charged only once it is sent and paid.</span>
+      <span className="text-[12px] text-umber">{invoiceSent(co.invoiceId) ? 'Sent from the PayPal sandbox; it is charged only once it is paid.' : 'Drafted in PayPal; it is charged only once it is sent and paid.'}</span>
     </div>
   ) : co.status === 'draft' ? (
     <span className="text-[13px] text-umber">Waiting for the client to accept or decline.</span>

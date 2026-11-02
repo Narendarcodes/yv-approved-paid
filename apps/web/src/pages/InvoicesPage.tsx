@@ -15,7 +15,7 @@ import { ErrorBanner, ListSkeleton } from '../components/states'
 import { useToast } from '../components/toast'
 import { PaypalInvoiceId } from '../components/deals/common'
 import { primaryOrgId, useProjects } from '../lib/data'
-import { INVOICE_STATUS, dateOnly, dealOrgId, money as moneyMinor, moneyMajor, type InvoiceStatus } from '../lib/deals'
+import { INVOICE_STATUS, dateOnly, dealOrgId, invoiceSent, money as moneyMinor, moneyMajor, type InvoiceStatus } from '../lib/deals'
 import {
   createInvoice,
   invoiceAction,
@@ -79,7 +79,7 @@ function dealRows(deals: DealView[]): Row[] {
         amountLabel: moneyMinor(co.amountMinor, d.terms.currency),
         amountValue: co.amountMinor / 100,
         currency: d.terms.currency,
-        status: 'draft', // drafted in PayPal; nothing is sent or charged from here
+        status: invoiceSent(co.invoiceId) ? 'sent' : 'draft', // PayPal sandbox creates and sends it; the mock only drafts
         issued: co.decidedAt ?? co.at,
         dealId: d.id,
       })
@@ -253,7 +253,7 @@ export default function InvoicesPage() {
     <div className="fade-in">
       <PageHeader
         title="Invoices"
-        subtitle="Everything you have billed: studio invoices and change orders drafted in PayPal from a deal."
+        subtitle="Everything you have billed: studio invoices and change orders invoiced through PayPal from a deal."
         actions={
           <button className="btn-primary" onClick={openNew} data-testid="new-invoice">
             <Plus size={15} strokeWidth={1.75} /> New invoice

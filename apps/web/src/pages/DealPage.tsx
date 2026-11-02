@@ -21,7 +21,7 @@ import ChangeOrderCard from '../components/deals/ChangeOrderCard'
 import DisputeSplitCard from '../components/deals/DisputeSplitCard'
 import DealCopilot from '../components/deals/DealCopilot'
 import * as api from '../services/api'
-import { money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
+import { invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
 
 export default function DealPage() {
   const { dealId, key: fundKey } = useParams()
@@ -104,7 +104,7 @@ export default function DealPage() {
                 ) : (
                   <>
                     {invoicedCos.length === 1 ? 'One change order' : `${invoicedCos.length} change orders`} invoiced in PayPal:{' '}
-                    <span className="t-num">{money(invoicedCos.reduce((a, c) => a + c.amountMinor, 0), deal.terms.currency)}</span>, drafted and not charged yet.
+                    <span className="t-num">{money(invoicedCos.reduce((a, c) => a + c.amountMinor, 0), deal.terms.currency)}</span>, {invoicedCos.every((c) => invoiceSent(c.invoiceId)) ? 'sent and not paid yet' : 'drafted and not charged yet'}.
                   </>
                 )}
               </p>

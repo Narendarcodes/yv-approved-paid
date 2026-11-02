@@ -262,9 +262,24 @@ export const INVOICE_STATUS: Record<InvoiceStatus, { label: string; tone: 'neutr
   void: { label: 'Void', tone: 'neutral', hint: 'Cancelled, nothing is owed' },
 }
 
-/** PayPal environment tag for an invoice id: the mock gateway mints ids ending in MOCK. */
-export function paypalEnv(id?: string | null): 'mock' | 'sandbox' {
+/**
+ * PayPal environment for an id. The mock gateway mints ids ending in MOCK; the
+ * sandbox demo mints SIM- ids for steps after a buyer approval it had to simulate
+ * (no sandbox buyer can log in from the demo). Everything else is a real sandbox id.
+ */
+export type PaypalEnv = 'mock' | 'sandbox' | 'simulated'
+export function paypalEnv(id?: string | null): PaypalEnv {
+  if (id && /^SIM-/.test(id)) return 'simulated'
   return id && /mock/i.test(id) ? 'mock' : 'sandbox'
+}
+export const PAYPAL_ENV: Record<PaypalEnv, { tag: string; title: string }> = {
+  mock: { tag: 'mock', title: 'Mock PayPal gateway: no real PayPal object exists' },
+  sandbox: { tag: 'PayPal sandbox', title: 'PayPal sandbox: a real sandbox id, test money only' },
+  simulated: { tag: 'PayPal sandbox · simulated', title: 'PayPal sandbox: buyer approval simulated (no sandbox buyer can log in from the demo). Test money only.' },
+}
+/** A change-order invoice in the PayPal sandbox is created and sent; the mock only drafts. */
+export function invoiceSent(id?: string | null): boolean {
+  return !!id && paypalEnv(id) === 'sandbox'
 }
 
 /** Where a change order stands, as the client reads it. */
@@ -274,7 +289,7 @@ export function changeOrderStage(co: DealView['changeOrders'][number]): {
   tone: 'neutral' | 'warning' | 'teal' | 'success' | 'danger'
 } {
   if (co.status === 'declined') return { invoice: 'void', label: 'Declined', tone: 'neutral' }
-  if (co.status === 'invoiced') return { invoice: 'draft', label: 'Invoice drafted', tone: 'teal' }
+  if (co.status === 'invoiced') return invoiceSent(co.invoiceId) ? { invoice: 'sent', label: 'Invoice sent', tone: 'teal' } : { invoice: 'draft', label: 'Invoice drafted', tone: 'teal' }
   if (co.status === 'accepted') return { invoice: null, label: 'Accepted · invoicing', tone: 'warning' }
   return { invoice: null, label: 'Awaiting client', tone: 'warning' }
 }

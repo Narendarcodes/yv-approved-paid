@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from 'react'
 import { ShieldCheck } from 'lucide-react'
-import { MOTTO, paypalEnv } from '../../lib/deals'
+import { MOTTO, PAYPAL_ENV, paypalEnv } from '../../lib/deals'
 
 /** The motto line every deal screen carries. */
 export function Motto({ className = '' }: { className?: string }) {
@@ -71,9 +71,9 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
   )
 }
 
-/** A PayPal invoice id in mono with a small environment tag (sandbox / mock). Nothing here is a live charge. */
-export function PaypalInvoiceId({ id, className = '' }: { id: string; className?: string }) {
-  const env = paypalEnv(id)
+/** A PayPal id in mono with its environment tag (PayPal sandbox / simulated / mock). Nothing here is a live charge. */
+export function PaypalId({ id, className = '' }: { id: string; className?: string }) {
+  const env = PAYPAL_ENV[paypalEnv(id)]
   return (
     <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}>
       <span className="truncate font-mono text-[12.5px] text-ink" title={id}>
@@ -81,10 +81,12 @@ export function PaypalInvoiceId({ id, className = '' }: { id: string; className?
       </span>
       <span
         className="shrink-0 rounded-[5px] border border-st-production/20 bg-st-production-bg px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em] text-st-production"
-        title={env === 'mock' ? 'Mock PayPal gateway: no real invoice exists' : 'PayPal sandbox: test money only'}
+        title={env.title}
+        data-testid="paypal-env"
       >
-        {env}
+        {env.tag}
       </span>
     </span>
   )
 }
+export const PaypalInvoiceId = PaypalId
