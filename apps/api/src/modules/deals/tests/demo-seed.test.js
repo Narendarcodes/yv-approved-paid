@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const mongoose = require('mongoose');
 const { configureDeals, dealService } = require('../service.cts');
-const { makeMockGateway } = require('../paypal.cts');
+const { makeMockGateway, makeSandboxGateway } = require('../paypal.cts');
 const { DEMO, seedDealDemo } = require('../demo.cts');
 
 let dir;
@@ -120,7 +120,53 @@ describe('seed-deal-demo', () => {
     const real = makeMockGateway();
     real.name = 'sandbox';
     configureDeals({ gateway: real });
-    await expect(seedDealDemo({ evidenceDir: false })).rejects.toThrow(/mock gateway only/);
+    await expect(seedDealDemo({ evidenceDir: false })).rejects.toThrow(/PAYPAL_MODE=mock, or PAYPAL_MODE=sandbox with DEMO_MODE=1/);
+    configureDeals({ gateway: makeSandboxGateway({ clientId: 'id', clientSecret: 's', fetchImpl: async () => ({ ok: false, status: 500, text: async () => '' }) }) });
+    await expect(seedDealDemo({ evidenceDir: false })).rejects.toThrow(/DEMO_MODE=1/); // sandbox without simulated approval
     configureDeals({ gateway: makeMockGateway() });
+  });
+
+  test('PAYPAL_MODE=sandbox: real order and INV2 invoice ids; simulated buyer approval is labelled, never passed off as real', async () => {
+    let n = 0;
+    const reply = (status, body) => ({ ok: status < 300, status, text: async () => JSON.stringify(body), json: async () => body });
+    const fetchImpl = async (url, init = {}) => {
+      const key = `${init.method || 'GET'} ${new URL(url).pathname}`;
+      if (key === 'POST /v1/oauth2/token') return reply(200, { access_token: 'tok', expires_in: 32400 });
+      if (key === 'POST /v2/checkout/orders') return reply(201, { id: `5O190127TN36471${String(++n).padStart(2, '0')}`, status: 'PAYER_ACTION_REQUIRED', links: [{ rel: 'payer-action', href: 'https://www.sandbox.paypal.com/checkoutnow' }] });
+      if (key === 'POST /v1/payments/payouts') return reply(403, { name: 'PAYOUT_NOT_AVAILABLE', message: 'You live in a country that is not allowed to send this payout.' });
+      if (key === 'POST /v2/invoicing/invoices') return reply(201, { id: 'INV2-AB12-CD34-EF56-GH78', status: 'DRAFT' });
+      if (/^POST \/v2\/invoicing\/invoices\/.+\/send$/.test(key)) return reply(200, { href: 'https://www.sandbox.paypal.com/invoice/p/#INV2-AB12-CD34-EF56-GH78' });
+      throw new Error(`unexpected PayPal call ${key}`);
+    };
+    configureDeals({ gateway: makeSandboxGateway({ clientId: 'id', clientSecret: 's', fetchImpl, simulate: true }) });
+    try {
+      const r = await seedDealDemo({ evidenceDir: false });
+      const d = await dealService().get(DEMO.dealId, r.orgId);
+      for (const key of ['reel1', 'reel2']) {
+        const f = ms(d, key).funding;
+        expect(f.orderId).toMatch(/^5O190127TN36471\d\d$/);
+        expect(f.authorizationId).toBe(`SIM-AUTH-${f.orderId}`);
+      }
+      expect(ms(d, 'reel1').state).toBe('PAID_OUT');
+      expect(ms(d, 'reel1').captures[0].id).toMatch(/^SIM-CAPTURE-/);
+      expect(ms(d, 'reel1').payouts.every((p) => /^SIM-PAYOUT-/.test(p.batchId))).toBe(true);
+      const accepted = await dealService().decideChangeOrder(DEMO.dealId, r.orgId, r.judge.userId, d.changeOrders[0].id, true);
+      expect(accepted.out).toMatchObject({ outcome: 'done' });
+      const after = await dealService().get(DEMO.dealId, r.orgId);
+      expect(after.changeOrders[0]).toMatchObject({ status: 'invoiced', invoiceId: 'INV2-AB12-CD34-EF56-GH78' });
+      const l = await dealService().ledgerOf(DEMO.dealId, r.orgId);
+      expect(l.chain.ok).toBe(true);
+      const moved = l.entries.filter((e) => ['authorize', 'capture', 'payout'].includes(e.type));
+      expect(moved.length).toBeGreaterThan(0);
+      for (const e of moved) expect(e.explanation).toMatch(/PayPal sandbox/);
+      expect(l.entries.find((e) => e.type === 'authorize').explanation).toMatch(/PayPal sandbox: buyer approval simulated/);
+      const inv = l.entries.find((e) => e.type === 'invoice');
+      expect(inv).toMatchObject({ paypalRef: 'INV2-AB12-CD34-EF56-GH78' });
+      expect(inv.explanation).toMatch(/^Created and sent a PayPal invoice/);
+      expect(inv.explanation).not.toMatch(/simulated/);
+    } finally {
+      configureDeals({ gateway: makeMockGateway() });
+      await seedDealDemo({ evidenceDir: false });
+    }
   });
 });
