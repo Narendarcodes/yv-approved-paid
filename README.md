@@ -60,10 +60,18 @@ Built for the PayPal AI Hackathon; the use case comes from a real case study: an
 - **Agents** (`services/agent/app/deals/`): the Review Agent's Fix/Taste merge and the Scope & Dispute proposal are stored on the milestone through `POST /internal/deals/:id/milestones/:key/review` and `.../dispute-proposal`. The dispute call sends no amount; Node computes the split.
 - **Shared types:** `contracts/schemas/deal.schema.json` (DealView, ledger view, `deal:ledger` payload), generated into the API, web and agent by `contracts/gen.sh`.
 
+- **PayPal modes** (`PAYPAL_MODE`, `apps/api/src/modules/deals/paypal.cts`):
+  - `mock`: in-memory PayPal with the real rules (tests, offline demo). Ids end in `MOCK`; the UI tags them `mock`.
+  - `sandbox`: the real PayPal sandbox (`api-m.sandbox.paypal.com`, needs `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`). Holds are real Orders v2 orders (intent `AUTHORIZE`); a change order creates a real Invoicing v2 invoice (`INV2-...`) and **sends** it. With `DEMO_MODE=1` the judge demo cannot log a sandbox buyer in to approve the hold, so the seed simulates that one approval: the order id is real, and the authorization, capture and void ids after it are `SIM-...` ids (`SIM-AUTH-<real order id>`) on an in-memory twin with PayPal's rules. Payouts are attempted for real; this sandbox account's country refuses them (`PAYOUT_NOT_AVAILABLE`), so the demo records a `SIM-PAYOUT-...` with that error. Every such line says **"PayPal sandbox: buyer approval simulated"**, and the UI tags ids `PayPal sandbox` or `PayPal sandbox · simulated`, never `mock`. No capture id is dressed up as a real one.
+  - `live`: PayPal REST against `api-m.paypal.com` (not used for the hackathon).
+  - In every mode the policy engine decides; AI never sets an amount or a verdict.
+
 Run the judge demo locally:
 
 ```
 cd apps/api && DEMO_MODE=1 PAYPAL_MODE=mock npm run dev   # seeds the demo deal on boot
+# or on the real PayPal sandbox (real order + INV2 invoice ids; buyer approval simulated):
+# DEMO_MODE=1 PAYPAL_MODE=sandbox PAYPAL_CLIENT_ID=... PAYPAL_CLIENT_SECRET=... npm run dev
 cd apps/web && npm run dev                                 # open /login, tap "Try the demo"
 ```
 

@@ -2,6 +2,19 @@
 
 Motto: **AI checks facts, people own taste, the deal decides the money.**
 
+## Real PayPal sandbox (Nov 3, 2026)
+
+`PAYPAL_MODE=sandbox` now runs the demo on the real PayPal sandbox (app `APP-7ML73805E1390660U`). Mock mode is unchanged.
+
+| What | Where | Commit |
+|---|---|---|
+| Sandbox gateway: real Orders v2 (intent `AUTHORIZE`), real Invoicing v2 invoice created **and sent** (`INV2-...`, UNPAID in the sandbox). Demo only (`DEMO_MODE=1`): buyer approval of the hold is simulated (no sandbox buyer can log in from here), so authorization / capture / void after the real order are `SIM-` ids on an in-memory twin with PayPal's rules, labelled "PayPal sandbox: buyer approval simulated" on the ledger. Payouts are tried for real; the sandbox account's country gets `PAYOUT_NOT_AVAILABLE`, recorded as `SIM-PAYOUT-...` with that error. PayPal-Request-Id is salted per boot in demo mode so a reseed does not replay last boot's invoice. | `modules/deals/lib/paypal-sandbox.cts`, `lib/paypal-rest.cts` (`sendInvoice`), `paypal.cts`, `demo.cts`, `server.js`, `lib/engine.cts`, `lib/explain.cts`, `tests/paypal-sandbox.test.js` | `a5e357d` |
+| Web: every money-timeline line shows its PayPal id with a tag (`PayPal sandbox`, `PayPal sandbox · simulated`, or `mock`); sandbox change-order invoices read "Invoice sent" / "Sent · not paid yet". | `components/deals/common.tsx`, `MoneyTimeline.tsx`, `ChangeOrderCard.tsx`, `pages/InvoicesPage.tsx`, `DealPage.tsx`, `lib/deals.ts` | `beeb2dd` |
+
+Verified from the build sandbox against `api-m.sandbox.paypal.com`: OAuth token for the app; order `6HK390168K880724C` (PAYER_ACTION_REQUIRED) -> `SIM-AUTH-6HK390168K880724C` -> `SIM-CAPTURE-0001` -> void; payout refused `PAYOUT_NOT_AVAILABLE` -> `SIM-PAYOUT-0002`; invoice `INV2-LZDF-QZ68-R845-7BJY` created and sent.
+
+Not real (and labelled so): buyer approval, the authorization/capture that depends on it, and payouts (sandbox account country).
+
 ## Phase 4 backend (Nov 2, 2026): done
 
 All six backend gaps from `docs/phase4-ui-plan.md` section 5 are closed. Every change goes through the existing deal service (per-deal lock, policy engine, hash-chained ledger); no route takes an amount from an agent, and no test calls real PayPal (mock gateway everywhere).
