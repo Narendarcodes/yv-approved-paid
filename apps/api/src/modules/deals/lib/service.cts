@@ -137,10 +137,11 @@ function makeDealService(opts: {
     deps,
     ledger: mongoLedger,
 
-    async create(orgId: string, byUserId: string, terms: DealTerms): Promise<DealDoc> {
+    /** opts.id is for the fixed demo deal only (deals/demo); routes never pass it. */
+    async create(orgId: string, byUserId: string, terms: DealTerms, opts: { id?: string } = {}): Promise<DealDoc> {
       if (terms?.client?.userId !== byUserId && terms?.worker?.userId !== byUserId)
         throw new ServiceError('not_party', 'you can only draft a deal you are a party to', 403);
-      const deal = engine.createDeal({ id: `deal_${crypto.randomBytes(9).toString('base64url')}`, orgId: String(orgId), terms });
+      const deal = engine.createDeal({ id: opts.id || `deal_${crypto.randomBytes(9).toString('base64url')}`, orgId: String(orgId), terms });
       await save(deal, null, true);
       return deal;
     },

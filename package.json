@@ -10,6 +10,7 @@
     "contracts:gen": "cd contracts && ./gen.sh",
     "contracts:check": "npm --prefix contracts run check",
     "seed:agent": "node apps/api/scripts/seed-agent-demo.js",
+    "seed:deals": "node apps/api/scripts/seed-deal-demo.cjs",
     "stack:up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build",
     "e2e": "python3 infra/e2e.py --api http://127.0.0.1:3000/api/v1 --seed seed.json",
     "lint:boundaries": "depcruise apps/api/src --config .dependency-cruiser.cjs",

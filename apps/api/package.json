@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "seed": "node scripts/seed-chat.js",
     "seed:dry": "node scripts/seed-chat.js --dry-run",
+    "seed:deals": "node scripts/seed-deal-demo.cjs",
     "typecheck": "tsc --noEmit -p .",
     "migrate:up": "node scripts/migrate.js up",
     "migrate:down": "node scripts/migrate.js down",
