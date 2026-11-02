@@ -33,32 +33,72 @@ async function register(req, res, next) {
   }
 }
 
+/** Set the session cookies and answer like /auth/login does (shared with demo-login). */
+async function sendSession(res, session, tokenTransport, extra = {}) {
+  // Include the primary org role so the client can render role-based UX
+  // straight from the login response.
+  const Membership = require('../models/membership.model');
+  const membership = await Membership.findOne({
+    userId: session.user._id,
+    disabled: { $ne: true },
+  }).sort({
+    createdAt: 1,
+  });
+  const u = session.user.toJSON();
+  u.role = membership ? membership.role : 'member';
+  const csrfToken = issueCsrfToken(session.sessionId);
+  setSessionCookies(res, { ...session, csrfToken });
+  const data = {
+    user: u,
+    accessToken: session.accessToken,
+    accessTokenExpiresAt: session.accessExpiresAt,
+    csrfToken,
+    ...extra,
+  };
+  // The long-lived refresh token stays out of JS unless a non-browser client asks.
+  if (tokenTransport === 'body') data.refreshToken = session.refreshToken;
+  res.json({ data });
+}
+
 async function login(req, res, next) {
   try {
     const { email, password, tokenTransport } = req.body;
     const session = await authService.authenticate({ email, password });
-    // Include the primary org role so the client can render role-based UX
-    // straight from the login response.
+    await sendSession(res, session, tokenTransport);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** DEMO_MODE=1 only (the route 404s otherwise): one tap signs in as the seeded demo judge. */
+function demoEnabled() {
+  return process.env.DEMO_MODE === '1';
+}
+function demoGate(req, res, next) {
+  if (!demoEnabled())
+    return res.status(404).json({ error: { code: 'not_found', message: 'Not found' } });
+  next();
+}
+async function demoLogin(req, res, next) {
+  try {
+    const { DEMO, demoJudge } = require('../modules/deals/demo.cts');
+    const judge = await demoJudge();
+    if (!judge)
+      return res.status(503).json({
+        error: {
+          code: 'demo_not_seeded',
+          message:
+            'The demo is not seeded yet (npm run seed:deals, or restart the API with DEMO_MODE=1)',
+        },
+      });
+    const session = await authService.startSession(judge);
     const Membership = require('../models/membership.model');
-    const membership = await Membership.findOne({
-      userId: session.user._id,
-      disabled: { $ne: true },
-    }).sort({
-      createdAt: 1,
+    const m = await Membership.findOne({ userId: judge._id, disabled: { $ne: true } })
+      .sort({ createdAt: 1 })
+      .lean();
+    await sendSession(res, session, undefined, {
+      demo: { dealId: DEMO.dealId, organizationId: m ? String(m.organizationId) : null },
     });
-    const u = session.user.toJSON();
-    u.role = membership ? membership.role : 'member';
-    const csrfToken = issueCsrfToken(session.sessionId);
-    setSessionCookies(res, { ...session, csrfToken });
-    const data = {
-      user: u,
-      accessToken: session.accessToken,
-      accessTokenExpiresAt: session.accessExpiresAt,
-      csrfToken,
-    };
-    // The long-lived refresh token stays out of JS unless a non-browser client asks.
-    if (tokenTransport === 'body') data.refreshToken = session.refreshToken;
-    res.json({ data });
   } catch (err) {
     next(err);
   }
@@ -148,4 +188,4 @@ async function me(req, res, next) {
   }
 }
 
-module.exports = { register, login, refresh, logout, csrf, me };
+module.exports = { register, login, demoGate, demoLogin, refresh, logout, csrf, me };

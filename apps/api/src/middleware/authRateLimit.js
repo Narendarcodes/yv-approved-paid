@@ -7,6 +7,7 @@
  *                        attacker cannot burn a user's budget by logging in)
  *   POST /auth/register  per IP + per email
  *   POST /auth/refresh   per IP + per user (resolved from the refresh token)
+ *   POST /auth/demo-login  per IP (DEMO_MODE=1 only)
  *
  * Over the limit -> 429 { error: { code: 'rate_limited', retryAfter } } with a
  * Retry-After header (seconds). Counters live behind the store interface in
@@ -90,6 +91,12 @@ function buildAuthLimits({ store = new MemoryStore(), limits = config.authRateLi
       store,
     }),
     refreshIp: createLimiter({ name: 'refresh:ip', ...l.refresh.ip, key: ip, store }),
+    demoIp: createLimiter({
+      name: 'demo:ip',
+      ...((l.demo && l.demo.ip) || { windowMs: 15 * 60 * 1000, max: 20 }),
+      key: ip,
+      store,
+    }),
     refreshAccount: createLimiter({
       name: 'refresh:acct',
       ...l.refresh.account,

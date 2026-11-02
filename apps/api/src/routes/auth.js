@@ -24,6 +24,8 @@ router.post(
   controller.register,
 );
 router.post('/login', limits.loginIp, validate(loginSchema), limits.loginAccount, controller.login);
+// One-tap judge login: 404 unless DEMO_MODE=1; per-IP limit; same cookie session + CSRF as /login.
+router.post('/demo-login', controller.demoGate, limits.demoIp, controller.demoLogin);
 router.post(
   '/refresh',
   limits.refreshIp,

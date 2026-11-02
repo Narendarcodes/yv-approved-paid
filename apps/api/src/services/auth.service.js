@@ -53,6 +53,13 @@ async function authenticate({ email, password }) {
   return { user, ...(await issue(user._id, newSessionId(), { email: user.email })) };
 }
 
+/** A fresh session for a user who is already identified (the demo judge login); no password involved. */
+async function startSession(user) {
+  if (!user || user.disabled)
+    throw { status: 403, code: 'user_disabled', message: 'User disabled' };
+  return { user, ...(await issue(user._id, newSessionId(), { email: user.email })) };
+}
+
 /** The live session a refresh token belongs to (for CSRF binding), or null. */
 async function findSession(rawToken) {
   if (!rawToken) return null;
@@ -111,6 +118,7 @@ async function rotateRefreshToken(oldToken) {
 }
 
 module.exports = {
+  startSession,
   register,
   authenticate,
   findSession,

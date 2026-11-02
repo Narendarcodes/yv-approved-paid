@@ -91,6 +91,10 @@ module.exports = {
       ip: limit('AUTH_REFRESH_IP', 120, 15 * 60 * 1000),
       account: limit('AUTH_REFRESH_ACCOUNT', 60, 15 * 60 * 1000),
     },
+    // POST /auth/demo-login (only live with DEMO_MODE=1): per IP
+    demo: {
+      ip: limit('AUTH_DEMO_IP', 20, 15 * 60 * 1000),
+    },
   },
   // Social publishing (PRD §17). Postiz is an external capability behind the
   // scheduling adapter; with no POSTIZ_API_URL/POSTIZ_API_KEY the built-in

@@ -40,6 +40,24 @@ async function start() {
     // Money Agent: keeps holds alive, auto-approves lapsed reviews, captures, pays out.
     require('./modules/deals/service.cts').startMoneyAgent(logger);
 
+    // Judge demo: DEMO_MODE=1 (mock PayPal only) rebuilds "Diwali launch reels" in this
+    // process, so the mock holding its authorizations is the one the Money Agent uses.
+    if (process.env.DEMO_MODE === '1') {
+      if ((process.env.PAYPAL_MODE || 'mock') !== 'mock') {
+        logger.warn('DEMO_MODE=1 ignored for seeding: the deal demo needs PAYPAL_MODE=mock');
+      } else {
+        require('./modules/deals/demo.cts')
+          .seedDealDemo({ judgePassword: process.env.DEMO_JUDGE_PASSWORD })
+          .then((r) =>
+            logger.info(
+              { dealId: r.dealId, orgId: r.orgId },
+              'deal demo seeded (POST /auth/demo-login is open)',
+            ),
+          )
+          .catch((err) => logger.error({ err: err && err.message }, 'deal demo seed failed'));
+      }
+    }
+
     process.on('SIGINT', async () => {
       logger.info('SIGINT received, shutting down');
       require('./services/scheduler').stop();
