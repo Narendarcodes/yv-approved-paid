@@ -5,9 +5,9 @@
  * Also handles the PayPal return URL /deals/:dealId/fund/:key?paypal=approved|cancelled.
  * AI checks facts, people own taste, the deal decides the money.
  */
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Bot } from 'lucide-react'
 import { PageHeader } from '../components/ui'
 import { CardSkeleton, EmptyState, ErrorBanner } from '../components/states'
 import { StatusChip } from '../components/status'
@@ -19,10 +19,11 @@ import ReviewMergeCard from '../components/deals/ReviewMergeCard'
 import MoneyTimeline from '../components/deals/MoneyTimeline'
 import ChangeOrderCard from '../components/deals/ChangeOrderCard'
 import DisputeSplitCard from '../components/deals/DisputeSplitCard'
+import DealCopilot from '../components/deals/DealCopilot'
 import * as api from '../services/api'
 import { roleWord, useDeal, useDealRefresh } from '../lib/deals'
 
-export default function DealPage({ aside }: { aside?: (ctx: { orgId: string; dealId: string }) => ReactNode }) {
+export default function DealPage() {
   const { dealId, key: fundKey } = useParams()
   const [search] = useSearchParams()
   const navigate = useNavigate()
@@ -30,6 +31,8 @@ export default function DealPage({ aside }: { aside?: (ctx: { orgId: string; dea
   const { data: deal, orgId, isLoading, isError, refetch } = useDeal(dealId)
   const refresh = useDealRefresh(orgId, dealId)
   const confirmed = useRef(false)
+  // copilot open on wide screens, closed on small ones
+  const [copilot, setCopilot] = useState(() => typeof window === 'undefined' || window.matchMedia?.('(min-width: 1024px)').matches !== false)
 
   // PayPal sent the buyer back: confirm the hold once, then drop the return path.
   useEffect(() => {
@@ -71,9 +74,18 @@ export default function DealPage({ aside }: { aside?: (ctx: { orgId: string; dea
         <EmptyState title="Deal not found" hint="Open one from the deals list." />
       ) : (
         <>
-          <PageHeader title={deal.terms.title} subtitle={`You are the ${roleWord(deal.me).toLowerCase()} on this deal.`} />
+          <PageHeader
+            title={deal.terms.title}
+            subtitle={`You are the ${roleWord(deal.me).toLowerCase()} on this deal.`}
+            actions={
+              <button className="btn-secondary" onClick={() => setCopilot((v) => !v)} aria-expanded={copilot}>
+                <Bot size={15} strokeWidth={1.75} />
+                {copilot ? 'Hide copilot' : 'Ask the copilot'}
+              </button>
+            }
+          />
           <Motto className="-mt-3 mb-5" />
-          <div className={`grid gap-5 ${aside ? 'xl:grid-cols-[minmax(0,1fr)_380px]' : 'lg:grid-cols-[minmax(0,1fr)_400px]'}`}>
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div className="min-w-0 space-y-5">
               <DealCard deal={deal} orgId={orgId} onChanged={changed} />
               {deal.terms.milestones.map((t) => {
@@ -105,10 +117,8 @@ export default function DealPage({ aside }: { aside?: (ctx: { orgId: string; dea
               })}
             </div>
             <div className="min-w-0 space-y-5">
-              <div className="lg:sticky lg:top-4">
-                <MoneyTimeline deal={deal} orgId={orgId} onChanged={changed} />
-              </div>
-              {aside && dealId && aside({ orgId, dealId })}
+              {copilot && <DealCopilot deal={deal} orgId={orgId} />}
+              <MoneyTimeline deal={deal} orgId={orgId} onChanged={changed} />
             </div>
           </div>
         </>

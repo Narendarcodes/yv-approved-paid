@@ -1,0 +1,209 @@
+/**
+ * DealCopilot: a side panel that answers with deal cards (generative UI).
+ * Offline replay by default: suggested prompts and typed questions map to
+ * render actions with no LLM call (lib/copilot.tsx), so the demo always works.
+ *
+ * The copilot only PROPOSES. Money moves through the card buttons (human
+ * routes) and the Money Agent's policy engine; a proposal that policy refuses
+ * renders PolicyBlockedChip with "No money moved".
+ * AI checks facts, people own taste, the deal decides the money.
+ */
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Bot, Send, Sparkles } from 'lucide-react'
+import * as api from '../../services/api'
+import type { DealView } from '../../contracts/types'
+import { captureDryRun, matchIntent, SUGGESTIONS, type CopilotAction } from '../../lib/copilot'
+import { money, useDealLedger, useDealRefresh } from '../../lib/deals'
+import { Skeleton } from '../states'
+import { DealCardShell, Motto } from './common'
+import DealCard from './DealCard'
+import LiveChecksCard from './LiveChecksCard'
+import ReviewMergeCard from './ReviewMergeCard'
+import MoneyTimeline from './MoneyTimeline'
+import ChangeOrderCard from './ChangeOrderCard'
+import DisputeSplitCard from './DisputeSplitCard'
+import PolicyBlockedChip from './PolicyBlockedChip'
+
+type Turn = { id: number; role: 'user' | 'copilot'; text?: string; actions?: CopilotAction[] }
+
+/** Blocked attempts on the ledger (P3_amount, P6_version...), each with its rule chip. */
+function BlockedAttempts({ deal, orgId }: { deal: DealView; orgId: string }) {
+  const ledger = useDealLedger(orgId, deal.id)
+  const blocked = (ledger.data?.entries ?? []).filter((e) => e.type === 'blocked')
+  return (
+    <DealCardShell testId="blocked-attempts" label="Policy" title="Blocked attempts">
+      {ledger.isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : !blocked.length ? (
+        <p className="text-[13px] text-umber">Nothing has been blocked on this deal.</p>
+      ) : (
+        <ul className="space-y-3">
+          {blocked.map((e) => (
+            <li key={e.seq}>
+              <p className="text-[13px] text-ink">{e.explanation}</p>
+              <div className="mt-1">
+                <PolicyBlockedChip violations={e.policy?.violations ?? []} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </DealCardShell>
+  )
+}
+
+/** proposeCapture: a read-only policy dry-run. Never a button that moves money. */
+function CaptureProposal({ deal, orgId, action }: { deal: DealView; orgId: string; action: Extract<CopilotAction, { name: 'proposeCapture' }> }) {
+  const plan = captureDryRun(deal, action)
+  const q = useQuery({
+    queryKey: ['deal-dry-run', orgId, deal.id, JSON.stringify(plan?.body ?? null)],
+    queryFn: () => api.dealPolicyCheck(orgId, deal.id, plan!.body),
+    enabled: !!plan,
+    staleTime: 0,
+  })
+  const cur = deal.terms.currency
+  const ms = deal.terms.milestones.find((m) => m.key === action.milestoneKey)
+  return (
+    <DealCardShell testId="capture-proposal" label="Proposal · dry run" title={`Capture on ${ms?.title ?? action.milestoneKey}`}>
+      {!plan ? (
+        <p className="text-[13px] text-umber">There is no submitted version to capture against yet.</p>
+      ) : (
+        <>
+          <p className="text-[13px] text-ink">
+            Capture <span className="t-num">{money(plan.amountMinor, cur)}</span>{' '}
+            <span className="text-umber">({plan.amountFrom === 'typed' ? 'the number you typed' : 'the signed amount'})</span> for version{' '}
+            <span className="font-mono">{plan.versionId}</span>
+            {plan.latestId && plan.versionId !== plan.latestId && <span className="text-umber"> (latest is {plan.latestId})</span>}.
+          </p>
+          <div className="mt-3">
+            {q.isLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : q.isError ? (
+              <p className="text-[13px] text-danger">The policy check did not answer: {(q.error as Error)?.message}</p>
+            ) : q.data?.allowed ? (
+              <p className="text-[13px] text-umber">
+                Policy would allow this{q.data?.needsHumanApproval ? ' after one human tap' : ''}. The copilot does not move money: the client approves the
+                version on its card and the Money Agent captures the signed amount.
+              </p>
+            ) : (
+              <PolicyBlockedChip violations={q.data?.violations ?? []} />
+            )}
+          </div>
+        </>
+      )}
+    </DealCardShell>
+  )
+}
+
+function Rendered({ action, deal, orgId, onChanged }: { action: CopilotAction; deal: DealView; orgId: string; onChanged: () => void }) {
+  switch (action.name) {
+    case 'showDeal':
+      return <DealCard deal={deal} orgId={orgId} onChanged={onChanged} />
+    case 'showChecks':
+      return <LiveChecksCard deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+    case 'showReviewMerge':
+      return <ReviewMergeCard deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+    case 'showMoneyTimeline':
+      return <MoneyTimeline deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+    case 'showChangeOrder':
+      return <ChangeOrderCard deal={deal} orgId={orgId} changeOrderId={action.changeOrderId} onChanged={onChanged} />
+    case 'showDisputeSplit':
+      return <DisputeSplitCard deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+    case 'showBlocked':
+      return <BlockedAttempts deal={deal} orgId={orgId} />
+    case 'proposeCapture':
+      return <CaptureProposal deal={deal} orgId={orgId} action={action} />
+    default:
+      return (
+        <p className="text-[13px] text-umber">
+          I answer with cards: ask about the deal, the checks, the review notes, the money, a change order or the dispute split.
+        </p>
+      )
+  }
+}
+
+export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: string }) {
+  const [turns, setTurns] = useState<Turn[]>([])
+  const [text, setText] = useState('')
+  const seq = useRef(0)
+  const end = useRef<HTMLDivElement>(null)
+  const refresh = useDealRefresh(orgId, deal.id)
+
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'nearest' })
+  }, [turns])
+
+  const ask = (q: string) => {
+    const t = q.trim()
+    if (!t) return
+    const actions = matchIntent(t, deal)
+    setTurns((prev) => [...prev, { id: ++seq.current, role: 'user', text: t }, { id: ++seq.current, role: 'copilot', actions }])
+    setText('')
+  }
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    ask(text)
+  }
+
+  return (
+    <aside className="card flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden" aria-label="Deal copilot" data-testid="deal-copilot">
+      <div className="card-head justify-between">
+        <div className="flex items-center gap-2">
+          <Bot size={16} strokeWidth={1.75} className="text-teal" />
+          <h2 className="card-title">Deal copilot</h2>
+        </div>
+        <span className="font-mono text-[10px] uppercase text-label" title="Answers are matched offline from your words; no model call">
+          offline replay
+        </span>
+      </div>
+      <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
+        <Motto />
+        {turns.length === 0 && (
+          <p className="text-[13px] text-umber">Ask about this deal. Answers come back as cards; proposals are dry-run through policy and never move money.</p>
+        )}
+        {turns.map((t) =>
+          t.role === 'user' ? (
+            <p key={t.id} className="ml-auto w-fit max-w-[90%] rounded-xl bg-teal/10 px-3 py-2 text-[13px] text-ink">
+              {t.text}
+            </p>
+          ) : (
+            <div key={t.id} className="space-y-3">
+              {(t.actions ?? []).map((a, i) => (
+                <Rendered key={i} action={a} deal={deal} orgId={orgId} onChanged={() => void refresh()} />
+              ))}
+            </div>
+          ),
+        )}
+        <div ref={end} />
+      </div>
+      <div className="border-t border-line p-3">
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => ask(s.prompt)}
+              className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] text-umber hover:border-teal hover:text-teal"
+            >
+              <Sparkles size={11} strokeWidth={2} />
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={submit} className="flex gap-2">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Ask about this deal…"
+            aria-label="Ask the deal copilot"
+            className="input flex-1 !h-9 text-[13px]"
+          />
+          <button type="submit" className="btn-primary !h-9" aria-label="Send" disabled={!text.trim()}>
+            <Send size={14} strokeWidth={2} />
+          </button>
+        </form>
+      </div>
+    </aside>
+  )
+}
