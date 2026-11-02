@@ -9,7 +9,7 @@
  * engine, then calls PayPal with the policy's idempotency key as the
  * PayPal-Request-Id, then writes the ledger line with a plain explanation.
  */
-import type { DealDoc, DealTerms, MilestoneRuntime, MoneyAction, Role, ChangeItem, MilestoneTerms } from './types.cts';
+import type { DealDoc, DealTerms, MilestoneRuntime, MoneyAction, Role, ChangeItem, MilestoneTerms, Version } from './types.cts';
 import type { PaymentGateway } from './gateway.cts';
 import type { LedgerEntry, LedgerType } from './ledger.cts';
 import type { PolicyContext } from './policy.cts';
@@ -214,7 +214,7 @@ function submitVersion(deal: DealDoc, key: string, userId: string, version: { id
   return step(d, key, 'start_checks', 'system', at);
 }
 
-function recordChecks(deal: DealDoc, key: string, versionId: string, report: { reportId: string; passed: boolean; failed: string[] }, at: string): DealDoc {
+function recordChecks(deal: DealDoc, key: string, versionId: string, report: Omit<NonNullable<Version['checks']>, 'at'>, at: string): DealDoc {
   const m0 = ms(deal, key);
   const latest = m0.versions[m0.versions.length - 1];
   if (!latest || latest.id !== versionId) throw new DealError('stale_version', 'checks are for an older version', 409);
@@ -245,6 +245,13 @@ function requestChanges(deal: DealDoc, key: string, userId: string, items: Chang
     return it;
   });
   const tasteRound = normalised.some((i) => i.tag === 'taste');
+  if (opts.changeOrderId) {
+    // a change order unlocks one extra round only once the client accepted it, and only once
+    const co = deal.changeOrders.find((c) => c.id === opts.changeOrderId && c.milestoneKey === key);
+    if (!co || (co.status !== 'accepted' && co.status !== 'invoiced'))
+      throw new DealError('change_order_not_accepted', 'that change order is not an accepted change order on this milestone', 409);
+    if (m0.changeRequests.some((r) => r.changeOrderId === opts.changeOrderId)) throw new DealError('change_order_used', 'that change order was already used for a round', 409);
+  }
   if (tasteRound && m0.revisionRoundsUsed >= t.revisionRoundsIncluded && !opts.changeOrderId) {
     throw new DealError('rounds_exhausted', `all ${t.revisionRoundsIncluded} included revision rounds are used; this Taste round needs a change order`, 409);
   }
@@ -503,6 +510,14 @@ async function tick(deps: EngineDeps, deal0: DealDoc): Promise<{ deal: DealDoc; 
   return { deal, results };
 }
 
+/** Turn an accepted change order into a PayPal invoice (through policy, like every money tool call). */
+async function invoiceChangeOrder(deps: EngineDeps, deal: DealDoc, changeOrderId: string) {
+  const co = deal.changeOrders.find((c) => c.id === changeOrderId);
+  if (!co) throw new DealError('change_order_not_found', 'change order not found', 404);
+  if (co.status !== 'accepted') throw new DealError('change_order_not_accepted', `change order is ${co.status}, not accepted`, 409);
+  return execute(deps, deal, { kind: 'invoice', milestoneKey: co.milestoneKey, rateCardItemId: co.rateCardItemId, quantity: co.quantity, amountMinor: co.amountMinor }, { changeOrderId });
+}
+
 /** Client-chosen void after a missed deadline (+ grace). */
 async function voidMissedDeadline(deps: EngineDeps, deal: DealDoc, key: string, userId: string) {
   need(deal, userId, 'client');
@@ -532,6 +547,7 @@ module.exports = {
   acceptSplit,
   approveHuman,
   voidMissedDeadline,
+  invoiceChangeOrder,
   plan,
   execute,
   tick,

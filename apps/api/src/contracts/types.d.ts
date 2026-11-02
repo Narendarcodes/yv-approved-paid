@@ -137,6 +137,9 @@ export interface ServiceTokenClaims {
     | "jobs:write"
     | "assets:write"
     | "digests:write"
+    | "deals:read"
+    | "deals:checks"
+    | "deals:propose"
   )[];
   iss: "yv-api";
   aud: "yv-internal";

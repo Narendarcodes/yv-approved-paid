@@ -124,8 +124,16 @@ describe('fairness rules', () => {
     h.deal = engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'warmer colours', tag: 'taste' }], h.clock.now());
     await toReview(h, V2);
     expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now())).toThrow(/change order/);
+    // an invented or unaccepted change order unlocks nothing
+    expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now(), { changeOrderId: 'co_1' })).toThrow(/not an accepted/);
+    const { draftChangeOrder, decideChangeOrder } = require('../lib/proposals.cts');
+    h.deal = draftChangeOrder(h.deal, { milestoneKey: 'reel1', rateCardItemId: 'revision_round', quantity: 1, ask: 'one more round', by: 'agent' }, 'co_1', h.clock.now()).deal;
+    expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now(), { changeOrderId: 'co_1' })).toThrow(/not an accepted/);
+    h.deal = decideChangeOrder(h.deal, 'co_1', 'u_client', true, h.clock.now());
     h.deal = engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'different music', tag: 'taste' }], h.clock.now(), { changeOrderId: 'co_1' });
     expect(ms(h.deal).revisionRoundsUsed).toBe(2);
+    await toReview(h, { id: 'v3', sha256: 'e'.repeat(64) });
+    expect(() => engine.requestChanges(h.deal, 'reel1', 'u_client', [{ text: 'again', tag: 'taste' }], h.clock.now(), { changeOrderId: 'co_1' })).toThrow(/already used/);
   });
 
   test('kill fee: partial capture of 25%, void the rest, pay the fee out', async () => {

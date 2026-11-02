@@ -38,6 +38,8 @@ function createInternalApp() {
   const app = express();
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json({ limit: '5mb' }));
+  // Approved = Paid: Video QA reports, change-order drafts and policy dry-runs from the agents
+  app.use('/internal/deals', requireInternalToken, require('./modules/deals/internal.cts').router);
   app.use('/internal', requireInternalToken, require('./routes/internal'));
   app.use((req, res) =>
     res.status(404).json({ error: { code: 'not_found', message: 'Not found' } }),

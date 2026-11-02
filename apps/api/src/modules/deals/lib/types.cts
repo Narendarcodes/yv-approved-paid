@@ -99,7 +99,44 @@ export type Version = {
   id: string;
   sha256: string;
   submittedAt: string;
-  checks?: { reportId: string; passed: boolean; failed: string[]; at: string };
+  checks?: {
+    reportId: string;
+    passed: boolean;
+    failed: string[];
+    at: string;
+    /** Per-line results with timestamped evidence (Video QA agent). */
+    results?: CheckResultRecord[];
+    /** Measurable lines the report did not cover (counted as failed). */
+    unmeasured?: string[];
+    /** Plain-language notes for failed lines (LLM-written from the facts; never changes pass/fail). */
+    notes?: Record<string, string>;
+  };
+};
+
+export type CheckEvidence = { tStart: number; tEnd: number; note: string; screenshot?: string };
+export type CheckResultRecord = {
+  checklistId: string;
+  metric: string;
+  measured: number | string | boolean | null;
+  passed: boolean;
+  status: 'ok' | 'not_measurable';
+  evidence: CheckEvidence[];
+};
+
+/** A paid change order, priced from the signed rate card. The client accepts it with one tap. */
+export type ChangeOrder = {
+  id: string;
+  milestoneKey: string;
+  rateCardItemId: string;
+  quantity: number;
+  amountMinor: number;
+  reason: string;
+  status: 'draft' | 'invoiced' | 'accepted' | 'declined';
+  invoiceId?: string;
+  by?: 'agent' | 'client' | 'worker';
+  decidedAt?: string;
+  decidedBy?: string;
+  at: string;
 };
 
 export type Capture = { id: string; amountMinor: number; versionId?: string; reason: string; at: string };
@@ -153,7 +190,7 @@ export type DealDoc = {
   /** Things PayPal told us that a person has to look at (reversed capture, failed payout, hold voided outside yv.). */
   alerts?: { at: string; milestoneKey: string; eventType: string; message: string }[];
   /** Change orders drafted by the Scope Agent (priced from the rate card). */
-  changeOrders: { id: string; milestoneKey: string; rateCardItemId: string; quantity: number; amountMinor: number; reason: string; status: 'draft' | 'invoiced' | 'accepted' | 'declined'; invoiceId?: string; at: string }[];
+  changeOrders: ChangeOrder[];
 };
 
 /** A money action an agent (or a human) asks to run. */

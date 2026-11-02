@@ -18,6 +18,9 @@ class Scope(StrEnum):
     jobs_write = 'jobs:write'
     assets_write = 'assets:write'
     digests_write = 'digests:write'
+    deals_read = 'deals:read'
+    deals_checks = 'deals:checks'
+    deals_propose = 'deals:propose'
 
 
 class ServiceTokenClaims(BaseModel):

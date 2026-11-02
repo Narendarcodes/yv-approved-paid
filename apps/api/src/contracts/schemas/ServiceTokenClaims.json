@@ -30,7 +30,10 @@
           "insights:write",
           "jobs:write",
           "assets:write",
-          "digests:write"
+          "digests:write",
+          "deals:read",
+          "deals:checks",
+          "deals:propose"
         ]
       }
     },

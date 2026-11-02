@@ -191,6 +191,41 @@ router.post(
   }),
 );
 
+/* ------------------------------------------------- change orders + dry run */
+
+/** A party drafts a change order; the price comes from the signed rate card, never from the request. */
+router.post(
+  '/:dealId/change-orders',
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    const role = actorRole(d, uid(req));
+    if (!role) throw bad('not_party', 'only a party can draft a change order', 403);
+    const b = req.body || {};
+    const r = await dealService().draftChangeOrder(req.params.dealId, org(req), {
+      milestoneKey: b.milestoneKey, rateCardItemId: b.rateCardItemId, quantity: b.quantity, amountMinor: b.amountMinor, ask: b.ask, by: role,
+    });
+    res.status(201).json({ data: { deal: view(r.deal, uid(req)), changeOrder: r.out.changeOrder } });
+  }),
+);
+for (const verb of ['accept', 'decline'] as const) {
+  router.post(
+    `/:dealId/change-orders/:coId/${verb}`,
+    wrap(async (req, res) => {
+      await readable(req, req.params.dealId);
+      const r = await dealService().decideChangeOrder(req.params.dealId, org(req), uid(req), req.params.coId, verb === 'accept');
+      res.json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+    }),
+  );
+}
+/** Dry-run a proposal through policy (what the UI shows next to an agent's suggestion). Read-only. */
+router.post(
+  '/:dealId/policy-check',
+  wrap(async (req, res) => {
+    await readable(req, req.params.dealId);
+    res.json({ data: await dealService().dryRun(req.params.dealId, org(req), req.body) });
+  }),
+);
+
 /* ---------------------------------------------------------------- webhooks */
 
 const webhookRouter = express.Router();

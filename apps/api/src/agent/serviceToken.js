@@ -10,7 +10,7 @@ const config = require('../config');
 
 const ISS = 'yv-api';
 const AUD = 'yv-internal';
-const ALL_SCOPES = ['posts:read', 'metrics:read', 'brand:read', 'reviews:read', 'insights:write', 'jobs:write', 'assets:write', 'digests:write'];
+const ALL_SCOPES = ['posts:read', 'metrics:read', 'brand:read', 'reviews:read', 'insights:write', 'jobs:write', 'assets:write', 'digests:write', 'deals:read', 'deals:checks', 'deals:propose'];
 const READ_SCOPES = ['posts:read', 'metrics:read', 'brand:read', 'reviews:read'];
 
 function mintServiceToken({ orgId, userId, scopes, ttlSec }) {

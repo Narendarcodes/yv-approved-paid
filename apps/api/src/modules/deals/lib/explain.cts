@@ -48,7 +48,7 @@ function explain(deal: DealDoc, action: MoneyAction, extra: Record<string, unkno
     case 'payout':
       return `Paid ${amt(action.amountMinor)} to ${String(extra.payeeName || action.email)} through PayPal Payouts for ${title}.`;
     case 'invoice':
-      return `Drafted a PayPal invoice for a change order on ${title}: ${action.quantity} × ${String(extra.itemLabel || action.rateCardItemId)} at the signed rate-card price, ${amt(action.amountMinor)} in total. It is a draft until ${client} approves it.`;
+      return `Drafted a PayPal invoice for a change order on ${title}: ${action.quantity} × ${String(extra.itemLabel || action.rateCardItemId)} at the signed rate-card price, ${amt(action.amountMinor)} in total. ${client} accepted the change order; the invoice waits in PayPal as a draft until it is sent.`;
     default:
       return 'Money step';
   }

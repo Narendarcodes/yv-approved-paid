@@ -18,6 +18,7 @@ const engine = require('./engine.cts');
 const { verifyChain, totals } = require('./ledger.cts');
 const { TERMINAL } = require('./states.cts');
 const { hashOf } = require('./canonical.cts');
+const proposals = require('./proposals.cts');
 
 const LOCK_MS = 60_000;
 
@@ -180,6 +181,34 @@ function makeDealService(opts: {
     /** Called by the checks pipeline (system), never by a party. */
     recordChecks: (dealId: string, key: string, versionId: string, report: { reportId: string; passed: boolean; failed: string[] }) =>
       withDeal(dealId, undefined, async (d) => ({ deal: engine.recordChecks(d, key, versionId, report, now()), out: null })).then((r) => r.deal),
+    /** A Video QA report (internal API). orgId comes from the service token; pass/fail is recomputed from the results. */
+    recordCheckReport: (dealId: string, orgId: string, key: string, body: any) =>
+      withDeal(dealId, orgId, async (d) => {
+        const r = proposals.checkReport(d, key, body);
+        const reportId = `chk_${crypto.randomBytes(6).toString('base64url')}`;
+        const deal = engine.recordChecks(d, key, body.versionId, { reportId, passed: r.passed, failed: r.failed, results: r.results, unmeasured: r.unmeasured, notes: r.notes }, now());
+        return { deal, out: { reportId, passed: r.passed, failed: r.failed, unmeasured: r.unmeasured } };
+      }),
+    /** Draft a change order priced from the signed rate card (by the Scope Agent or a party). */
+    draftChangeOrder: (dealId: string, orgId: string, input: any) =>
+      withDeal(dealId, orgId, async (d) => {
+        const id = `co_${crypto.randomBytes(6).toString('base64url')}`;
+        const r = proposals.draftChangeOrder(d, input, id, now());
+        return { deal: r.deal, out: { changeOrder: r.changeOrder, decision: r.decision } };
+      }),
+    /** The client's one tap. Accepting also drafts the PayPal invoice through policy. */
+    decideChangeOrder: (dealId: string, orgId: string, userId: string, coId: string, accept: boolean) =>
+      withDeal(dealId, orgId, async (d) => {
+        const decided = proposals.decideChangeOrder(d, coId, userId, accept, now());
+        if (!accept) return { deal: decided, out: null as ExecOutcome | null };
+        const r = await engine.invoiceChangeOrder(deps, decided, coId);
+        // a failed invoice call leaves the change order accepted (the round is still unlocked); it can be re-invoiced
+        return { deal: r.result.outcome === 'failed' ? decided : r.deal, out: r.result as ExecOutcome | null };
+      }),
+    /** What policy (or the engine) would say about a proposal right now. Read-only. */
+    async dryRun(dealId: string, orgId: string, input: any) {
+      return proposals.dryRun(await load(dealId, orgId), input, now());
+    },
     requestChanges: (dealId: string, orgId: string, userId: string, key: string, items: ChangeItem[], changeOrderId?: string) =>
       sync(dealId, orgId, (d) => engine.requestChanges(d, key, userId, items, now(), { changeOrderId })),
     approve: (dealId: string, orgId: string, userId: string, key: string, versionId: string, release: boolean) =>
