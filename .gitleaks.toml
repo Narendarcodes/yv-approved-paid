@@ -3,5 +3,5 @@ title = "yv-approved-paid gitleaks config"
 useDefault = true
 [allowlist]
 description = "Test fixtures and variable names, not secrets"
-paths = ['''apps/api/tests/webhook-security\.test\.js''']
+paths = ['''apps/api/tests/webhook-security\.test\.js''', '''apps/api/src/modules/deals/tests/fixtures/paypal-sandbox-recorded\.json''']
 regexes = ['''api_key=self\.s\.llm_api_key''']
