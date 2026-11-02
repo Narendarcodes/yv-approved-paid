@@ -365,7 +365,9 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
   let deal = deal0;
   const ctx = ctxFor(deal, action, deps, extra);
   const decision = evaluate(deal, action, ctx);
-  const amount = (action as { amountMinor?: number }).amountMinor || 0;
+  // a non-integer amount (NaN, Infinity, 1.5) is already a P3 violation; the ledger records 0 so the hash chain stays valid
+  const rawAmount = (action as { amountMinor?: number }).amountMinor;
+  const amount = Number.isSafeInteger(rawAmount) ? (rawAmount as number) : 0;
   if (!decision.allowed && !decision.needsHumanApproval) {
     const entry = await writeLedger(deps, deal, { milestoneKey: action.milestoneKey, type: 'blocked', amountMinor: amount, moved: false, actor: ctx.actor, idempotencyKey: decision.idempotencyKey, explanation: explainBlocked(action, decision.violations), policy: { allowed: false, violations: decision.violations } });
     deal = { ...deal, lastBlocked: { ...(deal.lastBlocked || {}), [decision.idempotencyKey]: deps.now() } };
