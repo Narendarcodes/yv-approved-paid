@@ -158,7 +158,9 @@ class ReviewAgent:
         fix_n = sum(1 for x in merged if x["tag"] == "fix")
         body = {"items": [{"text": x["text"], "tag": x["tag"], "checklistId": x["checklistId"] or None,
                            "disputed": any(x["i"] in (c["a"], c["b"]) for c in contradictions)} for x in merged],
-                "contradictions": contradictions}
+                "contradictions": contradictions,
+                # original comment indexes behind each merged item (contradictions use those indexes)
+                "merged_from": [[x["i"], *x.get("also", [])] for x in merged]}
         return Proposal(self.name, "request_changes", f"POST /api/v1/organizations/:org/deals/{deal_id}/milestones/{milestone['key']}/changes", body,
                         needs_human=True, rationale=f"{fix_n} fix, {len(merged) - fix_n} taste, {len(contradictions)} contradiction(s)")
 
