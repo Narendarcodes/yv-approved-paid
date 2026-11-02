@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Lock, Mail, PlayCircle } from 'lucide-react'
 import { StatusDot, type Stage } from '../components/status'
 import { useToast } from '../components/toast'
-import { login as apiLogin, LoginError } from '../services/api'
+import { login as apiLogin, demoLogin, LoginError } from '../services/api'
+import { MOTTO, rememberDealOrg } from '../lib/deals'
 import BrandLogo from '../components/BrandLogo'
 
 const PIPE: { label: string; hint: string; stage: Stage }[] = [
@@ -26,6 +27,31 @@ export default function LoginPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // null = not tried yet; false = this API has no demo (404), so the button hides
+  const [demoAvailable, setDemoAvailable] = useState<boolean | null>(null)
+  const [demoBusy, setDemoBusy] = useState(false)
+
+  /** One tap: the judge session (DEMO_MODE=1 only), then straight to the seeded deal. */
+  const tryDemo = async () => {
+    setDemoBusy(true)
+    setFormError(null)
+    try {
+      const r = await demoLogin()
+      if (!r) {
+        setDemoAvailable(false)
+        setFormError('The demo is not switched on for this server. Sign in with your own account.')
+        return
+      }
+      rememberDealOrg(r.organizationId)
+      toast('success', 'Signed in to the demo')
+      navigate(`/deals/${encodeURIComponent(r.dealId)}`, { replace: true })
+      window.dispatchEvent(new StorageEvent('storage', { key: 'yv.session' }))
+    } catch (e: any) {
+      setFormError(e?.message || 'The demo could not start. Try again in a moment.')
+    } finally {
+      setDemoBusy(false)
+    }
+  }
 
   const from = (location.state as { from?: string } | null)?.from ?? '/'
 
@@ -171,6 +197,17 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {demoAvailable !== false && (
+              <div className="mt-6 border-t border-line pt-5" data-testid="demo-login">
+                <button type="button" onClick={tryDemo} disabled={demoBusy || busy} className="btn-secondary w-full btn-lg">
+                  <PlayCircle size={16} strokeWidth={2} />
+                  {demoBusy ? 'Opening the demo…' : 'Try the demo'}
+                </button>
+                <p className="mt-2 text-center text-[12px] leading-relaxed text-umber">
+                  Approved = Paid on a seeded demo deal (no real money). {MOTTO}
+                </p>
+              </div>
+            )}
           </div>
           <p className="mt-6 text-center text-sm text-umber">
             New to yv.?{' '}
