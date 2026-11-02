@@ -11,15 +11,39 @@
  *    to that channel's room - everyone viewing the channel receives it live.
  *
  * Rooms are named `channel:<id>` so channels are isolated per project.
+ *
+ * Deals: `deal:join { dealId }` joins room `deal:<id>` only when the user is an
+ * active member of the deal's org AND a party to the deal or holds deal.manage
+ * there (the same rule as GET /deals/:dealId). Every ledger line appended for
+ * that deal is pushed as `deal:ledger { dealId, entry }`. Anything else answers
+ * `not_found`, whether the deal is missing or belongs to another org.
  */
 const { Server } = require('socket.io');
 const { verifyAccessToken } = require('../utils/tokens');
 const access = require('../modules/access/index.cts');
 const Channel = require('../models/channel.model');
+const { onLedgerAppend } = require('../modules/deals/events.cts');
 const logger = require('../utils/logger');
 const config = require('../config');
 
 let io = null;
+let stopLedgerFeed = null;
+
+/** May this user watch this deal's ledger? Same rule as GET /deals/:dealId; never says why not. */
+async function canWatchDeal(userId, dealId) {
+  if (typeof dealId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(dealId)) return false;
+  const { dealService } = require('../modules/deals/service.cts');
+  const { engine } = require('../modules/deals/engine.cts');
+  let deal;
+  try {
+    deal = await dealService().get(dealId);
+  } catch {
+    return false;
+  }
+  const perms = await access.permissionsIn(userId, deal.orgId);
+  if (!perms) return false;
+  return !!engine.actorRole(deal, userId) || access.allows(perms, 'deal.manage');
+}
 
 function readCookie(header, name) {
   for (const part of String(header || '').split(';')) {
@@ -103,6 +127,24 @@ function initSocketServer(httpServer) {
       }
     });
 
+    /** Join a deal room (live MoneyTimeline) after the org-access + party check. */
+    socket.on('deal:join', async ({ dealId } = {}, ack) => {
+      try {
+        if (!(await canWatchDeal(socket.data.userId, dealId))) {
+          return ack?.({ ok: false, error: 'not_found' });
+        }
+        await socket.join(`deal:${dealId}`);
+        ack?.({ ok: true });
+      } catch (err) {
+        logger.warn({ err }, 'deal:join failed');
+        ack?.({ ok: false, error: 'join_failed' });
+      }
+    });
+
+    socket.on('deal:leave', ({ dealId } = {}) => {
+      if (typeof dealId === 'string') socket.leave(`deal:${dealId}`);
+    });
+
     socket.on('channel:leave', ({ channelId } = {}) => {
       if (channelId) socket.leave(`channel:${channelId}`);
     });
@@ -112,7 +154,19 @@ function initSocketServer(httpServer) {
     });
   });
 
+  // every ledger line goes to its deal's room (only sockets that passed deal:join are in it)
+  if (stopLedgerFeed) stopLedgerFeed();
+  stopLedgerFeed = onLedgerAppend((entry) =>
+    emitToDeal(entry.dealId, 'deal:ledger', { dealId: entry.dealId, entry }),
+  );
+
   return io;
+}
+
+/** Emit to the sockets watching one deal. */
+function emitToDeal(dealId, event, data) {
+  if (!io || !dealId) return;
+  io.to(`deal:${dealId}`).emit(event, data);
 }
 
 /** Emit a freshly persisted message to its channel room. */
@@ -131,4 +185,11 @@ function emitToOrg(organizationId, event, data) {
   io.to(`org:${organizationId}`).emit(event, data);
 }
 
-module.exports = { initSocketServer, emitMessage, emitToOrg, handshakeAuth };
+module.exports = {
+  initSocketServer,
+  emitMessage,
+  emitToOrg,
+  emitToDeal,
+  handshakeAuth,
+  canWatchDeal,
+};

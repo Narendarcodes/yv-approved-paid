@@ -8,6 +8,7 @@
  *                                     permissions, projectId? }.
  *   requireCtx(req)                   req.ctx or throw (for services/controllers).
  *   memberOf(userId, orgId)           active membership or null (sockets, jobs).
+ *   permissionsIn(userId, orgId)      the user's permissions in the org, or null if not a member.
  *   sharesOrganization(a, b)          users a and b have a common active org.
  *   allows(permissions, permission)
  *
@@ -16,7 +17,7 @@
  * Non-members get 404, members without the permission get 403.
  */
 const { resolveAccess, AccessError } = require('./lib/resolve.cts');
-const { activeMembership, allows, organizationIdsOf } = require('./lib/membership.cts');
+const { activeMembership, allows, organizationIdsOf, permissionsOf } = require('./lib/membership.cts');
 
 import type { AccessContext, From } from './lib/resolve.cts';
 
@@ -86,6 +87,12 @@ async function memberOf(userId: unknown, orgId: unknown) {
   return activeMembership(userId, orgId);
 }
 
+/** Permissions of the user's active membership in orgId, or null when not a member (sockets, jobs). */
+async function permissionsIn(userId: unknown, orgId: unknown): Promise<string[] | null> {
+  const m = await activeMembership(userId, orgId);
+  return m ? permissionsOf(m) : null;
+}
+
 /** Do two users hold active memberships in at least one common organization? */
 async function sharesOrganization(userA: unknown, userB: unknown): Promise<boolean> {
   if (String(userA) === String(userB)) return true;
@@ -99,6 +106,7 @@ module.exports = {
   also,
   requireCtx,
   memberOf,
+  permissionsIn,
   sharesOrganization,
   allows,
   organizationIdsOf,

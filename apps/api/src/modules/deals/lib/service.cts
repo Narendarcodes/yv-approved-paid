@@ -19,6 +19,7 @@ const { verifyChain, totals } = require('./ledger.cts');
 const { TERMINAL } = require('./states.cts');
 const { hashOf } = require('./canonical.cts');
 const proposals = require('./proposals.cts');
+const { emitLedgerAppend } = require('../events.cts');
 
 const LOCK_MS = 60_000;
 
@@ -29,6 +30,7 @@ const mongoLedger: LedgerStore = {
   },
   async append(entry) {
     await DealLedger.create(entry);
+    emitLedgerAppend(entry); // live MoneyTimeline (socket room deal:<id>)
   },
   async list(dealId) {
     return (await DealLedger.find({ dealId }).sort({ seq: 1 }).lean()).map(strip);
