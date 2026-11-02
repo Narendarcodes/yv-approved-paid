@@ -2,7 +2,8 @@
  * deals/demo: the judge demo, "Diwali launch reels" (docs/phase4-ui-plan.md section 6).
  *
  *   DEMO                      fixed ids: deal id, org slug, judge email
- *   seedDealDemo(opts)        (re)build the demo org, users and deal on the MOCK gateway
+ *   seedDealDemo(opts)        (re)build the demo org, users and deal (mock, or PayPal sandbox
+ *                             with simulated buyer approval: real order + real invoice ids)
  *   demoJudge()               the seeded judge user, or null
  *
  * Idempotent: the demo deal always has the same id; a re-run deletes that one
@@ -187,9 +188,16 @@ async function purgeDemoDeal(id: string) {
 }
 
 async function seedDealDemo(opts: { evidenceDir?: string | false; judgePassword?: string } = {}) {
-  const gw = gateway();
-  if (gw.name !== 'mock' || typeof (gw as any).approveOrder !== 'function') throw new Error('the deal demo seeds on the mock gateway only (PAYPAL_MODE=mock)');
-  const approve = (orderId: string) => (gw as any).approveOrder(orderId);
+  const gw = gateway() as any;
+  // mock: the in-memory buyer approves. sandbox: the order is real, but no sandbox buyer can
+  // log in from here, so its approval is simulated and every id after it says "SIM-".
+  const approve =
+    gw.name === 'mock' && typeof gw.approveOrder === 'function'
+      ? (orderId: string) => gw.approveOrder(orderId)
+      : gw.name === 'paypal-sandbox' && gw.simulate && typeof gw.simulateBuyerApproval === 'function'
+        ? (orderId: string) => gw.simulateBuyerApproval(orderId)
+        : null;
+  if (!approve) throw new Error('the deal demo seeds on PAYPAL_MODE=mock, or PAYPAL_MODE=sandbox with DEMO_MODE=1');
   const dir = opts.evidenceDir === undefined ? evidenceDir() : opts.evidenceDir;
 
   await seedDefaultRoles();

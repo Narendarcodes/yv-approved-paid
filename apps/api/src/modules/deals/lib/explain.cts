@@ -47,8 +47,10 @@ function explain(deal: DealDoc, action: MoneyAction, extra: Record<string, unkno
       return `Refunded ${amt(action.amountMinor)} of capture ${action.captureId} on ${title} to ${client}, after a person approved it.`;
     case 'payout':
       return `Paid ${amt(action.amountMinor)} to ${String(extra.payeeName || action.email)} through PayPal Payouts for ${title}.`;
-    case 'invoice':
-      return `Drafted a PayPal invoice for a change order on ${title}: ${action.quantity} × ${String(extra.itemLabel || action.rateCardItemId)} at the signed rate-card price, ${amt(action.amountMinor)} in total. ${client} accepted the change order; the invoice waits in PayPal as a draft until it is sent.`;
+    case 'invoice': {
+      const sent = !!extra.invoiceStatus && extra.invoiceStatus !== 'DRAFT';
+      return `${sent ? 'Created and sent' : 'Drafted'} a PayPal invoice for a change order on ${title}: ${action.quantity} × ${String(extra.itemLabel || action.rateCardItemId)} at the signed rate-card price, ${amt(action.amountMinor)} in total. ${client} accepted the change order; ${sent ? 'it is charged only when the invoice is paid.' : 'the invoice waits in PayPal as a draft until it is sent.'}`;
+    }
     default:
       return 'Money step';
   }

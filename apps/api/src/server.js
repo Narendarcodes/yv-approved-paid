@@ -40,17 +40,19 @@ async function start() {
     // Money Agent: keeps holds alive, auto-approves lapsed reviews, captures, pays out.
     require('./modules/deals/service.cts').startMoneyAgent(logger);
 
-    // Judge demo: DEMO_MODE=1 (mock PayPal only) rebuilds "Diwali launch reels" in this
-    // process, so the mock holding its authorizations is the one the Money Agent uses.
+    // Judge demo: DEMO_MODE=1 rebuilds "Diwali launch reels" in this process, so the
+    // gateway holding its authorizations is the one the Money Agent uses. Works on
+    // PAYPAL_MODE=mock and on PAYPAL_MODE=sandbox (real sandbox orders and invoices;
+    // the buyer's approval is simulated and labelled so).
     if (process.env.DEMO_MODE === '1') {
-      if ((process.env.PAYPAL_MODE || 'mock') !== 'mock') {
-        logger.warn('DEMO_MODE=1 ignored for seeding: the deal demo needs PAYPAL_MODE=mock');
+      if (!['mock', 'sandbox'].includes(process.env.PAYPAL_MODE || 'mock')) {
+        logger.warn('DEMO_MODE=1 ignored for seeding: the deal demo needs PAYPAL_MODE=mock or sandbox');
       } else {
         require('./modules/deals/demo.cts')
           .seedDealDemo({ judgePassword: process.env.DEMO_JUDGE_PASSWORD })
           .then((r) =>
             logger.info(
-              { dealId: r.dealId, orgId: r.orgId },
+              { dealId: r.dealId, orgId: r.orgId, paypal: process.env.PAYPAL_MODE || 'mock' },
               'deal demo seeded (POST /auth/demo-login is open)',
             ),
           )

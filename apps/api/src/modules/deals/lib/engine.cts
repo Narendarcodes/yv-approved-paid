@@ -390,11 +390,17 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
   const now = deps.now();
   let ref = '';
   let extraExplain: Record<string, unknown> = {};
+  let simulated = ''; // PayPal sandbox steps the demo had to simulate say so on the ledger
+  const sim = <T,>(r: T): T => {
+    const note = (r as unknown as { simulated?: string } | undefined)?.simulated;
+    if (note) simulated = note;
+    return r;
+  };
   try {
     switch (action.kind) {
       case 'authorize': {
         if (!m.funding?.orderId) throw new DealError('no_order', 'start funding first', 409);
-        const a = await traced(deps, 'paypal.authorize_order', { key }, () => deps.gateway.authorizeOrder(m.funding!.orderId!, key));
+        const a = sim(await traced(deps, 'paypal.authorize_order', { key }, () => deps.gateway.authorizeOrder(m.funding!.orderId!, key)));
         const at = a.createdAt || now;
         deal = put(deal, { ...m, funding: { ...m.funding, authorizationId: a.authorizationId, authorizedMinor: a.amountMinor, authorizedAt: at, honorExpiresAt: new Date(Date.parse(at) + 3 * DAY).toISOString(), expiresAt: a.expiresAt || new Date(Date.parse(at) + 29 * DAY).toISOString(), status: 'AUTHORIZED' } });
         deal = step(deal, action.milestoneKey, 'fund', 'system', now);
@@ -403,7 +409,7 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
         break;
       }
       case 'reauthorize': {
-        const a = await traced(deps, 'paypal.reauthorize', { key }, () => deps.gateway.reauthorize(m.funding!.authorizationId!, key));
+        const a = sim(await traced(deps, 'paypal.reauthorize', { key }, () => deps.gateway.reauthorize(m.funding!.authorizationId!, key)));
         const f = m.funding!;
         deal = put(deal, { ...m, funding: { ...f, authorizationId: a.authorizationId, honorExpiresAt: new Date(Date.parse(now) + 3 * DAY).toISOString(), expiresAt: a.expiresAt || f.expiresAt, reauthorizations: [...(f.reauthorizations || []), { authorizationId: a.authorizationId, at: now }] } });
         ref = a.authorizationId;
@@ -413,9 +419,10 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
       case 'capture':
       case 'partial_capture': {
         const final = action.kind === 'capture';
-        const c = await traced(deps, `paypal.${action.kind}`, { key, amount: action.amountMinor }, () =>
+        const c = sim(
+          await traced(deps, `paypal.${action.kind}`, { key, amount: action.amountMinor }, () =>
           deps.gateway.capture(m.funding!.authorizationId!, { amountMinor: action.amountMinor, currency: cur, finalCapture: final, invoiceId: `${deal.id}-${action.milestoneKey}-${action.kind}`.slice(0, 127), requestId: key }),
-        );
+        ));
         const capturedMinor = m.capturedMinor + c.amountMinor;
         deal = put(deal, { ...m, capturedMinor, captures: [...m.captures, { id: c.captureId, amountMinor: c.amountMinor, versionId: action.kind === 'capture' ? action.versionId : undefined, reason: action.kind === 'capture' ? action.reason : action.reason, at: now }], funding: { ...m.funding!, status: final ? 'CAPTURED' : 'PARTIALLY_CAPTURED' } });
         if (final) deal = step(deal, action.milestoneKey, 'captured', 'system', now);
@@ -423,7 +430,7 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
         break;
       }
       case 'void': {
-        await traced(deps, 'paypal.void', { key }, () => deps.gateway.voidAuthorization(m.funding!.authorizationId!, key));
+        sim(await traced(deps, 'paypal.void', { key }, () => deps.gateway.voidAuthorization(m.funding!.authorizationId!, key)));
         deal = put(deal, { ...m, funding: { ...m.funding!, status: 'VOIDED' } });
         const st = ms(deal, action.milestoneKey).state;
         if (action.reason === 'missed_deadline' && st !== 'CANCELLED') deal = step(deal, action.milestoneKey, 'deadline_void', 'client', now);
@@ -436,15 +443,16 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
         break;
       }
       case 'refund': {
-        const r = await traced(deps, 'paypal.refund', { key }, () => deps.gateway.refund(action.captureId, { amountMinor: action.amountMinor, currency: cur, requestId: key }));
+        const r = sim(await traced(deps, 'paypal.refund', { key }, () => deps.gateway.refund(action.captureId, { amountMinor: action.amountMinor, currency: cur, requestId: key })));
         ref = r.id;
         break;
       }
       case 'payout': {
         const payee = t.payees.find((p) => p.email.toLowerCase() === action.email.toLowerCase());
-        const r = await traced(deps, 'paypal.payout', { key, amount: action.amountMinor }, () =>
+        const r = sim(
+          await traced(deps, 'paypal.payout', { key, amount: action.amountMinor }, () =>
           deps.gateway.payout({ senderBatchId: key, emailSubject: `Payment for ${t.title}`, items: [{ email: action.email, amountMinor: action.amountMinor, currency: cur, note: `${deal.terms.title} - ${t.title}`, senderItemId: `${action.milestoneKey}-${(payee?.userId || 'payee').slice(0, 30)}` }] }),
-        );
+        ));
         const paidOutMinor = m.paidOutMinor + action.amountMinor;
         deal = put(deal, { ...m, paidOutMinor, payouts: [...m.payouts, { batchId: r.id, amountMinor: action.amountMinor, email: action.email, at: now, status: r.status }] });
         const sharesPaid = ms(deal, action.milestoneKey).payouts.length === t.payees.filter((p) => percentOf(m.capturedMinor, p.shareBp) > 0).length;
@@ -455,12 +463,13 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
       }
       case 'invoice': {
         const item = deal.terms.rateCard.find((r) => r.id === action.rateCardItemId)!;
-        const r = await traced(deps, 'paypal.create_invoice', { key }, () =>
+        const r = sim(
+          await traced(deps, 'paypal.create_invoice', { key }, () =>
           deps.gateway.createInvoiceDraft({ currency: cur, note: `Change order for ${deal.terms.title} - ${t.title}. Priced from the signed rate card.`, items: [{ name: item.label, description: item.unit, quantity: action.quantity, unitAmountMinor: item.unitPriceMinor }], requestId: key }),
-        );
+        ));
         deal = { ...deal, changeOrders: deal.changeOrders.map((co) => (co.id === ctx.changeOrderId ? { ...co, status: 'invoiced', invoiceId: r.id } : co)) };
         ref = r.id;
-        extraExplain = { itemLabel: item.label };
+        extraExplain = { itemLabel: item.label, invoiceStatus: r.status };
         break;
       }
     }
@@ -471,7 +480,7 @@ async function execute(deps: EngineDeps, deal0: DealDoc, action: MoneyAction, ex
   }
   deal = { ...deal, executedKeys: [...deal.executedKeys, key] };
   const moved = action.kind !== 'invoice';
-  const entry = await writeLedger(deps, deal, { milestoneKey: action.milestoneKey, type: action.kind, amountMinor: action.kind === 'void' || action.kind === 'reauthorize' ? 0 : amount, moved, actor: 'system', paypalRef: ref, idempotencyKey: key, explanation: explain(deal, action, extraExplain), policy: { allowed: true, violations: [] } });
+  const entry = await writeLedger(deps, deal, { milestoneKey: action.milestoneKey, type: action.kind, amountMinor: action.kind === 'void' || action.kind === 'reauthorize' ? 0 : amount, moved, actor: 'system', paypalRef: ref, idempotencyKey: key, explanation: explain(deal, action, extraExplain) + (simulated ? ` (${simulated}.)` : ''), policy: { allowed: true, violations: [] } });
   return { deal, result: { outcome: 'done', entry } };
 }
 

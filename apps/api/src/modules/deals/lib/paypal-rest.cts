@@ -72,7 +72,7 @@ function makeRestGateway(opts: {
     };
   }
 
-  const gw: PaymentGateway & { createWebhook(url: string, eventTypes: string[]): Promise<{ id: string; url: string }>; listWebhooks(): Promise<{ id: string; url: string; events: string[] }[]>; deleteWebhook(id: string): Promise<void> } = {
+  const gw: PaymentGateway & { sendInvoice(invoiceId: string, sendToRecipient?: boolean): Promise<{ id: string; status: string; href?: string }>; createWebhook(url: string, eventTypes: string[]): Promise<{ id: string; url: string }>; listWebhooks(): Promise<{ id: string; url: string; events: string[] }[]>; deleteWebhook(id: string): Promise<void> } = {
     name: base.includes('sandbox') ? 'paypal-sandbox' : 'paypal-live',
     async createAuthorizeOrder(input) {
       const o = await call(
@@ -187,6 +187,11 @@ function makeRestGateway(opts: {
         input.requestId,
       );
       return { id: r.id, status: r.status || 'DRAFT', href: r?.detail?.metadata?.recipient_view_url };
+    },
+    /** Send a draft invoice (Invoicing v2). Without a recipient it is "shared by link": status UNPAID. */
+    async sendInvoice(invoiceId: string, sendToRecipient = false) {
+      const r = await call('POST', `/v2/invoicing/invoices/${encodeURIComponent(invoiceId)}/send`, { send_to_invoicer: false, send_to_recipient: sendToRecipient });
+      return { id: invoiceId, status: 'SENT', href: r?.href as string | undefined };
     },
     async verifyWebhook(headers, rawBody) {
       if (!opts.webhookId) return false;
