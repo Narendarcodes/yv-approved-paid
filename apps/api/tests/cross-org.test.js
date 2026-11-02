@@ -271,6 +271,7 @@ const PARAMS = () => ({
   coId: 'co_orgA',
   key: 'm1',
   approvalKey: 'capture:x:m1',
+  file: 'loud_000.00.jpg',
 });
 
 function fill(p) {

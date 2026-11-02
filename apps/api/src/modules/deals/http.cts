@@ -18,6 +18,7 @@ const { hashOf } = require('./lib/canonical.cts');
 const { validateTerms } = require('./lib/validate.cts');
 const { actorRole } = require('./lib/engine.cts');
 const { verifyChain } = require('./lib/ledger.cts');
+const { resolveEvidence } = require('./lib/evidence.cts');
 
 import type { DealDoc, DealTerms } from './lib/types.cts';
 
@@ -115,6 +116,22 @@ router.get(
     await readable(req, req.params.dealId);
     const l = await dealService().ledgerOf(req.params.dealId, org(req));
     res.json({ data: { ...l, chain: verifyChain(l.entries) } });
+  }),
+);
+
+/**
+ * A check-evidence screenshot (LiveChecksCard thumbnails). Signed-in parties
+ * (or deal managers) of this org only, and only a file name that this deal's
+ * stored check results reference; anything else is a plain 404.
+ */
+router.get(
+  '/:dealId/evidence/:file',
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    const file = resolveEvidence(d, req.params.file);
+    if (!file) return res.status(404).json({ error: { code: 'evidence_not_found', message: 'evidence not found' } });
+    res.set({ 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" });
+    await new Promise<void>((ok, fail) => res.sendFile(file, { dotfiles: 'deny' }, (err: unknown) => (err ? fail(err) : ok())));
   }),
 );
 
