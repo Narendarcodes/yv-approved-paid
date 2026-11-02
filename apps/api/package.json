@@ -30,7 +30,7 @@
     "express-rate-limit": "^8.6.2",
     "helmet": "^7.0.0",
     "ioredis": "^5.11.1",
-    "joi": "^17.9.2",
+    "joi": "^17.13.9",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.5.0",
     "morgan": "^1.10.0",
