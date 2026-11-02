@@ -19,6 +19,7 @@ from typing import Literal
 from .identity import Redactor
 from .llm_router import LLMRouter
 from .media import VideoChecker, words
+from .stt import NEEDS_TRANSCRIPT
 
 
 @dataclass
@@ -47,7 +48,10 @@ class VideoQAAgent:
         self.router = router
 
     async def run(self, deal_id: str, milestone: dict, version: dict, path: str, evidence_dir: str,
-                  transcript=None, script=None, assets=None) -> tuple[list[dict], Proposal]:
+                  transcript=None, script=None, assets=None, stt=None) -> tuple[list[dict], Proposal]:
+        needs_words = any((c.get("measure") or {}).get("metric") in NEEDS_TRANSCRIPT for c in _checks_of(milestone))
+        if transcript is None and needs_words and stt is not None:
+            transcript = stt(path)  # faster-whisper in production; a stub in tests
         checker = VideoChecker(path, evidence_dir, transcript=transcript, script=script, assets=assets)
         results = [r.to_dict() for r in checker.run(milestone.get("checklist", []))]
         failed = [r["checklist_id"] for r in results if not r["passed"]]
@@ -152,7 +156,7 @@ class ReviewAgent:
         body = {"items": [{"text": x["text"], "tag": x["tag"], "checklistId": x["checklistId"] or None,
                            "disputed": any(x["i"] in (c["a"], c["b"]) for c in contradictions)} for x in merged],
                 "contradictions": contradictions}
-        return Proposal(self.name, "request_changes", f"POST /api/deals/{deal_id}/milestones/{milestone['key']}/changes", body,
+        return Proposal(self.name, "request_changes", f"POST /api/v1/organizations/:org/deals/{deal_id}/milestones/{milestone['key']}/changes", body,
                         needs_human=True, rationale=f"{fix_n} fix, {len(merged) - fix_n} taste, {len(contradictions)} contradiction(s)")
 
     @staticmethod
@@ -227,7 +231,7 @@ class ScopeDisputeAgent:
                             rationale="out of scope, and no rate-card line fits: needs a new term both sides sign")
         amount = item["unitPriceMinor"] * q  # the only place an amount appears, and it is pure arithmetic on signed terms
         action = {"kind": "invoice", "milestoneKey": milestone["key"], "rateCardItemId": item["id"], "quantity": q, "amountMinor": amount}
-        return Proposal(self.name, "change_order", f"POST /api/deals/{deal_id}/change-orders",
+        return Proposal(self.name, "change_order", f"POST /internal/deals/{deal_id}/change-orders",
                         {"ask": ask, "in_scope": False, "priced": True, "rateCardItemId": item["id"], "quantity": q, "amountMinor": amount,
                          "currency": terms.get("currency")},
                         needs_human=True, policy_action=action,
@@ -258,7 +262,7 @@ class ScopeDisputeAgent:
         }
         ev = Proposal(self.name, "evidence_pack", "", pack, needs_human=False, rationale="facts only; no verdict")
         split = Proposal(
-            self.name, "split", f"POST /api/deals/{deal_id}/milestones/{milestone['key']}/split", {"workerMinor": worker_minor},
+            self.name, "split", f"POST /api/v1/organizations/:org/deals/{deal_id}/milestones/{milestone['key']}/split", {"workerMinor": worker_minor},
             needs_human=True,
             policy_action={"kind": "partial_capture", "milestoneKey": milestone["key"], "amountMinor": worker_minor, "reason": "dispute_split"},
             rationale=f"{len(passed)}/{total} signed checks pass -> {share_bp / 100:.0f}% of the milestone; applies only if BOTH sides accept",

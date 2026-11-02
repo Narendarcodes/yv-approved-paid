@@ -89,6 +89,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg  # video check tests need ffmpeg/ffprobe
       - run: pip install -r requirements.txt -r requirements-media.txt -r requirements-dev.txt
       - run: python -m pytest -q
       - name: Golden-question evals are well-formed

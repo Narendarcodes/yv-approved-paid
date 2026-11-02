@@ -1,0 +1,2 @@
+# optional: speech-to-text for captions-vs-script and hook checks (CPU, int8)
+faster-whisper==1.*

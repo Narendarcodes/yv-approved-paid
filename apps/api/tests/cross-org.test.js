@@ -268,6 +268,7 @@ const PARAMS = () => ({
   postId: A.postId,
   jobId: A.jobId,
   dealId: A.dealId,
+  coId: 'co_orgA',
   key: 'm1',
   approvalKey: 'capture:x:m1',
 });
