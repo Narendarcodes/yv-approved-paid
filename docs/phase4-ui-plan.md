@@ -1,6 +1,6 @@
 # Phase 4 UI plan: CopilotKit generative UI for "Approved = Paid"
 
-Status: plan only (Nov 2, 2026). Nothing in `apps/web` is built yet. Phases 2 and 3 (deal engine, policy, PayPal, agents) are done and tested; this plan puts a face on them.
+Status (Nov 2, 2026): **built**, except the CopilotKit packages themselves (see section 4 "As built"). Backend gaps (section 5) closed earlier the same day. `apps/web` now has `/deals`, `/deals/:dealId` (+ the PayPal fund return route), every card in section 3, the "Try the demo" button, and a deal copilot panel that renders the cards from actions with an offline replay. `contracts/schemas/deal.schema.json` holds the shared types. See PROGRESS.md for commits.
 
 Motto on every screen: **AI checks facts, people own taste, the deal decides the money.**
 
@@ -60,7 +60,13 @@ Each card is a plain React component taking `{ deal, milestoneKey }` (or the age
 - **Runtime:** `@copilotkit/runtime` mounted in the API at `POST /api/v1/copilotkit` behind `authenticate` + org access, with an OpenAI-compatible adapter pointed at River (fallback NIM) so keys stay server-side; or, if the Python side is preferred, the CopilotKit Python SDK on `services/agent` reusing `llm_router.py` (River -> NIM, disk cache, identity assert). Decision at build time: prefer the Python route if it keeps one LLM path and the offline replay cache; prefer Node if it is materially simpler.
 - **Offline / judge mode:** with `LLM_OFFLINE=1` or no key, the sidebar shows suggested prompts that map straight to render actions (no model call), so every card is still reachable.
 
-## 5. Gaps to close before the UI build
+### As built (Nov 2, 2026)
+
+- **Decision: no CopilotKit packages yet.** `@copilotkit/react-core` 1.83 pulls lit, katex, recharts, streamdown, radix, a web inspector and a `maplibre-gl` peer into the web bundle; `@copilotkit/runtime` 1.83 pulls about 40 packages into the API (graphql-yoga, type-graphql, the AI SDK with Google/Vertex/Anthropic providers, langgraph, MCP SDK, Segment analytics, a license verifier). The API job gates on `npm audit --omit=dev --audit-level=high`, so each of those transitive packages becomes a CI risk; the bundled Google/Vertex providers are code we would never call (no Google sign-in LLMs); and the demo has to work with no LLM anyway. Not installed or audited here: this is a judgement from the published dependency lists.
+- **What ships instead:** `apps/web/src/lib/copilot.tsx` defines the same actions one to one (`showDeal`, `showChecks`, `showReviewMerge`, `showMoneyTimeline`, `showChangeOrder`, `showDisputeSplit`, `showBlocked`, and `proposeCapture` as a read-only `policy-check` dry-run). Parameters are ids only; a typed number is used only in a dry-run and labelled as the person's. `components/deals/DealCopilot.tsx` renders the cards inline. The default path is the **offline replay**: suggested prompts and typed questions are matched deterministically, no model call. Moving to CopilotKit later means registering these actions with `useCopilotAction` / `useRenderToolCall` and mounting a runtime; the cards do not change.
+- **LLM path (not wired yet):** when added, it should be one path: `POST /api/v1/organizations/:org/deals/:dealId/copilot` (Node, auth + org access) -> `services/agent` -> `llm_router.py` (River AI -> NVIDIA NIM -> OmniRoute, disk cache, identity assert), returning an action name + ids only, with the offline matcher as the fallback and replay cache.
+
+## 5. Gaps to close before the UI build (all closed Nov 2, 2026)
 
 1. Review Agent output is not stored in Node: add `POST /internal/deals/:id/milestones/:key/review` (deals:propose) storing the merged, dry-run proposal on the milestone, and expose it in the deal view.
 2. Check evidence screenshots: serve the agent's evidence frames from a signed static route (or upload to the existing media store) so `LiveChecksCard` thumbnails load.

@@ -34,3 +34,27 @@ curl -X POST localhost:3000/api/v1/auth/demo-login -c jar.txt   # judge cookie s
 - **CopilotKit generative-UI cards in `apps/web`** (DealCard, LiveChecksCard, ReviewMergeCard, MoneyTimeline, ChangeOrderCard, DisputeSplitCard, PolicyBlockedChip), the `/deals` pages, the "Try the demo" button on `/login` calling `/auth/demo-login`, the MoneyTimeline subscribing to `deal:join` / `deal:ledger`, and the CopilotKit runtime route (section 4 of the plan).
 - Python side: `services/agent/app/deals/node_deals.py` should post Review / Scope & Dispute output to the two new internal routes (the dispute call must send no `workerMinor`; Node computes it).
 - `contracts/`: a `deal.schema.json` so web and API share the deal view types (plan section 2).
+
+## Phase 4 frontend (Nov 2, 2026): done, CopilotKit packages deferred
+
+Motto on every new screen: **AI checks facts, people own taste, the deal decides the money.** Amounts on screen come only from the deal doc and the ledger the API returns; no UI logic computes or picks a money amount.
+
+| # | What | Where | Commit |
+|---|---|---|---|
+| 1 | `deal.schema.json` (DealView, terms, milestones, proposals, change orders, ledger entry/view/totals, `deal:ledger` push). `gen-ts.js` now declares a schema's local `definitions` (once each), so web/API get every Deal* type; Pydantic `deal_schema.py` for the agent. Drift check green. | `contracts/schemas/deal.schema.json`, `contracts/gen-ts.js`, generated `types.d.ts` x2, `services/agent/app/contracts/deal_schema.py` | `4bf93db` |
+| 2 | `/deals` list and `/deals/:dealId` page (+ `/deals/:dealId/fund/:key` PayPal return -> `fund/confirm`), "Deals" in the Business nav. Cards: DealCard, LiveChecksCard (evidence thumbnails via the evidence route, version tabs so v1's loudness fail stays visible), ReviewMergeCard, MoneyTimeline (`deal:join` + `deal:ledger`, totals recomputed like `ledger.totals()`, chain badge, blocked lines with rule chips + "No money moved", one-tap release for pending approvals), ChangeOrderCard, DisputeSplitCard, PolicyBlockedChip. Deal states added to `STAGE_OF` / status labels. Typed deal calls in `services/api.ts`, React Query hooks in `lib/deals.ts`. | `apps/web/src/pages/Deal*.tsx`, `components/deals/*`, `lib/deals.ts` | `67c6be5` |
+| 3 | "Try the demo" on `/login`: `POST /auth/demo-login`, remembers the demo org, lands on `/deals/deal_demo_diwali`; on 404 the button hides and says the demo is off. | `pages/LoginPage.tsx`, `services/api.ts` (`demoLogin`) | `2c9bc96` |
+| 4 | Deal copilot panel (generative UI): actions `showDeal`, `showChecks`, `showReviewMerge`, `showMoneyTimeline`, `showChangeOrder`, `showDisputeSplit`, `showBlocked`, `proposeCapture` (read-only `policy-check` dry-run; blocked -> PolicyBlockedChip). Offline replay (deterministic intent match + suggested prompts), no LLM call. **CopilotKit packages not added** (weight + audit risk, see plan section 4 "As built"); the actions map 1:1 onto `useCopilotAction` later. | `lib/copilot.tsx`, `components/deals/DealCopilot.tsx` | `55f44c7` |
+| 5 | `node_deals.py`: Review merge stored via `POST /internal/deals/:id/milestones/:key/review` (items, contradictions mapped onto merged items, rationale); Scope & Dispute proposal via `.../dispute-proposal` with **no amount** (`versionId`/`notes` only; amount-like keys refused before sending). Both still `for_human`. | `services/agent/app/deals/node_deals.py`, `agents.py` (`merged_from`), `tests/test_deals_node_wiring.py` | `34b8fff` |
+
+### Tests / checks
+
+- `services/agent` pytest: 58 passed, 2 skipped locally (4 new wiring tests; the review test now expects the stored merge).
+- `apps/web`: `tsc -b`, eslint (0 errors) and `vite build` clean locally. No web test runner exists in the repo; the copilot intent matcher was smoke-checked against the eight suggested prompts.
+- API: untouched in this phase except the copied `contracts/schemas/deal.schema.json` (ajv loads it with `strict: false`).
+- Not verified in a browser: no headless browser in the build sandbox. First thing to click: `DEMO_MODE=1 PAYPAL_MODE=mock` API + web dev, "Try the demo".
+
+### Left
+
+- CopilotKit runtime/packages and the LLM path (`/deals/:dealId/copilot` -> agent `llm_router` River -> NIM -> OmniRoute) are not wired; the copilot runs offline only.
+- No web unit/e2e tests for the cards.

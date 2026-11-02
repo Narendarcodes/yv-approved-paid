@@ -22,6 +22,7 @@ Built under the **yv.** brand. Monorepo: Node.js + Express + MongoDB API and a R
 ## Table of contents
 
 - [What this is](#what-this-is)
+- [Deals (Approved = Paid)](#deals-approved--paid)
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [Project layout](#project-layout)
@@ -46,6 +47,27 @@ Built under the **yv.** brand. Monorepo: Node.js + Express + MongoDB API and a R
 - **Org-scoped RBAC**, JWT auth with hashed refresh tokens, notifications, activity history, file uploads, and a pluggable storage adapter.
 
 Product spec: see the PRD PDF in the repo root.
+
+## Deals (Approved = Paid)
+
+**AI checks facts, people own taste, the deal decides the money.**
+
+Built for the PayPal AI Hackathon; the use case comes from a real case study: an NGO's content team. A deal is signed terms (hash-locked), a PayPal hold per milestone (an authorization, not a charge), machine checks on every cut, and money that moves only when the deal says so.
+
+- **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded "Diwali launch reels" deal.
+- **Cards** (`apps/web/src/components/deals/`): DealCard (terms hash, both signatures, per-milestone amount, due + grace, review window, rounds left, kill fee), LiveChecksCard (measured vs target per checklist line, screenshot evidence from `GET .../deals/:dealId/evidence/:file`; taste lines say "people decide"), ReviewMergeCard (Fix cites a failed line, Taste costs a round, never pay), MoneyTimeline (hash-chained ledger, live over Socket.IO `deal:join` -> `deal:ledger`; blocked attempts show the rule and "No money moved"), ChangeOrderCard (priced from the signed rate card; Accept drafts the PayPal invoice), DisputeSplitCard (split from checklist arithmetic; agreed only when both sides accept the same number), PolicyBlockedChip.
+- **Deal copilot:** a side panel that answers by rendering those cards. It runs as an offline replay (deterministic intent matching, no model call), so the demo works with no LLM. It only proposes: a "capture $450" or "pay the old version" ask is dry-run through `POST .../policy-check` and comes back as a PolicyBlockedChip. No copilot action takes an amount it wrote.
+- **Agents** (`services/agent/app/deals/`): the Review Agent's Fix/Taste merge and the Scope & Dispute proposal are stored on the milestone through `POST /internal/deals/:id/milestones/:key/review` and `.../dispute-proposal`. The dispute call sends no amount; Node computes the split.
+- **Shared types:** `contracts/schemas/deal.schema.json` (DealView, ledger view, `deal:ledger` payload), generated into the API, web and agent by `contracts/gen.sh`.
+
+Run the judge demo locally:
+
+```
+cd apps/api && DEMO_MODE=1 PAYPAL_MODE=mock npm run dev   # seeds the demo deal on boot
+cd apps/web && npm run dev                                 # open /login, tap "Try the demo"
+```
+
+Design and status: [docs/phase4-ui-plan.md](docs/phase4-ui-plan.md), [PROGRESS.md](PROGRESS.md).
 
 ---
 
