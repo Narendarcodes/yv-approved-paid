@@ -37,7 +37,7 @@ describe('seed-deal-demo', () => {
     expect(ms(d, 'reel2').funding.authorizationId).toBeTruthy();
   });
 
-  test('reel1: v1 fails loudness at -20.1 LUFS with evidence; review merge Fix/Taste; $60 change order; v2 passes; $400 captured and paid 70/30', async () => {
+  test('reel1: v1 fails loudness at -20.1 LUFS with evidence; review merge Fix/Taste; v2 passes; $400 captured and paid 70/30', async () => {
     const d = await dealService().get(DEMO.dealId, seeded.orgId);
     const m = ms(d, 'reel1');
     const [v1, v2] = m.versions;
@@ -53,10 +53,6 @@ describe('seed-deal-demo', () => {
     ]);
     expect(m.proposals.review.items[0].checklistId).toBe('loud');
     expect(m.changeRequests).toHaveLength(1);
-
-    expect(d.changeOrders).toEqual([
-      expect.objectContaining({ milestoneKey: 'reel1', rateCardItemId: 'extra_cut', quantity: 1, amountMinor: 6000, status: 'invoiced', invoiceId: expect.any(String) }),
-    ]);
 
     expect(v2.checks.passed).toBe(true);
     expect(m.approvedVersionId).toBe('v2');
@@ -77,7 +73,7 @@ describe('seed-deal-demo', () => {
     expect(blocked[0]).toMatchObject({ amountMinor: 45000 });
     expect(blocked[0].policy.violations.map((v) => v.rule)).toContain('P3_amount');
     expect(blocked[1].policy.violations.map((v) => v.rule)).toContain('P6_version');
-    expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([expect.objectContaining({ amountMinor: 6000, moved: false })]);
+    expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([]);
     const captured = l.entries.filter((e) => e.moved && /capture/.test(e.type)).reduce((a, e) => a + e.amountMinor, 0);
     expect(captured).toBe(40000);
   });
@@ -93,6 +89,21 @@ describe('seed-deal-demo', () => {
       decision: { allowed: true },
     });
     expect(m.split).toEqual({ worker: 24000 });
+  });
+
+  test('reel2: a $60 change order waits as a draft; the judge tap accepts it and drafts the PayPal invoice', async () => {
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    expect(d.changeOrders).toEqual([
+      expect.objectContaining({ milestoneKey: 'reel2', rateCardItemId: 'extra_cut', quantity: 1, amountMinor: 6000, status: 'draft' }),
+    ]);
+    const r = await dealService().decideChangeOrder(DEMO.dealId, seeded.orgId, seeded.judge.userId, d.changeOrders[0].id, true);
+    expect(r.out).toMatchObject({ outcome: 'done' });
+    const after = await dealService().get(DEMO.dealId, seeded.orgId);
+    expect(after.changeOrders[0]).toMatchObject({ status: 'invoiced', invoiceId: expect.any(String) });
+    const l = await dealService().ledgerOf(DEMO.dealId, seeded.orgId);
+    expect(l.chain.ok).toBe(true);
+    expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([expect.objectContaining({ amountMinor: 6000, moved: false })]);
+    await seedDealDemo({ evidenceDir: false }); // back to the judge's starting state
   });
 
   test('idempotent: a second run rebuilds the same deal with the same ledger shape', async () => {

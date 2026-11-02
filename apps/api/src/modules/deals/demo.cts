@@ -11,14 +11,15 @@
  *
  *   reel1  held -> v1 fails loudness (-20.1 LUFS, screenshot evidence) -> Review
  *          Agent merge ("too quiet" = Fix on the loudness line, "more festive" =
- *          Taste) -> changes requested -> $60 change order for +15 s priced from
- *          the rate card, accepted, PayPal invoice drafted -> v2 passes every
+ *          Taste) -> changes requested -> v2 passes every
  *          check -> approved -> $400 captured, paid out 70/30 -> two blocked
  *          attempts on the ledger (capture $450: P3_amount; pay the old v1:
  *          P6_version). No money moved for either.
  *   reel2  held -> 4 of 5 checks pass (no captions) -> dispute opened -> Scope &
  *          Dispute Agent proposes 80% ($240) from checklist arithmetic; the
- *          editor has accepted it, the client's tap is the one left.
+ *          editor has accepted it, the client's tap is the one left. A $60 change order
+ *          for +15 s (priced from the rate card) waits as a draft: the judge's
+ *          tap accepts it and drafts the PayPal invoice live.
  *
  * Every step goes through the deal service (policy, ledger, lock) exactly as the
  * routes do. Run it in the server process (DEMO_MODE=1 seeds on boot) so the
@@ -242,10 +243,6 @@ async function seedDealDemo(opts: { evidenceDir?: string | false; judgePassword?
   });
   await s.requestChanges(id, orgId, J, 'reel1', rv.out.items);
 
-  // +15 s cut: out of scope, priced from the signed rate card ($60 x 1); the client's one tap drafts the PayPal invoice
-  const co = await s.draftChangeOrder(id, orgId, { milestoneKey: 'reel1', rateCardItemId: 'extra_cut', quantity: 1, ask: 'Add an extra 15-second cut for Instagram Stories', by: 'agent' });
-  must(await s.decideChangeOrder(id, orgId, J, co.out.changeOrder.id, true), 'change order invoice');
-
   // reel1 v2: every check passes -> approved -> $400 captured, paid out 70/30
   const v2: Line[] = [
     { ...v1[0], measured: 42.0, tEnd: 42.0, note: 'file runs 42.0s' },
@@ -280,6 +277,10 @@ async function seedDealDemo(opts: { evidenceDir?: string | false; judgePassword?
   await s.openDispute(id, orgId, E, 'reel2');
   const dp = await s.storeProposal(id, orgId, 'reel2', 'dispute', { notes: 'Captions are the only signed line not met; the rest of the checklist passed.' });
   await s.acceptSplit(id, orgId, E, 'reel2', dp.out.workerMinor);
+
+  // +15 s cut on reel2 (still open): out of scope, priced from the signed rate card ($60 x 1).
+  // Left as a draft so the judge's one tap accepts it and drafts the PayPal invoice live.
+  await s.draftChangeOrder(id, orgId, { milestoneKey: 'reel2', rateCardItemId: 'extra_cut', quantity: 1, ask: 'Add an extra 15-second cut for Instagram Stories', by: 'agent' });
 
   return { orgId, dealId: id, judge: { userId: J, email: DEMO.judge.email }, editor: { userId: E, email: DEMO.editor.email } };
 }
