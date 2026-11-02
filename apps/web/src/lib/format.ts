@@ -20,6 +20,20 @@ export const STATUS_LABELS: Record<string, string> = {
   PUBLISHED: 'Published',
   CLOSED: 'Closed',
   CANCELLED: 'Cancelled',
+  // deal milestones
+  DRAFT: 'Draft',
+  SIGNED: 'Signed',
+  FUNDED: 'Held on PayPal',
+  STYLE_SAMPLE: 'Style sample',
+  SUBMITTED: 'Submitted',
+  CHECKS: 'Checking',
+  IN_REVIEW: 'In review',
+  CHANGES_REQUESTED: 'Changes requested',
+  AUTO_APPROVED: 'Auto-approved',
+  CAPTURED: 'Captured',
+  PAID_OUT: 'Paid out',
+  KILLED: 'Killed',
+  DISPUTED: 'Disputed',
 }
 
 export function statusLabel(status: string): string {

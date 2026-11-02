@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   Brain,
+  Handshake,
 } from 'lucide-react'
 import Avatar from '../components/ui'
 import { useViewer } from '../lib/viewer'
@@ -68,6 +69,7 @@ const CRUMBS: Record<string, string> = {
   profile: 'Profile',
   contracts: 'Contracts',
   invoices: 'Invoices',
+  deals: 'Deals',
 }
 
 export default function AppShell() {
@@ -489,6 +491,7 @@ const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] 
     section: 'Business',
     collapsible: true,
     items: [
+      { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
       {
         to: '/contracts',
         label: 'Contracts',

@@ -65,6 +65,11 @@ function getSocket(): Socket {
   return socket
 }
 
+/** The app's one Socket.IO connection (chat rooms, deal rooms). */
+export function sharedSocket(): Socket {
+  return getSocket()
+}
+
 /** Close the shared socket (e.g. on logout). */
 export function closeChatSocket() {
   socket?.disconnect()

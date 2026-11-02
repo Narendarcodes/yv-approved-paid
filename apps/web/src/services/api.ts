@@ -8,6 +8,8 @@
  *
  * All requests include the Bearer access token obtained from the session.
  */
+import type { DealView, DealLedgerView, DealChangeOrder } from '../contracts/types'
+
 export const API_BASE: string = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
 
 /**
@@ -1655,4 +1657,110 @@ export async function streamAgentChat(
       if (ev) onEvent(ev, data ? JSON.parse(data) : {})
     }
   }
+}
+
+/** ------------------------------------------------------------------- */
+/* Deals (Approved = Paid). Amounts are minor units from the signed deal and the
+ * ledger; no call here sends an amount the UI made up. The one number a person
+ * sends (a dispute split) is the one the API proposed, echoed back on a tap. */
+
+const dealsPath = (orgId: string, rest = '') =>
+  `/organizations/${encodeURIComponent(orgId)}/deals${rest}`
+const dealPath = (orgId: string, dealId: string, rest = '') =>
+  dealsPath(orgId, `/${encodeURIComponent(dealId)}${rest}`)
+const msPath = (orgId: string, dealId: string, key: string, rest: string) =>
+  dealPath(orgId, dealId, `/milestones/${encodeURIComponent(key)}${rest}`)
+
+export async function listDeals(orgId: string): Promise<DealView[]> {
+  const d = await getJson<DealView[]>(dealsPath(orgId))
+  return Array.isArray(d) ? d : []
+}
+export function getDeal(orgId: string, dealId: string): Promise<DealView> {
+  return getJson<DealView>(dealPath(orgId, dealId))
+}
+export function getDealLedger(orgId: string, dealId: string): Promise<DealLedgerView> {
+  return getJson<DealLedgerView>(dealPath(orgId, dealId, '/ledger'))
+}
+/** Screenshot URL for a check's evidence frame (served only for files this deal's checks reference). */
+export function dealEvidenceUrl(orgId: string, dealId: string, file: string): string {
+  return `${API_BASE}${dealPath(orgId, dealId, `/evidence/${encodeURIComponent(file)}`)}`
+}
+export function signDeal(orgId: string, dealId: string, termsHash: string): Promise<DealView> {
+  return sendJson<DealView>('POST', dealPath(orgId, dealId, '/sign'), { termsHash })
+}
+export function fundMilestone(orgId: string, dealId: string, key: string): Promise<DealView> {
+  return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/fund'))
+}
+export function approveMilestone(orgId: string, dealId: string, key: string, versionId: string): Promise<DealView> {
+  return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/approve'), { versionId })
+}
+export function requestDealChanges(
+  orgId: string,
+  dealId: string,
+  key: string,
+  items: { text: string; tag: 'fix' | 'taste'; checklistId?: string; disputed?: boolean }[],
+): Promise<DealView> {
+  return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/changes'), { items })
+}
+export function openDealDispute(orgId: string, dealId: string, key: string): Promise<DealView> {
+  return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/dispute'))
+}
+/** Accept the dispute split the API proposed (workerMinor is the proposal's number, never typed). */
+export function acceptDealSplit(orgId: string, dealId: string, key: string, workerMinor: number): Promise<DealView> {
+  return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/split'), { workerMinor })
+}
+export function decideChangeOrder(
+  orgId: string,
+  dealId: string,
+  coId: string,
+  verb: 'accept' | 'decline',
+): Promise<{ deal: DealView; result: { outcome?: string } | null }> {
+  return sendJson('POST', dealPath(orgId, dealId, `/change-orders/${encodeURIComponent(coId)}/${verb}`))
+}
+export function approvePending(orgId: string, dealId: string, approvalKey: string): Promise<{ deal: DealView }> {
+  return sendJson('POST', dealPath(orgId, dealId, `/approvals/${encodeURIComponent(approvalKey)}`))
+}
+/** Nudge the Money Agent (it also runs every minute on its own). */
+export function tickDeal(orgId: string, dealId: string): Promise<{ deal: DealView }> {
+  return sendJson('POST', dealPath(orgId, dealId, '/tick'))
+}
+/** Dry-run a proposal through policy. Read-only: nothing moves. */
+export function dealPolicyCheck(orgId: string, dealId: string, body: unknown): Promise<any> {
+  return sendJson('POST', dealPath(orgId, dealId, '/policy-check'), body)
+}
+export type { DealChangeOrder }
+
+/**
+ * One-tap judge login (DEMO_MODE=1 only). Resolves null when the API has no
+ * demo (404) so the login page can hide the button; throws on other failures.
+ */
+export async function demoLogin(): Promise<{ session: Session; dealId: string; organizationId: string | null } | null> {
+  const res = await fetch(`${API_BASE}/auth/demo-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+    credentials: 'include',
+  })
+  if (res.status === 404) return null
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(body?.error?.message || `Demo sign-in failed (HTTP ${res.status})`)
+  csrfToken = body?.data?.csrfToken ?? readCookie('csrfToken')
+  const u = (body?.data?.user ?? {}) as SessionUser & { _id?: string }
+  const session: Session = { user: { ...u, id: u.id ?? u._id ?? '' }, loggedInAt: new Date().toISOString() }
+  // Profile only (tokens are httpOnly cookies). No storage event here: the
+  // caller navigates first, so the login page's redirect cannot race it.
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  } catch {
+    /* storage unavailable */
+  }
+  return {
+    session,
+    dealId: String(body?.data?.demo?.dealId || 'deal_demo_diwali'),
+    organizationId: body?.data?.demo?.organizationId ?? null,
+  }
+}
+/** PayPal return: the buyer approved the hold; ask the API to place the authorization. */
+export function confirmDealFunding(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; result: { outcome?: string } }> {
+  return sendJson('POST', msPath(orgId, dealId, key, '/fund/confirm'))
 }

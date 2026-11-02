@@ -25,6 +25,8 @@ import ProfilePage from './pages/ProfilePage'
 import LandingPage from './pages/LandingPage'
 import ContractsPage from './pages/ContractsPage'
 import InvoicesPage from './pages/InvoicesPage'
+import DealsPage from './pages/DealsPage'
+import DealPage from './pages/DealPage'
 import PerformanceReportPage from './pages/PerformanceReportPage'
 import BackendErrorPage from './pages/BackendErrorPage'
 import { useBackendHealth } from './lib/health'
@@ -101,6 +103,9 @@ export default function App() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/deals" element={<DealsPage />} />
+        <Route path="/deals/:dealId" element={<DealPage />} />
+        <Route path="/deals/:dealId/fund/:key" element={<DealPage />} />
         <Route path="/members" element={<MembersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
