@@ -5,7 +5,6 @@ import BrandLogo from '../BrandLogo'
 const LINKS = [
   { label: 'Features', href: '#features' },
   { label: 'How it works', href: '#how' },
-  { label: 'Stories', href: '#stories' },
 ]
 
 export default function LandingNav() {

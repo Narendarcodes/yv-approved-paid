@@ -1,11 +1,9 @@
 import { useEffect } from 'react'
 import LandingNav from '../components/landing/LandingNav'
 import HeroTunnel from '../components/landing/HeroTunnel'
-import ProofStrip from '../components/landing/ProofStrip'
 import Features from '../components/landing/Features'
 import Showcase from '../components/landing/Showcase'
 import HowItWorks from '../components/landing/HowItWorks'
-import Testimonials from '../components/landing/Testimonials'
 import CtaBlock from '../components/landing/CtaBlock'
 import LandingFooter from '../components/landing/LandingFooter'
 import { initLenis, destroyLenis, ScrollTrigger } from '../lib/landing/motion'
@@ -27,11 +25,9 @@ export default function LandingPage() {
       <LandingNav />
       <main>
         <HeroTunnel />
-        <ProofStrip />
         <Features />
         <Showcase />
         <HowItWorks />
-        <Testimonials />
         <CtaBlock />
       </main>
       <LandingFooter />
