@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from 'react'
 import { ShieldCheck } from 'lucide-react'
-import { MOTTO } from '../../lib/deals'
+import { MOTTO, paypalEnv } from '../../lib/deals'
 
 /** The motto line every deal screen carries. */
 export function Motto({ className = '' }: { className?: string }) {
@@ -68,5 +68,23 @@ export function Stat({ label, value, tone }: { label: string; value: ReactNode; 
       <p className="micro-label">{label}</p>
       <p className={`t-num mt-1 text-[18px] ${tone === 'teal' ? '!text-teal' : tone === 'danger' ? '!text-danger' : ''}`}>{value}</p>
     </div>
+  )
+}
+
+/** A PayPal invoice id in mono with a small environment tag (sandbox / mock). Nothing here is a live charge. */
+export function PaypalInvoiceId({ id, className = '' }: { id: string; className?: string }) {
+  const env = paypalEnv(id)
+  return (
+    <span className={`inline-flex min-w-0 items-center gap-1.5 ${className}`}>
+      <span className="truncate font-mono text-[12.5px] text-ink" title={id}>
+        {id}
+      </span>
+      <span
+        className="shrink-0 rounded-[5px] border border-st-production/20 bg-st-production-bg px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em] text-st-production"
+        title={env === 'mock' ? 'Mock PayPal gateway: no real invoice exists' : 'PayPal sandbox: test money only'}
+      >
+        {env}
+      </span>
+    </span>
   )
 }

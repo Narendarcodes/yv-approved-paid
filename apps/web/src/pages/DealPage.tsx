@@ -7,7 +7,7 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Bot } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bot, Receipt } from 'lucide-react'
 import { PageHeader } from '../components/ui'
 import { CardSkeleton, EmptyState, ErrorBanner } from '../components/states'
 import { StatusChip } from '../components/status'
@@ -21,7 +21,7 @@ import ChangeOrderCard from '../components/deals/ChangeOrderCard'
 import DisputeSplitCard from '../components/deals/DisputeSplitCard'
 import DealCopilot from '../components/deals/DealCopilot'
 import * as api from '../services/api'
-import { roleWord, useDeal, useDealRefresh } from '../lib/deals'
+import { money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
 
 export default function DealPage() {
   const { dealId, key: fundKey } = useParams()
@@ -57,6 +57,10 @@ export default function DealPage() {
 
   const changed = () => void refresh()
   const toReview = (key: string) => document.getElementById(`review-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const toChangeOrder = (id: string) => document.getElementById(`co-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // change orders waiting on the client, and what has been billed so far (amounts from the deal, never typed)
+  const waitingCos = deal?.changeOrders.filter((c) => c.status === 'draft') ?? []
+  const invoicedCos = deal?.changeOrders.filter((c) => c.status === 'invoiced') ?? []
 
   return (
     <div className="fade-in">
@@ -85,6 +89,36 @@ export default function DealPage() {
             }
           />
           <Motto className="-mt-3 mb-5" />
+          {(waitingCos.length > 0 || invoicedCos.length > 0) && (
+            <div
+              className={`mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-4 py-3 ${waitingCos.length ? 'border-st-production/25 bg-st-production-bg' : 'border-line bg-surface'}`}
+              data-testid="change-order-banner"
+            >
+              <Receipt size={16} strokeWidth={1.75} className={waitingCos.length ? 'text-st-production' : 'text-teal'} aria-hidden="true" />
+              <p className="min-w-0 flex-1 text-[13px] text-ink">
+                {waitingCos.length ? (
+                  <>
+                    {waitingCos.length === 1 ? 'A change order is' : `${waitingCos.length} change orders are`} waiting for the client:{' '}
+                    <span className="t-num">{money(waitingCos.reduce((a, c) => a + c.amountMinor, 0), deal.terms.currency)}</span> from the signed rate card.
+                  </>
+                ) : (
+                  <>
+                    {invoicedCos.length === 1 ? 'One change order' : `${invoicedCos.length} change orders`} invoiced in PayPal:{' '}
+                    <span className="t-num">{money(invoicedCos.reduce((a, c) => a + c.amountMinor, 0), deal.terms.currency)}</span>, drafted and not charged yet.
+                  </>
+                )}
+              </p>
+              {waitingCos.length ? (
+                <button className="btn-primary btn-xs" onClick={() => toChangeOrder(waitingCos[0].id)}>
+                  {deal.me === 'client' ? 'Review & accept' : 'View'} <ArrowRight size={13} strokeWidth={2} />
+                </button>
+              ) : (
+                <Link to="/invoices" className="btn-secondary btn-xs">
+                  View invoices <ArrowRight size={13} strokeWidth={2} />
+                </Link>
+              )}
+            </div>
+          )}
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div className="min-w-0 space-y-5">
               <DealCard deal={deal} orgId={orgId} onChanged={changed} />
@@ -107,7 +141,9 @@ export default function DealPage() {
                       </div>
                     )}
                     {cos.map((c) => (
-                      <ChangeOrderCard key={c.id} deal={deal} orgId={orgId} changeOrderId={c.id} onChanged={changed} />
+                      <div key={c.id} id={`co-${c.id}`} className="scroll-mt-20">
+                        <ChangeOrderCard deal={deal} orgId={orgId} changeOrderId={c.id} onChanged={changed} />
+                      </div>
                     ))}
                     {(r.proposals?.dispute || r.state === 'DISPUTED') && (
                       <DisputeSplitCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />

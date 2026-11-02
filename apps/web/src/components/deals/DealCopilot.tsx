@@ -14,7 +14,7 @@ import { Bot, Send, Sparkles } from 'lucide-react'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
 import { captureDryRun, matchIntent, SUGGESTIONS, type CopilotAction } from '../../lib/copilot'
-import { money, useDealLedger, useDealRefresh } from '../../lib/deals'
+import { blockedSummary, money, useDealLedger, useDealRefresh } from '../../lib/deals'
 import { Skeleton } from '../states'
 import { DealCardShell, Motto } from './common'
 import DealCard from './DealCard'
@@ -41,9 +41,10 @@ function BlockedAttempts({ deal, orgId }: { deal: DealView; orgId: string }) {
         <ul className="space-y-3">
           {blocked.map((e) => (
             <li key={e.seq}>
-              <p className="text-[13px] text-ink">{e.explanation}</p>
+              <p className="text-[13px] font-medium text-danger">{blockedSummary(e, deal.terms.currency).title}</p>
+              <p className="text-[12.5px] text-ink/80">{blockedSummary(e, deal.terms.currency).reason}</p>
               <div className="mt-1">
-                <PolicyBlockedChip violations={e.policy?.violations ?? []} />
+                <PolicyBlockedChip violations={e.policy?.violations ?? []} currency={deal.terms.currency} />
               </div>
             </li>
           ))}
@@ -87,7 +88,7 @@ function CaptureProposal({ deal, orgId, action }: { deal: DealView; orgId: strin
                 version on its card and the Money Agent captures the signed amount.
               </p>
             ) : (
-              <PolicyBlockedChip violations={q.data?.violations ?? []} />
+              <PolicyBlockedChip violations={q.data?.violations ?? []} currency={deal.terms.currency} />
             )}
           </div>
         </>

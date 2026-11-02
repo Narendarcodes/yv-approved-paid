@@ -127,7 +127,7 @@ export default function DisputeSplitCard({
           </div>
           {!p.decision.allowed && (
             <div className="mt-3">
-              <PolicyBlockedChip violations={p.decision.violations} />
+              <PolicyBlockedChip violations={p.decision.violations} currency={deal.terms.currency} />
             </div>
           )}
         </>
