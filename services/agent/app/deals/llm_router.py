@@ -62,7 +62,7 @@ def default_chain() -> list[Provider]:
         ),
         "nim": Provider(
             "nim",
-            os.environ.get("NIM_MODEL", "meta/llama-3.3-70b-instruct"),
+            os.environ.get("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"),  # llama-3.3-70b now 410 Gone on NIM
             os.environ.get("NIM_API_BASE", "https://integrate.api.nvidia.com/v1"),
             "NVIDIA_API_KEY",
         ),
@@ -82,10 +82,10 @@ Caller = Callable[[Provider, list[dict], int], Awaitable[str]]
 async def litellm_caller(p: Provider, messages: list[dict], max_tokens: int) -> str:
     import litellm  # heavy; only when a real call is made
 
+    kw = {"extra_body": p.extra} if p.extra else {}  # extra_body=None crashes litellm 1.55 (NIM path)
     resp = await litellm.acompletion(
         model=f"openai/{p.model}", api_base=p.api_base, api_key=p.api_key, messages=messages,
-        max_tokens=max_tokens, temperature=0, timeout=float(os.environ.get("LLM_TIMEOUT_S", "45")),
-        extra_body=p.extra or None,
+        max_tokens=max_tokens, temperature=0, timeout=float(os.environ.get("LLM_TIMEOUT_S", "45")), **kw,
     )
     msg = resp.choices[0].message
     return (getattr(msg, "content", None) or "").strip()
