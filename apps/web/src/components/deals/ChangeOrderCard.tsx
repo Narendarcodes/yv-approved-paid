@@ -130,7 +130,7 @@ export default function ChangeOrderCard({
 
       {/* the invoice document */}
       <div className={`mt-4 overflow-hidden rounded-xl border border-line bg-canvas/50 ${declined ? 'opacity-60' : ''}`} data-testid="change-order-invoice">
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-line px-4 py-3 sm:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-line px-4 py-3 sm:grid-cols-[minmax(0,1.8fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
           <div className="col-span-2 min-w-0 sm:col-span-1">
             <dt className="micro-label">Invoice</dt>
             <dd className="mt-0.5">
@@ -208,7 +208,7 @@ export default function ChangeOrderCard({
       <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-snug text-umber">
         <ShieldCheck size={13} strokeWidth={1.75} className="mt-px shrink-0 text-teal" aria-hidden="true" />
         <span>
-          Priced from the signed rate card; the AI never sets amounts. {declined ? 'Declined, so no extra round.' : 'Accepting unlocks one extra revision round.'}
+          Priced from the signed rate card; the AI never sets amounts. {declined ? 'Declined, so no extra round.' : co.status === 'draft' ? 'Accepting unlocks one extra revision round.' : 'Unlocked one extra revision round.'}
         </span>
       </p>
     </DealCardShell>
