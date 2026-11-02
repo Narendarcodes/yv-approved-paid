@@ -1730,6 +1730,24 @@ export function dealPolicyCheck(orgId: string, dealId: string, body: unknown): P
 }
 export type { DealChangeOrder }
 
+/** Live copilot answer from the API (POST .../copilot). `offline` means: use the local replay. */
+export type DealCopilotReply =
+  | {
+      source: 'live'
+      actions: { name: string; milestoneKey?: string; changeOrderId?: string }[]
+      note: string | null
+      provider: string | null
+      model: string | null
+      cached: boolean
+      ms: number
+    }
+  | { source: 'offline'; reason: string }
+
+/** Ask the live deal copilot. Never throws for "agent off": the API answers { source: 'offline' }. */
+export function dealCopilot(orgId: string, dealId: string, question: string): Promise<DealCopilotReply> {
+  return sendJson('POST', dealPath(orgId, dealId, '/copilot'), { question })
+}
+
 /**
  * One-tap judge login (DEMO_MODE=1 only). Resolves null when the API has no
  * demo (404) so the login page can hide the button; throws on other failures.

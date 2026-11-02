@@ -1,7 +1,9 @@
 /**
  * DealCopilot: a side panel that answers with deal cards (generative UI).
- * Offline replay by default: suggested prompts and typed questions map to
- * render actions with no LLM call (lib/copilot.tsx), so the demo always works.
+ * Live AI when the API's deal agent is on (POST .../copilot): an LLM picks the
+ * cards, ids only. Otherwise (agent off, slow, down) the offline replay maps
+ * the words to cards with no LLM call (lib/copilot.tsx), so the demo always
+ * works. Every reply is labelled honestly: "live AI" or "offline replay".
  *
  * The copilot only PROPOSES. Money moves through the card buttons (human
  * routes) and the Money Agent's policy engine; a proposal that policy refuses
@@ -13,7 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Bot, Send, Sparkles } from 'lucide-react'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
-import { captureDryRun, matchIntent, SUGGESTIONS, type CopilotAction } from '../../lib/copilot'
+import { captureDryRun, fromLive, matchIntent, SUGGESTIONS, type CopilotAction } from '../../lib/copilot'
 import { blockedSummary, money, useDealLedger, useDealRefresh } from '../../lib/deals'
 import { Skeleton } from '../states'
 import { DealCardShell, Motto } from './common'
@@ -25,7 +27,29 @@ import ChangeOrderCard from './ChangeOrderCard'
 import DisputeSplitCard from './DisputeSplitCard'
 import PolicyBlockedChip from './PolicyBlockedChip'
 
-type Turn = { id: number; role: 'user' | 'copilot'; text?: string; actions?: CopilotAction[] }
+type Mode = { kind: 'live'; provider: string | null; model: string | null; cached: boolean } | { kind: 'offline'; reason?: string } | { kind: 'thinking' }
+type Turn = { id: number; role: 'user' | 'copilot'; text?: string; actions?: CopilotAction[]; mode?: Mode; note?: string | null }
+
+/** The web gives the live path this long (the API itself gives up at ~15 s), then replays offline. */
+const LIVE_BUDGET_MS = 18_000
+/** Reasons that will not change during this visit: stop asking the API for a while. */
+const STICKY_OFFLINE = new Set(['agent_disabled', 'not_found'])
+
+function ModeLabel({ mode }: { mode?: Mode }) {
+  if (!mode) return null
+  if (mode.kind === 'thinking') return <p className="font-mono text-[10px] uppercase text-label">asking live AI…</p>
+  if (mode.kind === 'live')
+    return (
+      <p className="font-mono text-[10px] uppercase text-teal" title={mode.model ?? undefined} data-testid="copilot-mode">
+        live AI{mode.provider ? ` · ${mode.provider}` : ''}{mode.cached ? ' · cached' : ''}
+      </p>
+    )
+  return (
+    <p className="font-mono text-[10px] uppercase text-label" title={mode.reason ? `Live AI unavailable (${mode.reason}); matched offline from your words, no model call` : 'Matched offline from your words; no model call'} data-testid="copilot-mode">
+      offline replay
+    </p>
+  )
+}
 
 /** Blocked attempts on the ledger (P3_amount, P6_version...), each with its rule chip. */
 function BlockedAttempts({ deal, orgId }: { deal: DealView; orgId: string }) {
@@ -135,16 +159,52 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
     end.current?.scrollIntoView({ block: 'nearest' })
   }, [turns])
 
-  const ask = (q: string) => {
+  const liveOff = useRef<string | null>(null)
+  const [lastMode, setLastMode] = useState<Mode['kind']>('offline')
+
+  const ask = async (q: string) => {
     const t = q.trim()
     if (!t) return
-    const actions = matchIntent(t, deal)
-    setTurns((prev) => [...prev, { id: ++seq.current, role: 'user', text: t }, { id: ++seq.current, role: 'copilot', actions }])
+    const uid = ++seq.current
+    const cid = ++seq.current
     setText('')
+    const offline = (reason?: string) => {
+      setTurns((prev) => prev.map((x) => (x.id === cid ? { ...x, actions: matchIntent(t, deal), mode: { kind: 'offline', reason } } : x)))
+      setLastMode('offline')
+    }
+    if (liveOff.current) {
+      setTurns((prev) => [...prev, { id: uid, role: 'user', text: t }, { id: cid, role: 'copilot', actions: matchIntent(t, deal), mode: { kind: 'offline', reason: liveOff.current ?? undefined } }])
+      setLastMode('offline')
+      return
+    }
+    setTurns((prev) => [...prev, { id: uid, role: 'user', text: t }, { id: cid, role: 'copilot', mode: { kind: 'thinking' } }])
+    try {
+      const reply = await Promise.race([
+        api.dealCopilot(orgId, deal.id, t),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error('live AI timed out')), LIVE_BUDGET_MS)),
+      ])
+      if (reply?.source !== 'live') {
+        const reason = reply && 'reason' in reply ? reply.reason : 'no_answer'
+        if (STICKY_OFFLINE.has(reason)) liveOff.current = reason
+        return offline(reason)
+      }
+      const actions = fromLive(reply.actions, t, deal)
+      if (!actions.length) return offline('unusable_answer')
+      setTurns((prev) =>
+        prev.map((x) =>
+          x.id === cid ? { ...x, actions, note: reply.note, mode: { kind: 'live', provider: reply.provider, model: reply.model, cached: reply.cached } } : x,
+        ),
+      )
+      setLastMode('live')
+    } catch (e) {
+      // An API without the route (older deploy) answers 404: stop trying this visit.
+      if ((e as Error)?.message?.includes('404') || (e as { code?: string })?.code === 'not_found') liveOff.current = 'not_found'
+      offline('unreachable')
+    }
   }
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    ask(text)
+    void ask(text)
   }
 
   return (
@@ -154,8 +214,12 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
           <Bot size={16} strokeWidth={1.75} className="text-teal" />
           <h2 className="card-title">Deal copilot</h2>
         </div>
-        <span className="font-mono text-[10px] uppercase text-label" title="Answers are matched offline from your words; no model call">
-          offline replay
+        <span
+          className={`font-mono text-[10px] uppercase ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
+          title={lastMode === 'live' ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)' : 'Answers are matched offline from your words; no model call. Live AI is used when the agent is on.'}
+          data-testid="copilot-badge"
+        >
+          {lastMode === 'live' ? 'live AI' : 'offline replay'}
         </span>
       </div>
       <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
@@ -170,6 +234,8 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
             </p>
           ) : (
             <div key={t.id} className="space-y-3">
+              <ModeLabel mode={t.mode} />
+              {t.mode?.kind === 'live' && t.note && <p className="text-[12.5px] text-umber">{t.note}</p>}
               {(t.actions ?? []).map((a, i) => (
                 <Rendered key={i} action={a} deal={deal} orgId={orgId} onChanged={() => void refresh()} />
               ))}
@@ -184,7 +250,7 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
             <button
               key={s.label}
               type="button"
-              onClick={() => ask(s.prompt)}
+              onClick={() => void ask(s.prompt)}
               className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] text-umber hover:border-teal hover:text-teal"
             >
               <Sparkles size={11} strokeWidth={2} />

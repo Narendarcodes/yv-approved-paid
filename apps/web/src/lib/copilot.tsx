@@ -19,7 +19,12 @@
  *
  * Offline replay: intents are matched deterministically from the words typed
  * (and the suggested prompts map straight to actions), so every card is
- * reachable with no LLM. This is the judge-mode path and the default.
+ * reachable with no LLM. This is the judge-mode path and the fallback.
+ *
+ * Live AI: when the API's agent is on, POST .../copilot returns card actions an
+ * LLM picked (ids only, re-checked by the agent AND the API). `fromLive` checks
+ * them a third time against this deal; a proposeCapture still takes its amount
+ * from the signed terms or the number the person typed, never from the model.
  */
 import type { DealView } from '../contracts/types'
 
@@ -60,7 +65,7 @@ function milestoneFrom(text: string, deal: DealView, fallback?: string): string 
   return fallback
 }
 
-function moneyFrom(text: string): number | undefined {
+export function moneyFrom(text: string): number | undefined {
   const m = text.match(/(?:\$|usd\s*|rs\.?\s*|₹)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)|([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*(?:dollars|usd)/i)
   const raw = m?.[1] ?? m?.[2]
   if (!raw) return undefined
@@ -133,4 +138,48 @@ export function captureDryRun(deal: DealView, a: Extract<CopilotAction, { name: 
     versionId,
     latestId: latest?.id,
   }
+}
+
+const LIVE_NAMES = new Set(['showDeal', 'showChecks', 'showReviewMerge', 'showMoneyTimeline', 'showChangeOrder', 'showDisputeSplit', 'showBlocked', 'proposeCapture', 'help'])
+
+/**
+ * Live answer -> render actions. Unknown names and ids not on this deal are
+ * dropped. proposeCapture gets its version and typed amount from the PERSON's
+ * words (the same parse the offline replay uses), never from the model.
+ * Returns [] when nothing usable is left (the caller then replays offline).
+ */
+export function fromLive(raw: { name: string; milestoneKey?: string; changeOrderId?: string }[], text: string, deal: DealView): CopilotAction[] {
+  const keys = new Set(deal.terms.milestones.map((m) => m.key))
+  const cos = new Set(deal.changeOrders.map((c) => c.id))
+  const offline = matchIntent(text, deal)
+  const out: CopilotAction[] = []
+  for (const a of raw.slice(0, 3)) {
+    if (!a || !LIVE_NAMES.has(a.name)) continue
+    const mk = a.milestoneKey && keys.has(a.milestoneKey) ? a.milestoneKey : undefined
+    switch (a.name) {
+      case 'showChecks':
+      case 'showReviewMerge':
+      case 'showDisputeSplit':
+        if (mk) out.push({ name: a.name, milestoneKey: mk })
+        break
+      case 'showMoneyTimeline':
+        out.push({ name: 'showMoneyTimeline', milestoneKey: mk })
+        break
+      case 'showChangeOrder':
+        if (a.changeOrderId && cos.has(a.changeOrderId)) out.push({ name: 'showChangeOrder', changeOrderId: a.changeOrderId })
+        break
+      case 'proposeCapture': {
+        if (!mk) break
+        const mine = offline.find((o) => o.name === 'proposeCapture' && o.milestoneKey === mk) as Extract<CopilotAction, { name: 'proposeCapture' }> | undefined
+        out.push({ name: 'proposeCapture', milestoneKey: mk, versionId: mine?.versionId, typedMinor: mine?.typedMinor ?? moneyFrom(text) })
+        break
+      }
+      case 'showDeal':
+      case 'showBlocked':
+      case 'help':
+        out.push({ name: a.name })
+        break
+    }
+  }
+  return out
 }
