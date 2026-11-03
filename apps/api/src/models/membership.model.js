@@ -6,6 +6,8 @@ const MembershipSchema = new mongoose.Schema(
     organizationId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Organization' },
     role: { type: String, required: true },
     disabled: { type: Boolean, default: false },
+    // Invited (demo) placeholder that has not signed up yet. No email is sent.
+    pending: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

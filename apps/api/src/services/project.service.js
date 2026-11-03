@@ -201,6 +201,20 @@ async function transitionProject({ projectId, organizationId, newStatus, actorId
 async function assignProject({ projectId, organizationId, assigneeId, actorId }) {
   const project = await Project.findOne({ _id: projectId, organizationId });
   if (!project) throw { status: 404, code: 'project_not_found', message: 'Project not found' };
+  // The assignee must be an active member of this project's organization: no
+  // assigning work to someone in another workspace (or to a disabled member).
+  const Membership = require('../models/membership.model');
+  const member = await Membership.exists({
+    userId: assigneeId,
+    organizationId,
+    disabled: { $ne: true },
+  });
+  if (!member)
+    throw {
+      status: 422,
+      code: 'assignee_not_member',
+      message: 'The assignee must be an active member of this organization',
+    };
   project.assignee = assigneeId;
   project.assignedAt = new Date();
   if (project.status === 'IDEA' || project.status === 'APPROVED_CONCEPT') {
@@ -208,6 +222,7 @@ async function assignProject({ projectId, organizationId, assigneeId, actorId })
   }
   await project.save();
   await bus.emitAsync('project.assigned', { projectId, assigneeId, actorId });
+  await project.populate('assignee', 'name email');
   return project;
 }
 

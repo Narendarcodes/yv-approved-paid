@@ -1,6 +1,7 @@
 const Task = require('../models/task.model');
 const Project = require('../models/project.model');
 const User = require('../models/user.model');
+const Membership = require('../models/membership.model');
 const bus = require('../events/hub');
 
 const TASK_STATUSES = ['todo', 'in_progress', 'in_review', 'done'];
@@ -16,10 +17,23 @@ async function assertProject(projectId, organizationId) {
   return project;
 }
 
-async function assertAssigneeExists(assigneeId) {
+// The assignee must be an active member of the task's organization (not just
+// any user in the database): no assigning work across workspaces.
+async function assertAssigneeExists(assigneeId, organizationId) {
   if (!assigneeId) return;
   const u = await User.findById(assigneeId);
   if (!u) throw { status: 404, code: 'assignee_not_found', message: 'Assignee not found' };
+  const member = await Membership.exists({
+    userId: assigneeId,
+    organizationId,
+    disabled: { $ne: true },
+  });
+  if (!member)
+    throw {
+      status: 422,
+      code: 'assignee_not_member',
+      message: 'The assignee must be an active member of this organization',
+    };
 }
 
 async function listTasks({ projectId, organizationId, status, assignee, limit = 100, skip = 0 }) {
@@ -49,7 +63,7 @@ async function createTask({
   createdBy,
 }) {
   await assertProject(projectId, organizationId);
-  await assertAssigneeExists(assignee);
+  await assertAssigneeExists(assignee, organizationId);
   const task = new Task({
     organizationId,
     projectId,
@@ -83,7 +97,7 @@ async function updateTask({ projectId, organizationId, taskId, actorId, fields =
   if (fields.priority !== undefined) changes.priority = fields.priority;
   if (fields.dueDate !== undefined) changes.dueDate = fields.dueDate || null;
   if (fields.assignee !== undefined) {
-    await assertAssigneeExists(fields.assignee);
+    await assertAssigneeExists(fields.assignee, organizationId);
     changes.assignee = fields.assignee;
   }
   Object.assign(task, changes);
