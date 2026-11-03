@@ -51,6 +51,8 @@ Product spec: see the PRD PDF in the repo root.
 
 ## Built during the PayPal AI Hackathon
 
+**Demo video (2:30):** https://youtu.be/b_RgJWPBiKY  ·  **Live demo:** https://yv-approved-paid.vercel.app
+
 yv. is my own project. I started its content-ops core (projects, tasks, briefs, reviews, chat, contracts and invoice pages) in August 2026, before the hackathon opened on Oct 1, 2026. Everything below was built during the Submission Period (Oct 1 to Nov 12, 2026):
 
 **October 2026**
