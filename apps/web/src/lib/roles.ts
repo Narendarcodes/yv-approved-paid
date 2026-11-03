@@ -19,6 +19,7 @@ export type Permission =
   | 'publish'
   | 'metrics'
   | 'manage_members'
+  | 'assign'
   | 'manage_concepts'
   | 'review_concepts'
   | 'settings'
@@ -33,6 +34,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   publish: 'Publish content',
   metrics: 'View analytics & metrics',
   manage_members: 'Manage team members',
+  assign: 'Assign projects & tasks',
   manage_concepts: 'Manage concepts',
   review_concepts: 'Approve or decline concepts',
   settings: 'Workspace settings',
@@ -55,7 +57,7 @@ export const ROLES: RoleInfo[] = [
     blurb: 'Full access - manages the organization and every project.',
     permissions: [
       'view', 'create', 'upload', 'comment', 'approve', 'schedule',
-      'publish', 'metrics', 'manage_members', 'manage_concepts', 'review_concepts', 'settings',
+      'publish', 'metrics', 'manage_members', 'assign', 'manage_concepts', 'review_concepts', 'settings',
     ],
   },
   {
@@ -65,7 +67,7 @@ export const ROLES: RoleInfo[] = [
     blurb: 'Creates and produces projects, uploads versions, requests review.',
     permissions: [
       'view', 'create', 'upload', 'comment', 'approve', 'schedule',
-      'metrics', 'manage_concepts', 'settings',
+      'metrics', 'assign', 'manage_concepts', 'settings',
     ],
   },
   {

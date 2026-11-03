@@ -353,6 +353,9 @@ export interface OrgMember {
   role: string
   title?: string
   lastActive?: string
+  /** Invited (demo) and not signed up yet. */
+  pending?: boolean
+  disabled?: boolean
 }
 
 export async function listOrgs(): Promise<Org[]> {
@@ -389,18 +392,22 @@ export async function listMembers(orgId: string): Promise<OrgMember[]> {
     role: m.role || m.userId?.role || 'member',
     title: m.title || m.userId?.title || '',
     lastActive: m.lastActive || '-',
+    pending: m.pending === true,
+    disabled: m.disabled === true || m.userId?.disabled === true,
   }))
 }
 
-export async function addMember(orgId: string, email: string, role: string): Promise<OrgMember> {
-  const res = await authFetch(`${API_BASE}/organizations/${orgId}/members`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, role }),
-    credentials: 'include',
-  })
-  if (!res.ok) throw new Error('Failed to add member')
-  return res.json()
+/**
+ * Add a member by email (manage_members). No email is ever sent. On the public
+ * demo (DEMO_MODE=1) only example.com addresses are accepted, and one with no
+ * account yet is added as a pending member.
+ */
+export async function addMember(
+  orgId: string,
+  email: string,
+  role: string,
+): Promise<{ pending?: boolean; emailSent?: boolean; role: string; user?: { _id: string; name: string; email: string } }> {
+  return sendJson('POST', `/organizations/${encodeURIComponent(orgId)}/members`, { email, role })
 }
 
 /** ------------------------------------------------------------------- */
@@ -1027,6 +1034,15 @@ export async function createTask(
   },
 ) {
   return normalize(await sendJson<any>('POST', `/projects/${projectId}/tasks`, input)) as TaskItem
+}
+
+/** Assign a project to an org member (needs project.assign). Returns the project with the populated assignee. */
+export async function assignProject(projectId: string, assigneeId: string) {
+  return normalize(await sendJson<any>('POST', `/projects/${projectId}/assign`, { assigneeId }))
+}
+/** Reassign a task (needs task.update); the assignee must be an active member of the org. */
+export async function assignTask(projectId: string, taskId: string, assignee: string | null) {
+  return normalize(await sendJson<any>('PATCH', `/projects/${projectId}/tasks/${taskId}`, { assignee })) as TaskItem
 }
 
 /* Contracts */
@@ -1727,6 +1743,25 @@ export function tickDeal(orgId: string, dealId: string): Promise<{ deal: DealVie
 /** Dry-run a proposal through policy. Read-only: nothing moves. */
 export function dealPolicyCheck(orgId: string, dealId: string, body: unknown): Promise<any> {
   return sendJson('POST', dealPath(orgId, dealId, '/policy-check'), body)
+}
+/** A milestone's team as the server would save it (dry run; same rules as the save). */
+export type DealTeamPlan = {
+  allowed: boolean
+  violations: { rule: string; message: string }[]
+  milestoneKey: string
+  currency: string
+  amountMinor: number
+  totalBp: number
+  clearsSignatures: boolean
+  payees: { userId: string; email: string; shareBp: number; displayName?: string; name: string; amountMinor: number }[]
+}
+export type DealTeamInput = { payees: { userId: string; shareBp: number; label?: string }[] }
+export function checkDealTeam(orgId: string, dealId: string, key: string, input: DealTeamInput): Promise<DealTeamPlan> {
+  return sendJson('POST', msPath(orgId, dealId, key, '/team/check'), input)
+}
+/** Client only, unsigned deals only (a signed deal answers 409 deal_locked). Clears signatures. */
+export function setDealTeam(orgId: string, dealId: string, key: string, input: DealTeamInput): Promise<DealView> {
+  return sendJson('PUT', msPath(orgId, dealId, key, '/team'), input)
 }
 export type { DealChangeOrder }
 

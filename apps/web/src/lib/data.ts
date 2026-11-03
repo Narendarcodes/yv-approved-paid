@@ -97,6 +97,8 @@ export async function loadTeam(): Promise<TeamMember[]> {
       role: m.role || 'member',
       title: m.title || '',
       lastActive: m.lastActive || 'Never',
+      pending: m.pending === true,
+      disabled: m.disabled === true,
     }))
   }
   teamPromise = run().catch(() => {
@@ -158,6 +160,13 @@ export async function createProject(input: { title: string; type?: string; organ
 }
 
 /* ------------------------------- hooks ------------------------------- */
+const teamListeners = new Set<() => void>()
+/** Re-read the member list everywhere (after an invite or a role change). */
+export function invalidateTeam() {
+  teamPromise = null
+  teamListeners.forEach((l) => l())
+}
+
 export function useTeam() {
   const [team, setTeam] = useState<TeamMember[]>([])
   const [org, setOrg] = useState<{ id: string; name: string; slug: string } | null>(null)
@@ -177,8 +186,13 @@ export function useTeam() {
       .listOrgs()
       .then((orgs) => active && orgs && orgs.length && setOrg(orgs[0]))
       .catch(() => {})
+    const listener = () => {
+      loadTeam().then((t) => active && setTeam(t)).catch(() => {})
+    }
+    teamListeners.add(listener)
     return () => {
       active = false
+      teamListeners.delete(listener)
     }
   }, [])
   const memberOf = (id: string) => team.find((m) => m.id === id)
@@ -227,6 +241,7 @@ export function useMembers() {
     initials: m.initials,
     role: m.role.charAt(0).toUpperCase() + m.role.slice(1),
     lastActive: m.lastActive,
+    pending: m.pending === true,
   }))
   return { members, org }
 }

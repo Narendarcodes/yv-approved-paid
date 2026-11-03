@@ -7,12 +7,13 @@ import Avatar, { AvatarStack } from '../components/ui'
 import { projectStatusLabel } from '../lib/format'
 import { useViewer, can } from '../lib/viewer'
 import { useToast } from '../components/toast'
-import { createVersion, listVersions, uploadVersionFile, type ProjectVersion } from '../services/api'
+import { assignProject, assignTask, createVersion, listTasks, listVersions, uploadVersionFile, type ProjectVersion, type TaskItem } from '../services/api'
+import AssignPicker from '../components/AssignPicker'
 import { ProjectLifecycle, BriefCard } from '../components/ProjectLifecycle'
 import { ProjectPublishing } from '../components/ProjectPublishing'
 import { ProjectPerformance } from '../components/ProjectPerformance'
 import {
-  useProject, useProjectInputs, useProjectActivity, useProjectPublications, useReviews, useTeam,
+  invalidateProjectData, useProject, useProjectInputs, useProjectActivity, useProjectPublications, useReviews, useTeam,
 } from '../lib/data'
 import { StatusChip } from '../components/status'
 import { CardSkeleton, Skeleton } from '../components/states'
@@ -71,8 +72,40 @@ export default function ProjectDetailPage() {
       active = false
     }
   }, [id, versionsKey])
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  useEffect(() => {
+    let active = true
+    if (!id) return
+    listTasks(id).then((t) => active && setTasks(t)).catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [id])
   const { reviews: allReviews } = useReviews()
   const memberOf = (mid: string) => team.find((m) => m.id === mid)
+
+  const assignTo = async (userId: string) => {
+    if (!project) return
+    try {
+      await assignProject(project.id, userId)
+      invalidateProjectData(project.id)
+      toast('success', 'Assigned', `${memberOf(userId)?.name ?? 'A teammate'} is now responsible for ${project.title}.`)
+    } catch (err: any) {
+      toast('danger', 'Could not assign', err?.message || 'Try again')
+      throw err
+    }
+  }
+  const assignTaskTo = async (task: TaskItem, userId: string) => {
+    try {
+      await assignTask(id, task.id, userId)
+      setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, assignee: userId } : t)))
+      invalidateProjectData(id)
+      toast('success', 'Task assigned', `“${task.title}” → ${memberOf(userId)?.name ?? 'teammate'}`)
+    } catch (err: any) {
+      toast('danger', 'Could not assign the task', err?.message || 'Try again')
+      throw err
+    }
+  }
 
   // Show loading before 404 — useProject is async via org lookup
   if (projectLoading) {
@@ -133,6 +166,7 @@ export default function ProjectDetailPage() {
   const canComment = can(viewer, 'comment')
   const canUpload = can(viewer, 'upload')
   const canApprove = can(viewer, 'approve')
+  const canAssign = can(viewer, 'assign')
 
   return (
     <div className="fade-in space-y-6">
@@ -150,9 +184,11 @@ export default function ProjectDetailPage() {
             <StatusChip status={project.status} label={projectStatusLabel(project)} />
             <Chip label={project.type} tone="neutral" />
           </div>
-          <p className="mt-1 text-sm text-umber">
-            {memberOf(project.assignee)?.name ? `${memberOf(project.assignee)?.name} is responsible` : 'Not assigned yet'} · updated {project.updated}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-umber">
+            <span className="micro-label">Responsible</span>
+            <AssignPicker team={team} value={project.assignee} onAssign={assignTo} canAssign={canAssign} label="Assign" testId="project-assign" />
+            <span>· updated {project.updated}</span>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {project.status === 'PUBLISHED' && project.postUrl && (
@@ -364,6 +400,40 @@ export default function ProjectDetailPage() {
           <ProjectPublishing projectId={project.id} status={project.status} viewer={viewer} />
 
           <BriefCard projectId={project.id} viewer={viewer} />
+
+          {/* Tasks: each one has its own assignee */}
+          <div className="card p-0" data-testid="project-tasks">
+            <header className="card-head justify-between">
+              <h2 className="card-title">Tasks</h2>
+              {tasks.length > 0 && (
+                <span className="font-mono text-[11px] text-label">
+                  {tasks.filter((t) => t.assignee).length}/{tasks.length} assigned
+                </span>
+              )}
+            </header>
+            {tasks.length ? (
+              <ul className="divide-y divide-line">
+                {tasks.map((t) => (
+                  <li key={t.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-ink">{t.title}</p>
+                      <p className="text-xs text-umber">{t.status.replace(/_/g, ' ')} · {t.priority} priority</p>
+                    </div>
+                    <AssignPicker
+                      team={team}
+                      value={strId(t.assignee)}
+                      onAssign={(uid) => assignTaskTo(t, uid)}
+                      canAssign={canAssign}
+                      size="sm"
+                      label="Assign"
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-5 py-8 text-center text-sm text-umber">No tasks on this project yet.</p>
+            )}
+          </div>
 
           {/* Inputs */}
           <div className="card p-0">

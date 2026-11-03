@@ -18,6 +18,9 @@ export interface TeamMember {
   role: RoleName
   title: string
   lastActive: string
+  /** Invited (demo) and not signed up yet. */
+  pending?: boolean
+  disabled?: boolean
 }
 
 /** PRD lifecycle statuses - see statusLabel() helpers where rendered. */

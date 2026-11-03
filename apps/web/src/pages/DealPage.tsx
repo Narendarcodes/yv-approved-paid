@@ -20,6 +20,7 @@ import MoneyTimeline from '../components/deals/MoneyTimeline'
 import ChangeOrderCard from '../components/deals/ChangeOrderCard'
 import DisputeSplitCard from '../components/deals/DisputeSplitCard'
 import DealCopilot from '../components/deals/DealCopilot'
+import DealTeamCard from '../components/deals/DealTeamCard'
 import * as api from '../services/api'
 import { invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
 
@@ -122,6 +123,7 @@ export default function DealPage() {
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div className="min-w-0 space-y-5">
               <DealCard deal={deal} orgId={orgId} onChanged={changed} />
+              <DealTeamCard deal={deal} orgId={orgId} onChanged={changed} />
               {deal.terms.milestones.map((t) => {
                 const r = deal.milestones.find((m) => m.key === t.key)
                 if (!r) return null

@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Search, UserPlus, Users } from 'lucide-react'
 import Avatar from '../components/ui'
 import Chip, { Modal } from '../components/primitives'
-import { useMembers } from '../lib/data'
+import { invalidateTeam, useMembers } from '../lib/data'
 import { useToast } from '../components/toast'
+import { addMember } from '../services/api'
+import { can, useViewer } from '../lib/viewer'
 
 const roleTone: Record<string, 'teal' | 'neutral' | 'warning' | 'success'> = {
   Admin: 'teal',
@@ -13,7 +15,8 @@ const roleTone: Record<string, 'teal' | 'neutral' | 'warning' | 'success'> = {
   Publisher: 'neutral',
 }
 
-const ROLE_OPTIONS = ['Editor', 'Reviewer', 'Designer', 'Publisher', 'Member']
+// The roles the API seeds (seed/roles.js); admin is not handed out by invite.
+const ROLE_OPTIONS = ['Editor', 'Reviewer', 'Publisher']
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function MembersPage() {
@@ -23,20 +26,49 @@ export default function MembersPage() {
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('Editor')
-  const [inviteError, setInviteError] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviting, setInviting] = useState(false)
+  const viewer = useViewer()
+  const canInvite = can(viewer, 'manage_members')
   const filtered = members.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()))
 
-  const sendInvite = (e: React.FormEvent) => {
+  const sendInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!EMAIL_RE.test(inviteEmail.trim())) {
-      setInviteError(true)
+    const email = inviteEmail.trim()
+    if (!EMAIL_RE.test(email)) {
+      setInviteError('Enter a valid email address.')
       return
     }
-    setInviteError(false)
-    setInviteOpen(false)
-    setInviteEmail('')
-    // Demo: invite is simulated - the backend members API sends the real email later
-    toast('success', 'Invitation sent', `${inviteEmail.trim()} was invited as ${inviteRole}.`)
+    if (!org?.id) return
+    setInviteError(null)
+    setInviting(true)
+    try {
+      // Real members API. No email is ever sent; on the demo only example.com
+      // addresses are accepted and a new one joins as a pending member.
+      const r = await addMember(org.id, email, inviteRole.toLowerCase())
+      invalidateTeam()
+      setInviteOpen(false)
+      setInviteEmail('')
+      toast(
+        'success',
+        r.pending ? 'Added as pending' : 'Member added',
+        r.pending
+          ? `${email} is in the team as ${inviteRole} (pending). No email was sent.`
+          : `${email} joined as ${inviteRole}. No email was sent.`,
+      )
+    } catch (err: any) {
+      setInviteError(
+        err?.code === 'demo_invite_domain'
+          ? 'The demo only adds example.com addresses (nobody real is contacted).'
+          : err?.code === 'user_not_found'
+            ? 'No yv. account uses this email yet. Ask them to sign up first.'
+            : err?.code === 'membership_exists'
+              ? 'This person is already a member.'
+              : err?.message || 'Could not add this member.',
+      )
+    } finally {
+      setInviting(false)
+    }
   }
 
   return (
@@ -46,10 +78,12 @@ export default function MembersPage() {
           <h1 className="t-display">Members</h1>
           <p className="mt-1 text-sm text-umber">{members.length} people in {org?.name ?? 'your workspace'}</p>
         </div>
-        <button onClick={() => setInviteOpen(true)} className="btn-primary">
-          <UserPlus size={14} strokeWidth={2} />
-          Invite member
-        </button>
+        {canInvite && (
+          <button onClick={() => setInviteOpen(true)} className="btn-primary">
+            <UserPlus size={14} strokeWidth={2} />
+            Invite member
+          </button>
+        )}
       </header>
 
       <div className="relative mb-5 w-64">
@@ -89,7 +123,10 @@ export default function MembersPage() {
                       </td>
                       <td className="px-5 py-3.5 text-sm text-umber">{m.email}</td>
                       <td className="px-5 py-3.5">
-                        <Chip label={m.role} tone={roleTone[m.role] ?? 'neutral'} />
+                        <span className="inline-flex items-center gap-1.5">
+                          <Chip label={m.role} tone={roleTone[m.role] ?? 'neutral'} />
+                          {m.pending && <Chip label="Pending" tone="warning" />}
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 font-mono text-[11px] text-label">{m.lastActive}</td>
                     </tr>
@@ -124,15 +161,16 @@ export default function MembersPage() {
               value={inviteEmail}
               onChange={(e) => {
                 setInviteEmail(e.target.value)
-                setInviteError(false)
+                setInviteError(null)
               }}
               placeholder="name@example.com"
               className={`input ${inviteError ? 'input-error' : ''}`}
               autoFocus
             />
-            {inviteError && (
-              <p className="mt-1.5 text-xs text-danger">Enter a valid email address.</p>
-            )}
+            {inviteError && <p className="mt-1.5 text-xs text-danger">{inviteError}</p>}
+            <p className="mt-1.5 text-[11.5px] text-label">
+              No email is sent. On the public demo only example.com addresses can be added; they show as pending until they sign up.
+            </p>
           </div>
           <div>
             <label htmlFor="invite-role" className="label">Role</label>
@@ -151,8 +189,8 @@ export default function MembersPage() {
             <button type="button" onClick={() => setInviteOpen(false)} className="btn-ghost">
               Cancel
             </button>
-            <button type="submit" className="btn-primary">
-              Send invite
+            <button type="submit" className="btn-primary" disabled={inviting}>
+              {inviting ? 'Adding…' : 'Add member'}
             </button>
           </div>
         </form>
