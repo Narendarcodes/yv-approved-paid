@@ -20,6 +20,7 @@ const { actorRole } = require('./lib/engine.cts');
 const { verifyChain } = require('./lib/ledger.cts');
 const { resolveEvidence } = require('./lib/evidence.cts');
 const { askCopilot } = require('./copilot.cts');
+const { planTeam, applyTeam, statusOf } = require('./team.cts');
 const config = require('../../config');
 const rateLimit = require('express-rate-limit');
 
@@ -208,6 +209,37 @@ router.post(
   wrap(async (req, res) => {
     const r = await dealService().voidMissedDeadline(req.params.dealId, org(req), uid(req), req.params.key);
     res.status(r.out.outcome === 'done' ? 200 : 409).json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+  }),
+);
+
+/* -------------------------------------------------------------- deal team */
+
+/**
+ * The milestone's team (payees + split). Dry run first, always: the same rules
+ * the save runs (client only, unsigned deal only, members only, shares = 100%).
+ * Read-only.
+ */
+router.post(
+  `${M}/team/check`,
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    res.json({ data: await planTeam(d, req.params.key, req.body || {}, { orgId: org(req), userId: uid(req) }) });
+  }),
+);
+/** The client sets the team on a draft. A signed deal answers 409 deal_locked: payees move money. */
+router.put(
+  `${M}/team`,
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    const plan = await planTeam(d, req.params.key, req.body || {}, { orgId: org(req), userId: uid(req) });
+    if (!plan.allowed) {
+      const { status, code } = statusOf(plan);
+      const err = bad(code, plan.violations[0].message, status) as InstanceType<typeof ServiceError> & { details?: unknown };
+      err.details = plan.violations;
+      throw err;
+    }
+    const next = await dealService().editTerms(req.params.dealId, org(req), uid(req), applyTeam(d, plan));
+    res.json({ data: view(next, uid(req)), plan });
   }),
 );
 
