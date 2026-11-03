@@ -59,6 +59,7 @@ Built for the PayPal AI Hackathon; the use case comes from a real case study: an
 - **Deal copilot:** a side panel that answers by rendering those cards. With the live agent on, an LLM picks which cards answer the question (`POST .../deals/:dealId/copilot` -> the lean deal agent); otherwise, or when the agent is slow or down, it runs as an offline replay (deterministic intent matching, no model call), so the demo always works. Every reply is labelled **live AI · <provider>** or **offline replay**. It only proposes: a "capture $450" or "pay the old version" ask is dry-run through `POST .../policy-check` and comes back as a PolicyBlockedChip. No copilot action takes an amount it wrote: the model only names cards and ids from the deal (checked by the agent, the API and the web), and a capture uses the signed amount or the number the person typed.
 - **Live AI agent (optional):** `services/agent/app/deals_service.py`, a lean FastAPI service (`Dockerfile.deals`, `requirements-deals.txt`: fastapi, uvicorn, httpx, pydantic; ~40 MB RSS) that fits a Render **free** web service (`render.yaml`, `GET /health`). LLM routing (`app/deals/llm_router.py`): River AI (`Qwen/Qwen3.8-27B-FP8`) -> NVIDIA NIM (`nvidia/nemotron-3.5-lightning-30b-a3b`) -> OmniRoute (only if `OMNIROUTE_URL` is set). Names are stripped before any prompt leaves; the model never sees amounts. The API calls it only when `AGENT_ENABLED=true`, `AGENT_URL` and `AGENT_SHARED_SECRET` (sent as `X-Agent-Secret`, same value on both services) are set; it gives up after `AGENT_COPILOT_TIMEOUT_MS` (15 s; a free instance cold-starts slowly) and answers `{ source: 'offline' }`.
 - **Agents** (`services/agent/app/deals/`): the Review Agent's Fix/Taste merge and the Scope & Dispute proposal are stored on the milestone through `POST /internal/deals/:id/milestones/:key/review` and `.../dispute-proposal`. The dispute call sends no amount; Node computes the split.
+- **Team and assignment:** projects and tasks get an **Assign** picker (org members with avatar and role; admins and editors only, everyone else sees the assignee read-only) on `/projects/:id`. The API only assigns to active members of the same org (`422 assignee_not_member`). The **Deal team** card on `/deals/:dealId` shows each milestone's payees and split (e.g. Ravi 70% / motion designer 30%). Before both sides sign, the client picks members and types the shares: `POST .../deals/:dealId/milestones/:key/team/check` dry-runs the rules (T1 client only, T2 unsigned only, T3 shape, T4 shares = 100%, T5 org members only) and `PUT .../milestones/:key/team` saves and clears signatures. After signing it is read-only (`409 deal_locked`): payees move money, and PayPal pays only the people named in the signed deal. Per-payee amounts are computed from the milestone amount; no AI or request sets a payee, share or amount.
 - **Shared types:** `contracts/schemas/deal.schema.json` (DealView, ledger view, `deal:ledger` payload), generated into the API, web and agent by `contracts/gen.sh`.
 
 - **PayPal modes** (`PAYPAL_MODE`, `apps/api/src/modules/deals/paypal.cts`):
@@ -285,7 +286,7 @@ Keep `docs/openapi.yaml` in sync when routes or validators change.
 | Method | Path | Permission | Description |
 |---|---|---|---|
 | `POST` | `/organizations` | — | Create organization (creator becomes admin) |
-| `POST` | `/organizations/:id/members` | 🔒 `manage_members` | Add a member |
+| `POST` | `/organizations/:id/members` | 🔒 `manage_members` | Add a member by email. Never sends an email. With `DEMO_MODE=1` only `example.com` addresses are accepted, and one without an account is added as a **pending** member (at most 25 pending per org) |
 | `GET` | `/organizations/:id/members` | 🔒 `manage_members` | List members |
 | `PATCH` | `/organizations/:id/members/:memberUserId` | 🔒 `manage_members` | Update role / disable |
 
@@ -305,7 +306,7 @@ Keep `docs/openapi.yaml` in sync when routes or validators change.
 | `GET` | `/projects?organizationId=` | 🔒 `project.view` | List (filter by status/assignee/search) |
 | `GET` | `/projects/:id` | 🔒 `project.view` | Detail |
 | `POST` | `/projects/:id/transition` | 🔒 `project.transition` | Transition status (state machine) |
-| `POST` | `/projects/:id/assign` | 🔒 `project.assign` | Assign an editor |
+| `POST` | `/projects/:id/assign` | 🔒 `project.assign` | Assign to an active member of the project's org (`{ assigneeId }`; returns the populated assignee) |
 | `POST` | `/projects/:id/approve` | 🔒 `project.approve` | Approve an exact version |
 | `POST` | `/projects/:id/schedule` | 🔒 `project.schedule` | Schedule an approved project |
 | `GET` | `/projects/:id/versions` | 🔒 `project.view` | List versions |
@@ -333,7 +334,7 @@ Keep `docs/openapi.yaml` in sync when routes or validators change.
 | `GET` | `/projects/:id/tasks?status=` | 🔒 `project.view` | List (filter by column) |
 | `POST` | `/projects/:id/tasks` | 🔒 `task.create` | Create task |
 | `GET` | `/projects/:id/tasks/:taskId` | 🔒 `project.view` | Detail |
-| `PATCH` | `/projects/:id/tasks/:taskId` | 🔒 `task.update` | Edit |
+| `PATCH` | `/projects/:id/tasks/:taskId` | 🔒 `task.update` | Edit (an `assignee` must be an active member of the org) |
 | `DELETE` | `/projects/:id/tasks/:taskId` | 🔒 `task.update` | Delete |
 | `POST` | `/projects/:id/tasks/:taskId/status` | 🔒 `task.update` | Move `todo → in_progress → in_review → done` |
 

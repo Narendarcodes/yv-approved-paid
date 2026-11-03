@@ -2,6 +2,20 @@
 
 Motto: **AI checks facts, people own taste, the deal decides the money.**
 
+## Team assignment (Nov 3, 2026)
+
+Who does the work, and who gets paid for it. Live on the demo.
+
+| What | Where | Commit |
+|---|---|---|
+| API: projects and tasks are assigned only to **active members of the same org** (`422 assignee_not_member`; before, any user id in the database was accepted). `POST /projects/:id/assign` returns the populated assignee. | `services/project.service.js`, `services/task.service.js`, `tests/team-assign.test.js` | `bd30f22` |
+| API: Members invite is real and safe. `POST /organizations/:org/members` never sends an email (yv. has no mailer). With `DEMO_MODE=1` it accepts only `example.com` addresses (a judge cannot pull a real account into the demo org or reach a stranger), and an address with no account is added as a **pending** member (placeholder user with no usable password, max 25 pending per org). Outside demo mode an unknown email stays 404 (no placeholder accounts squatting real addresses). | `services/org.service.js`, `models/membership.model.js` (`pending`) | `bd30f22` |
+| API: deal team. `POST /organizations/:org/deals/:dealId/milestones/:key/team/check` (dry run) and `PUT .../team`. Rules: T1 client only, T2 unsigned deals only (signed -> `409 deal_locked`; payees move money), T3 1-10 distinct people with whole basis points, T4 shares = 100% (server-side), T5 active org members only, T6 milestone exists. Per-payee amounts come from the milestone amount; extra fields in the request (`amountMinor`, `email`) are ignored. Saving clears signatures so both sides sign the new split. No agent route reaches it. | `modules/deals/team.cts`, `http.cts`, `tests/team.test.js` | `185f09c` |
+| Seed: two demo projects ("Diwali reel 1: 45s launch cut" -> Ravi, "Diwali reel 2: 30s teaser" -> motion designer), each with an assigned task, created once by title (a re-seed keeps a judge's reassignment); an unsigned deal `deal_demo_team_draft` ("Diwali greetings reel (team draft)", judge = client, Ravi 70% / motion 30%) rebuilt on every seed. The Diwali deal is unchanged (reel1 already pays Ravi 70% / motion designer 30%). | `modules/deals/demo.cts`, `tests/demo-seed.test.js` | `2e43bcb` |
+| Web: **Assign** picker (members with avatar, role, pending) for the project and every task on `/projects/:id`, shown to admins and editors (`assign` permission), read-only for everyone else. Members page: **Invite** calls the API (roles editor / reviewer / publisher), shows Pending, explains that no email is sent. **Deal team** card on `/deals/:dealId`: per milestone, payees with share % and amount; on a draft the client edits members, labels and shares (live total, server dry run before save); once signed it is locked with a note. | `components/AssignPicker.tsx`, `pages/ProjectDetailPage.tsx`, `pages/MembersPage.tsx`, `components/deals/DealTeamCard.tsx`, `pages/DealPage.tsx`, `lib/data.ts` (`invalidateTeam`), `lib/roles.ts`, `services/api.ts` | `830e764` |
+
+Not done: a signed deal's team cannot be changed at all (the existing change-order flow prices extra work from the rate card; it does not move payees). Changing who is paid after signing means a new deal.
+
 ## Live AI agents for the deal copilot (Nov 3, 2026): code ready, not deployed
 
 The copilot can now answer through a real LLM, and still falls back to the offline replay. Nothing is deployed to Render yet and the API still runs with `AGENT_ENABLED=false`, so production keeps the offline replay until the agent service and keys are added.
