@@ -37,6 +37,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../../models/user.model');
 const Organization = require('../../models/organization.model');
 const Membership = require('../../models/membership.model');
+const Project = require('../../models/project.model');
+const Task = require('../../models/task.model');
 const { seedDefaultRoles } = require('../../seed/roles');
 const { Deal, DealLedger } = require('./lib/models.cts');
 const engine = require('./lib/engine.cts');
@@ -46,6 +48,8 @@ const { dealService, gateway } = require('./service.cts');
 
 const DEMO = {
   dealId: 'deal_demo_diwali',
+  /** A second, unsigned deal so the judge can pick the team and the split (Deal Team card). */
+  teamDealId: 'deal_demo_team_draft',
   org: { name: 'Diwali Launch Studio (demo)', slug: 'yv-deal-demo' },
   judge: { email: 'judge@yv-demo.example.com', name: 'Demo Judge' },
   editor: { email: 'editor@yv-demo.example.com', name: 'Ravi (demo editor)', paypal: 'ravi.demo@example.com' },
@@ -181,10 +185,46 @@ async function upsertUser(u: { email: string; name: string }, password?: string)
 }
 
 async function purgeDemoDeal(id: string) {
-  if (id !== DEMO.dealId) throw new Error('only the demo deal can be purged');
+  if (id !== DEMO.dealId && id !== DEMO.teamDealId) throw new Error('only the demo deals can be purged');
   await Deal.deleteOne({ _id: id });
   // the ledger model refuses deletes; the demo reset goes around it for this one deal id only
   await DealLedger.collection.deleteMany({ dealId: id });
+}
+
+/** Terms for the unsigned team demo: one milestone, Ravi 70% / motion designer 30%, editable by the judge (client). */
+function teamDraftTerms(clientId: string, editorId: string, motionId: string): DealTerms {
+  const t = demoTerms(clientId, editorId, motionId);
+  const reel = t.milestones[0];
+  return {
+    ...t,
+    title: 'Diwali greetings reel (team draft)',
+    rateCard: [t.rateCard[0]],
+    milestones: [{ ...reel, key: 'greeting', title: 'Greetings reel: 20s', amountMinor: 25000, checklist: reel.checklist.slice(0, 2) }],
+  } as DealTerms;
+}
+
+/**
+ * Two demo projects with an assignee each (and one task each), so the Assign
+ * picker has something to show. Created once, keyed by title: a re-seed never
+ * overwrites what a judge changed (reassigning, moving a task).
+ */
+async function seedDemoProjects(orgId: string, judgeId: string, editorId: string, motionId: string) {
+  const rows = [
+    { title: 'Diwali reel 1: 45s launch cut', description: 'Launch cut for Instagram and YouTube Shorts.', status: 'IN_PROGRESS', assignee: editorId, task: 'Raise the mix to -14 LUFS' },
+    { title: 'Diwali reel 2: 30s teaser', description: 'Teaser with captions in the bottom third.', status: 'ASSIGNED', assignee: motionId, task: 'Animate the diya logo sting (0:00-0:03)' },
+  ];
+  for (const r of rows) {
+    const p = await Project.findOneAndUpdate(
+      { organizationId: orgId, title: r.title },
+      { $setOnInsert: { organizationId: orgId, title: r.title, description: r.description, type: 'Content Production', status: r.status, creator: judgeId, assignee: r.assignee, assignedAt: new Date() } },
+      { upsert: true, new: true },
+    );
+    await Task.findOneAndUpdate(
+      { projectId: p._id, title: r.task },
+      { $setOnInsert: { projectId: p._id, organizationId: orgId, title: r.task, status: 'in_progress', priority: 'high', assignee: r.assignee, createdBy: judgeId } },
+      { upsert: true, new: true },
+    );
+  }
 }
 
 async function seedDealDemo(opts: { evidenceDir?: string | false; judgePassword?: string } = {}) {
@@ -210,6 +250,7 @@ async function seedDealDemo(opts: { evidenceDir?: string | false; judgePassword?
   }
   const orgId = String(org._id);
   const [J, E] = [String(judge._id), String(editor._id)];
+  await seedDemoProjects(orgId, J, E, String(motion._id));
   const id = DEMO.dealId;
   const s = dealService();
   const must = (r: { out: any }, what: string) => {
@@ -290,7 +331,11 @@ async function seedDealDemo(opts: { evidenceDir?: string | false; judgePassword?
   // Left as a draft so the judge's one tap accepts it and drafts the PayPal invoice live.
   await s.draftChangeOrder(id, orgId, { milestoneKey: 'reel2', rateCardItemId: 'extra_cut', quantity: 1, ask: 'Add an extra 15-second cut for Instagram Stories', by: 'agent' });
 
-  return { orgId, dealId: id, judge: { userId: J, email: DEMO.judge.email }, editor: { userId: E, email: DEMO.editor.email } };
+  // the team demo: unsigned, so the judge (client) can pick members and set the split
+  await purgeDemoDeal(DEMO.teamDealId);
+  await s.create(orgId, J, teamDraftTerms(J, E, String(motion._id)), { id: DEMO.teamDealId });
+
+  return { orgId, dealId: id, teamDealId: DEMO.teamDealId, judge: { userId: J, email: DEMO.judge.email }, editor: { userId: E, email: DEMO.editor.email } };
 }
 
 async function demoJudge() {

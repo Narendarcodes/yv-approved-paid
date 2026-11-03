@@ -116,6 +116,31 @@ describe('seed-deal-demo', () => {
     expect(after.totals).toEqual(before.totals);
   });
 
+  test('team: Ravi 70% / motion designer 30% on reel1; an unsigned team draft; two demo projects with assignees', async () => {
+    const Project = require('../../../models/project.model');
+    const Task = require('../../../models/task.model');
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    const reel1 = d.terms.milestones.find((m) => m.key === 'reel1');
+    expect(reel1.payees.map((p) => [p.userId, p.shareBp])).toEqual([
+      [seeded.editor.userId, 7000],
+      [expect.any(String), 3000],
+    ]);
+    const draft = await dealService().get(DEMO.teamDealId, seeded.orgId);
+    expect(draft.termsHash).toBeUndefined();
+    expect(draft.signatures).toEqual([]);
+    expect(draft.terms.client.userId).toBe(seeded.judge.userId);
+    expect(draft.terms.milestones[0].payees.map((p) => p.shareBp)).toEqual([7000, 3000]);
+    const projects = await Project.find({ organizationId: seeded.orgId, assignee: { $ne: null } }).lean();
+    expect(projects.length).toBeGreaterThanOrEqual(2);
+    expect(await Task.countDocuments({ organizationId: seeded.orgId, assignee: { $ne: null } })).toBeGreaterThanOrEqual(2);
+    // a re-seed neither duplicates the projects nor overwrites a reassignment
+    await Project.updateOne({ _id: projects[0]._id }, { $set: { assignee: seeded.judge.userId } });
+    await seedDealDemo({ evidenceDir: false });
+    expect(await Project.countDocuments({ organizationId: seeded.orgId })).toBe(projects.length);
+    expect(String((await Project.findById(projects[0]._id).lean()).assignee)).toBe(seeded.judge.userId);
+    expect((await dealService().get(DEMO.teamDealId, seeded.orgId)).signatures).toEqual([]);
+  });
+
   test('refuses to run on a real PayPal gateway', async () => {
     const real = makeMockGateway();
     real.name = 'sandbox';
