@@ -22,6 +22,7 @@ Built under the **yv.** brand. Monorepo: Node.js + Express + MongoDB API and a R
 ## Table of contents
 
 - [What this is](#what-this-is)
+- [Built during the PayPal AI Hackathon](#built-during-the-paypal-ai-hackathon)
 - [Deals (Approved = Paid)](#deals-approved--paid)
 - [Features](#features)
 - [Tech stack](#tech-stack)
@@ -47,6 +48,24 @@ Built under the **yv.** brand. Monorepo: Node.js + Express + MongoDB API and a R
 - **Org-scoped RBAC**, JWT auth with hashed refresh tokens, notifications, activity history, file uploads, and a pluggable storage adapter.
 
 Product spec: see the PRD PDF in the repo root.
+
+## Built during the PayPal AI Hackathon
+
+yv. is my own project. I started its content-ops core (projects, tasks, briefs, reviews, chat, contracts and invoice pages) in August 2026, before the hackathon opened on Oct 1, 2026. Everything below was built during the Submission Period (Oct 1 to Nov 12, 2026):
+
+**October 2026**
+- Python agent platform (`services/agent`, FastAPI + LiteLLM) behind the Node API, with a shared JSON Schema contract and scoped service tokens
+- Review digest agent: merges many reviewers' notes into one change list
+- Brand Brain: brand knowledge and analytics insights agent
+- Pipeline-first redesign, analytics ingestion and a visual polish pass
+
+**November 2026: Approved = Paid (this repo)**
+- Deals engine: milestones, signed terms, payee splits and an append-only money ledger
+- PayPal: Orders v2 AUTHORIZE holds milestone funds, and Invoicing v2 sends change-order invoices on the sandbox. Capture and payouts are simulated and labelled, because sandbox payouts aren't available for India accounts.
+- Policy engine: every money move gets a dry run first, and AI never sets amounts or verdicts
+- AI agents for video QA checks, review, money and disputes, plus a live deal copilot (River AI, NVIDIA NIM fallback)
+- Team assignment: Assign picker, real invites and a deal Team card that locks the split at signing
+- Change orders, disputes paid by the deal's own rule, one-click judge demo, Render + Vercel deploys and a policy red-team test suite
 
 ## Deals (Approved = Paid)
 
