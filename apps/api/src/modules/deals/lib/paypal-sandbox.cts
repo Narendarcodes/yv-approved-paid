@@ -83,6 +83,11 @@ function makeSandboxGateway(
   // salt the PayPal-Request-Id per process so PayPal does not replay last boot's answers.
   const salt = simulate ? crypto.randomBytes(4).toString('hex') : '';
   const rid = (k: string) => (salt ? `${salt}:${k}` : k);
+  // Money calls are also scoped to the PayPal object they act on. A demo reset in the
+  // same process rebuilds the deal with the same idempotency keys but a fresh pooled
+  // authorization; without the object id PayPal replays the previous hold's capture.
+  // The id goes first so the 108-char header cap never cuts it off.
+  const ridOn = (objectId: string, k: string) => rid(k.includes(objectId) ? k : `${objectId}:${k}`);
 
   const pooled = new Map<string, string>(); // real order id -> its real, pre-approved authorization id
   const simNote = opts.pool ? SIM_POOL_EMPTY : SIM_APPROVAL;
@@ -191,24 +196,29 @@ function makeSandboxGateway(
       return { ...a, authorizationId, simulated: simNote } as any;
     },
     async reauthorize(authorizationId, requestId) {
-      if (!isSim(authorizationId)) return rest.reauthorize(authorizationId, rid(requestId));
+      if (!isSim(authorizationId))
+        return rest.reauthorize(authorizationId, ridOn(authorizationId, requestId));
       const a = await twin.reauthorize(twinId(authorizationId), requestId);
       return { ...a, authorizationId: simId('AUTH', a.authorizationId), simulated: simNote } as any;
     },
     async capture(authorizationId, input) {
       if (!isSim(authorizationId))
-        return rest.capture(authorizationId, { ...input, requestId: rid(input.requestId) });
+        return rest.capture(authorizationId, {
+          ...input,
+          requestId: ridOn(authorizationId, input.requestId),
+        });
       const c = await twin.capture(twinId(authorizationId), input);
       return { ...c, captureId: simId('CAPTURE', c.captureId), simulated: simNote } as any;
     },
     async voidAuthorization(authorizationId, requestId) {
-      if (!isSim(authorizationId)) return rest.voidAuthorization(authorizationId, rid(requestId));
+      if (!isSim(authorizationId))
+        return rest.voidAuthorization(authorizationId, ridOn(authorizationId, requestId));
       const r = await twin.voidAuthorization(twinId(authorizationId), requestId);
       return { ...r, id: authorizationId, simulated: simNote } as any;
     },
     async refund(captureId, input) {
       if (!isSim(captureId))
-        return rest.refund(captureId, { ...input, requestId: rid(input.requestId) });
+        return rest.refund(captureId, { ...input, requestId: ridOn(captureId, input.requestId) });
       const r = await twin.refund(twinId(captureId), input);
       return { ...r, id: simId('REFUND', r.id), simulated: simNote } as any;
     },
