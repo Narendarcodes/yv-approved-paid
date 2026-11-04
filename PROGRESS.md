@@ -15,7 +15,7 @@ Motto: **AI checks facts, people own taste, the deal decides the money.**
 | Deal copilot | Live AI (River `Qwen/Qwen3.8-27B-FP8` -> NVIDIA NIM fallback), offline replay as the labelled fallback |
 | Hosting | Render (API + deal agent), Vercel (web), MongoDB Atlas |
 
-Verified live: reel 1 auth `75944066TD8606012` -> capture `6CX25059D6955990M` ($400 COMPLETED); split auth `7LJ85033A19963041` -> partial capture `8L3248257U421871X` ($240), then VOIDED. Flow, pool refill and limits: [docs/paypal-sandbox.md](docs/paypal-sandbox.md). Demo video: https://youtu.be/b_RgJWPBiKY.
+Verified live: reel 1 auth `75944066TD8606012` -> capture `6CX25059D6955990M` ($400 COMPLETED); split auth `7LJ85033A19963041` -> partial capture `8L3248257U421871X` ($240), then VOIDED. Flow, pool refill and limits: [docs/paypal-sandbox.md](docs/paypal-sandbox.md). Demo video: https://youtu.be/D30ULf-qEFU.
 
 Sections below are in reverse date order; older sections describe the state on their own date (each one notes what later work superseded).
 

@@ -4,7 +4,7 @@
 
 yv. Approved = Paid turns a content deal into money that moves by itself, and only when the deal says so. It is built for **brands and their content operations teams**, and for the **editors and designers they pay**. Both sides sign the terms (hash-locked). Each milestone is funded with a **PayPal hold** (an authorization, not a charge). Machine checks run on every cut, and the hold is captured when the client approves the video. A dispute settles by the deal's own arithmetic: part of the hold is captured and the rest is voided.
 
-**Live demo:** https://yv-approved-paid.vercel.app  ·  **Demo video (2:30):** https://youtu.be/b_RgJWPBiKY  ·  **PayPal flow in detail:** [docs/paypal-sandbox.md](docs/paypal-sandbox.md)
+**Live demo:** https://yv-approved-paid.vercel.app  ·  **Demo video (2:36):** https://youtu.be/D30ULf-qEFU  ·  **PayPal flow in detail:** [docs/paypal-sandbox.md](docs/paypal-sandbox.md)
 
 ![yv. Approved = Paid social preview](.github/social-preview.png)
 
@@ -163,7 +163,7 @@ Tests: `cd apps/api && npm test` (Jest + mongodb-memory-server; no test calls re
 
 ## Built during the PayPal AI Hackathon
 
-**Demo video (2:30):** https://youtu.be/b_RgJWPBiKY  ·  **Live demo:** https://yv-approved-paid.vercel.app
+**Demo video (2:36):** https://youtu.be/D30ULf-qEFU  ·  **Live demo:** https://yv-approved-paid.vercel.app
 
 yv. is my own project. I started its content-ops core (projects, tasks, briefs, reviews, chat, contracts and invoice pages) in August 2026, before the hackathon opened on Oct 1, 2026. Everything below was built during the Submission Period (Oct 1 to Nov 12, 2026):
 
