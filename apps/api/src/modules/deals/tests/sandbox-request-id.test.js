@@ -88,3 +88,26 @@ test('a key that already names the authorization is not doubled', async () => {
   const [id] = ridFor(r.seen, /\/void$/);
   expect(id.split('1F4366324K7574252')).toHaveLength(2);
 });
+
+test('a capture invoice_id is tied to the authorization (PayPal refuses a repeated invoice_id)', async () => {
+  const bodies = [];
+  const r = recorder();
+  const impl = async (url, init = {}) => {
+    if (/\/capture$/.test(new URL(url).pathname)) bodies.push(JSON.parse(init.body));
+    return r.impl(url, init);
+  };
+  const g = gw(impl);
+  const input = {
+    amountMinor: 40000,
+    currency: 'USD',
+    finalCapture: true,
+    invoiceId: 'deal_demo_diwali-reel1-capture',
+    requestId: 'capture:deal_demo_diwali:reel1:v2',
+  };
+  await g.capture('19214950SY9310030', input).catch(() => {});
+  await g.capture('7XX30364PR417532F', input).catch(() => {});
+  expect(bodies.map((b) => b.invoice_id)).toEqual([
+    'deal_demo_diwali-reel1-capture-19214950SY9310030',
+    'deal_demo_diwali-reel1-capture-7XX30364PR417532F',
+  ]);
+});

@@ -205,6 +205,13 @@ function makeSandboxGateway(
       if (!isSim(authorizationId))
         return rest.capture(authorizationId, {
           ...input,
+          // PayPal refuses a second capture with the same invoice_id (DUPLICATE_INVOICE_ID,
+          // merchant-wide), and a demo reset rebuilds the deal with the same one: tie it
+          // to this authorization so each hold's capture carries its own.
+          invoiceId:
+            input.invoiceId && !input.invoiceId.includes(authorizationId)
+              ? `${input.invoiceId.slice(0, 100)}-${authorizationId}`
+              : input.invoiceId,
           requestId: ridOn(authorizationId, input.requestId),
         });
       const c = await twin.capture(twinId(authorizationId), input);
