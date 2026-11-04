@@ -116,6 +116,8 @@ app.use(`${config.apiPrefix}/webhooks`, webhooksRouter);
 const deals = require('./modules/deals/http.cts');
 app.use(`${config.apiPrefix}/webhooks`, deals.webhookRouter);
 app.use(`${config.apiPrefix}/organizations/:organizationId/deals`, deals.router);
+app.use(`${config.apiPrefix}/paypal/pool`, deals.poolRouter);
+app.use(`${config.apiPrefix}/demo`, deals.demoRouter);
 app.use(`${config.apiPrefix}/projects`, projectsRouter);
 app.use(`${config.apiPrefix}/users`, usersRouter);
 app.use(`${config.apiPrefix}/notifications`, notificationsRouter);

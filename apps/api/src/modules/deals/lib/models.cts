@@ -9,6 +9,9 @@
  *                 the model level; (dealId, seq) is unique, so two writers
  *                 cannot both append entry n.
  *   PaypalWebhook every webhook event id we accepted (dedup: PayPal retries).
+ *   PaypalAuthPool sandbox only: real PayPal authorizations a sandbox buyer approved
+ *                 ahead of time, so the judge demo can hold real money without a
+ *                 buyer login (pool.cts). One row per order; a row is used once.
  */
 const mongoose = require('mongoose');
 
@@ -57,7 +60,10 @@ const ledgerSchema = new Schema(
 ledgerSchema.index({ dealId: 1, seq: 1 }, { unique: true });
 
 function refuse(this: unknown) {
-  throw Object.assign(new Error('the money ledger is append-only'), { status: 409, code: 'ledger_append_only' });
+  throw Object.assign(new Error('the money ledger is append-only'), {
+    status: 409,
+    code: 'ledger_append_only',
+  });
 }
 for (const op of [
   'updateOne',
@@ -73,7 +79,13 @@ for (const op of [
   ledgerSchema.pre(op, refuse);
 }
 ledgerSchema.pre('save', function (this: { isNew: boolean }, next: (e?: Error) => void) {
-  if (!this.isNew) return next(Object.assign(new Error('the money ledger is append-only'), { status: 409, code: 'ledger_append_only' }));
+  if (!this.isNew)
+    return next(
+      Object.assign(new Error('the money ledger is append-only'), {
+        status: 409,
+        code: 'ledger_append_only',
+      }),
+    );
   next();
 });
 
@@ -89,8 +101,30 @@ const webhookSchema = new Schema(
   { versionKey: false },
 );
 
+const authPoolSchema = new Schema(
+  {
+    _id: { type: String }, // PayPal order id
+    authorizationId: { type: String, required: true },
+    amountMinor: { type: Number, required: true },
+    currency: { type: String, required: true },
+    status: { type: String, enum: ['ready', 'used', 'invalid'], default: 'ready', index: true },
+    authorizedAt: { type: Date, required: true },
+    expiresAt: { type: Date, required: true },
+    claimedAt: { type: Date, default: Date.now },
+    usedBy: String,
+    usedAt: Date,
+    note: String,
+  },
+  { versionKey: false },
+);
+authPoolSchema.index({ status: 1, amountMinor: 1, currency: 1, authorizedAt: 1 });
+
 const Deal = mongoose.models.Deal || mongoose.model('Deal', dealSchema);
 const DealLedger = mongoose.models.DealLedger || mongoose.model('DealLedger', ledgerSchema);
-const PaypalWebhook = mongoose.models.PaypalWebhook || mongoose.model('PaypalWebhook', webhookSchema);
+const PaypalWebhook =
+  mongoose.models.PaypalWebhook || mongoose.model('PaypalWebhook', webhookSchema);
 
-module.exports = { Deal, DealLedger, PaypalWebhook };
+const PaypalAuthPool =
+  mongoose.models.PaypalAuthPool || mongoose.model('PaypalAuthPool', authPoolSchema);
+
+module.exports = { Deal, DealLedger, PaypalWebhook, PaypalAuthPool };

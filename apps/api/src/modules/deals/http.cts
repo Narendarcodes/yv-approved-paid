@@ -30,7 +30,8 @@ type Req = any;
 type Res = any;
 type Next = (e?: unknown) => void;
 
-const wrap = (fn: (req: Req, res: Res) => Promise<unknown>) => (req: Req, res: Res, next: Next) => fn(req, res).catch(next);
+const wrap = (fn: (req: Req, res: Res) => Promise<unknown>) => (req: Req, res: Res, next: Next) =>
+  fn(req, res).catch(next);
 const uid = (req: Req) => String(req.user._id);
 const org = (req: Req) => String(req.ctx.orgId);
 
@@ -52,18 +53,26 @@ function bad(code: string, message: string, status = 422) {
   return new ServiceError(code, message, status);
 }
 function str(v: unknown, name: string, max = 200): string {
-  if (typeof v !== 'string' || !v.trim() || v.length > max) throw bad('invalid_input', `${name} is required`);
+  if (typeof v !== 'string' || !v.trim() || v.length > max)
+    throw bad('invalid_input', `${name} is required`);
   return v.trim();
 }
 function shape(terms: DealTerms) {
-  if (!terms || typeof terms !== 'object' || !terms.client || !terms.worker || !Array.isArray(terms.milestones))
+  if (
+    !terms ||
+    typeof terms !== 'object' ||
+    !terms.client ||
+    !terms.worker ||
+    !Array.isArray(terms.milestones)
+  )
     throw bad('invalid_terms', 'terms need client, worker and milestones');
   if (JSON.stringify(terms).length > 100_000) throw bad('invalid_terms', 'terms are too large');
 }
 
 async function readable(req: Req, dealId: string): Promise<DealDoc> {
   const d = await dealService().get(dealId, org(req));
-  if (!actorRole(d, uid(req)) && !canManage(req)) throw bad('deal_not_found', 'deal not found', 404);
+  if (!actorRole(d, uid(req)) && !canManage(req))
+    throw bad('deal_not_found', 'deal not found', 404);
   return d;
 }
 
@@ -73,7 +82,11 @@ router.use(authenticate, access.can(null, { from: 'org' }));
 router.get(
   '/',
   wrap(async (req, res) => {
-    const deals = await dealService().list(org(req), uid(req), canManage(req) && req.query.all === '1');
+    const deals = await dealService().list(
+      org(req),
+      uid(req),
+      canManage(req) && req.query.all === '1',
+    );
     res.json({ data: deals.map((d: DealDoc) => view(d, uid(req))) });
   }),
 );
@@ -84,7 +97,8 @@ router.post(
     const terms = req.body?.terms as DealTerms;
     shape(terms);
     for (const side of ['client', 'worker'] as const) {
-      if (!(await access.memberOf(terms[side].userId, org(req)))) throw bad('party_not_member', `the ${side} must be a member of this organization`);
+      if (!(await access.memberOf(terms[side].userId, org(req))))
+        throw bad('party_not_member', `the ${side} must be a member of this organization`);
     }
     const d = await dealService().create(org(req), uid(req), terms);
     res.status(201).json({ data: view(d, uid(req)) });
@@ -102,7 +116,12 @@ router.put(
   '/:dealId/terms',
   wrap(async (req, res) => {
     shape(req.body?.terms);
-    res.json({ data: view(await dealService().editTerms(req.params.dealId, org(req), uid(req), req.body.terms), uid(req)) });
+    res.json({
+      data: view(
+        await dealService().editTerms(req.params.dealId, org(req), uid(req), req.body.terms),
+        uid(req),
+      ),
+    });
   }),
 );
 
@@ -110,7 +129,9 @@ router.post(
   '/:dealId/sign',
   wrap(async (req, res) => {
     const h = str(req.body?.termsHash, 'termsHash', 64);
-    res.json({ data: view(await dealService().sign(req.params.dealId, org(req), uid(req), h), uid(req)) });
+    res.json({
+      data: view(await dealService().sign(req.params.dealId, org(req), uid(req), h), uid(req)),
+    });
   }),
 );
 
@@ -133,9 +154,18 @@ router.get(
   wrap(async (req, res) => {
     const d = await readable(req, req.params.dealId);
     const file = resolveEvidence(d, req.params.file);
-    if (!file) return res.status(404).json({ error: { code: 'evidence_not_found', message: 'evidence not found' } });
-    res.set({ 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'" });
-    await new Promise<void>((ok, fail) => res.sendFile(file, { dotfiles: 'deny' }, (err: unknown) => (err ? fail(err) : ok())));
+    if (!file)
+      return res
+        .status(404)
+        .json({ error: { code: 'evidence_not_found', message: 'evidence not found' } });
+    res.set({
+      'Cache-Control': 'private, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'",
+    });
+    await new Promise<void>((ok, fail) =>
+      res.sendFile(file, { dotfiles: 'deny' }, (err: unknown) => (err ? fail(err) : ok())),
+    );
   }),
 );
 
@@ -152,9 +182,20 @@ router.post(
 router.post(
   '/:dealId/approvals/:approvalKey',
   wrap(async (req, res) => {
-    const d = await dealService().approveHuman(req.params.dealId, org(req), uid(req), req.params.approvalKey);
+    const d = await dealService().approveHuman(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.approvalKey,
+    );
     const r = await dealService().tick(req.params.dealId, org(req));
-    res.json({ data: { deal: view(r.deal, uid(req)), results: r.out, approvedBefore: d.humanApprovals.length } });
+    res.json({
+      data: {
+        deal: view(r.deal, uid(req)),
+        results: r.out,
+        approvedBefore: d.humanApprovals.length,
+      },
+    });
   }),
 );
 
@@ -163,52 +204,133 @@ const svcCall = (fn: (req: Req) => Promise<DealDoc>) =>
   wrap(async (req, res) => {
     res.json({ data: view(await fn(req), uid(req)) });
   });
-const version = (req: Req) => ({ id: str(req.body?.versionId, 'versionId', 100), sha256: str(req.body?.sha256, 'sha256', 64) });
+const version = (req: Req) => ({
+  id: str(req.body?.versionId, 'versionId', 100),
+  sha256: str(req.body?.sha256, 'sha256', 64),
+});
 
-router.post(`${M}/fund`, svcCall((req) => dealService().startFunding(req.params.dealId, org(req), uid(req), req.params.key)));
+router.post(
+  `${M}/fund`,
+  svcCall((req) =>
+    dealService().startFunding(req.params.dealId, org(req), uid(req), req.params.key),
+  ),
+);
 router.post(
   `${M}/fund/confirm`,
   wrap(async (req, res) => {
-    const r = await dealService().confirmFunding(req.params.dealId, org(req), uid(req), req.params.key);
-    res.status(r.out.outcome === 'done' ? 200 : 409).json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+    const r = await dealService().confirmFunding(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+    );
+    res
+      .status(r.out.outcome === 'done' ? 200 : 409)
+      .json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
   }),
 );
-router.post(`${M}/style-sample`, svcCall((req) => dealService().submitStyleSample(req.params.dealId, org(req), uid(req), req.params.key, version(req))));
-router.post(`${M}/style`, svcCall((req) => dealService().decideStyle(req.params.dealId, org(req), uid(req), req.params.key, req.body?.ok === true)));
-router.post(`${M}/versions`, svcCall((req) => dealService().submitVersion(req.params.dealId, org(req), uid(req), req.params.key, version(req))));
+router.post(
+  `${M}/style-sample`,
+  svcCall((req) =>
+    dealService().submitStyleSample(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+      version(req),
+    ),
+  ),
+);
+router.post(
+  `${M}/style`,
+  svcCall((req) =>
+    dealService().decideStyle(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+      req.body?.ok === true,
+    ),
+  ),
+);
+router.post(
+  `${M}/versions`,
+  svcCall((req) =>
+    dealService().submitVersion(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+      version(req),
+    ),
+  ),
+);
 router.post(
   `${M}/changes`,
   svcCall((req) => {
     const items = req.body?.items;
-    if (!Array.isArray(items) || items.length > 50) throw bad('invalid_input', 'items must be a list');
+    if (!Array.isArray(items) || items.length > 50)
+      throw bad('invalid_input', 'items must be a list');
     const clean = items.map((i: any) => ({
       text: str(i?.text, 'item text', 2000),
       tag: i?.tag === 'fix' ? 'fix' : 'taste',
       checklistId: typeof i?.checklistId === 'string' ? i.checklistId : undefined,
       disputed: i?.disputed === true,
     }));
-    return dealService().requestChanges(req.params.dealId, org(req), uid(req), req.params.key, clean, typeof req.body?.changeOrderId === 'string' ? req.body.changeOrderId : undefined);
+    return dealService().requestChanges(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+      clean,
+      typeof req.body?.changeOrderId === 'string' ? req.body.changeOrderId : undefined,
+    );
   }),
 );
 router.post(
   `${M}/approve`,
-  svcCall((req) => dealService().approve(req.params.dealId, org(req), uid(req), req.params.key, str(req.body?.versionId, 'versionId', 100), req.body?.release === true)),
+  svcCall((req) =>
+    dealService().approve(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+      str(req.body?.versionId, 'versionId', 100),
+      req.body?.release === true,
+    ),
+  ),
 );
-router.post(`${M}/kill`, svcCall((req) => dealService().kill(req.params.dealId, org(req), uid(req), req.params.key)));
-router.post(`${M}/dispute`, svcCall((req) => dealService().openDispute(req.params.dealId, org(req), uid(req), req.params.key)));
+router.post(
+  `${M}/kill`,
+  svcCall((req) => dealService().kill(req.params.dealId, org(req), uid(req), req.params.key)),
+);
+router.post(
+  `${M}/dispute`,
+  svcCall((req) =>
+    dealService().openDispute(req.params.dealId, org(req), uid(req), req.params.key),
+  ),
+);
 router.post(
   `${M}/split`,
   svcCall((req) => {
     const n = req.body?.workerMinor;
-    if (!Number.isSafeInteger(n)) throw bad('invalid_input', 'workerMinor must be a whole number of minor units');
+    if (!Number.isSafeInteger(n))
+      throw bad('invalid_input', 'workerMinor must be a whole number of minor units');
     return dealService().acceptSplit(req.params.dealId, org(req), uid(req), req.params.key, n);
   }),
 );
 router.post(
   `${M}/void-missed-deadline`,
   wrap(async (req, res) => {
-    const r = await dealService().voidMissedDeadline(req.params.dealId, org(req), uid(req), req.params.key);
-    res.status(r.out.outcome === 'done' ? 200 : 409).json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+    const r = await dealService().voidMissedDeadline(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+    );
+    res
+      .status(r.out.outcome === 'done' ? 200 : 409)
+      .json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
   }),
 );
 
@@ -223,7 +345,12 @@ router.post(
   `${M}/team/check`,
   wrap(async (req, res) => {
     const d = await readable(req, req.params.dealId);
-    res.json({ data: await planTeam(d, req.params.key, req.body || {}, { orgId: org(req), userId: uid(req) }) });
+    res.json({
+      data: await planTeam(d, req.params.key, req.body || {}, {
+        orgId: org(req),
+        userId: uid(req),
+      }),
+    });
   }),
 );
 /** The client sets the team on a draft. A signed deal answers 409 deal_locked: payees move money. */
@@ -231,14 +358,24 @@ router.put(
   `${M}/team`,
   wrap(async (req, res) => {
     const d = await readable(req, req.params.dealId);
-    const plan = await planTeam(d, req.params.key, req.body || {}, { orgId: org(req), userId: uid(req) });
+    const plan = await planTeam(d, req.params.key, req.body || {}, {
+      orgId: org(req),
+      userId: uid(req),
+    });
     if (!plan.allowed) {
       const { status, code } = statusOf(plan);
-      const err = bad(code, plan.violations[0].message, status) as InstanceType<typeof ServiceError> & { details?: unknown };
+      const err = bad(code, plan.violations[0].message, status) as InstanceType<
+        typeof ServiceError
+      > & { details?: unknown };
       err.details = plan.violations;
       throw err;
     }
-    const next = await dealService().editTerms(req.params.dealId, org(req), uid(req), applyTeam(d, plan));
+    const next = await dealService().editTerms(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      applyTeam(d, plan),
+    );
     res.json({ data: view(next, uid(req)), plan });
   }),
 );
@@ -254,9 +391,16 @@ router.post(
     if (!role) throw bad('not_party', 'only a party can draft a change order', 403);
     const b = req.body || {};
     const r = await dealService().draftChangeOrder(req.params.dealId, org(req), {
-      milestoneKey: b.milestoneKey, rateCardItemId: b.rateCardItemId, quantity: b.quantity, amountMinor: b.amountMinor, ask: b.ask, by: role,
+      milestoneKey: b.milestoneKey,
+      rateCardItemId: b.rateCardItemId,
+      quantity: b.quantity,
+      amountMinor: b.amountMinor,
+      ask: b.ask,
+      by: role,
     });
-    res.status(201).json({ data: { deal: view(r.deal, uid(req)), changeOrder: r.out.changeOrder } });
+    res
+      .status(201)
+      .json({ data: { deal: view(r.deal, uid(req)), changeOrder: r.out.changeOrder } });
   }),
 );
 for (const verb of ['accept', 'decline'] as const) {
@@ -264,7 +408,13 @@ for (const verb of ['accept', 'decline'] as const) {
     `/:dealId/change-orders/:coId/${verb}`,
     wrap(async (req, res) => {
       await readable(req, req.params.dealId);
-      const r = await dealService().decideChangeOrder(req.params.dealId, org(req), uid(req), req.params.coId, verb === 'accept');
+      const r = await dealService().decideChangeOrder(
+        req.params.dealId,
+        org(req),
+        uid(req),
+        req.params.coId,
+        verb === 'accept',
+      );
       res.json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
     }),
   );
@@ -292,7 +442,8 @@ const copilotLimit = rateLimit({
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator: (req: Req) => `copilot:${uid(req)}`,
-  handler: (_req: Req, res: Res) => res.status(200).json({ data: { source: 'offline', reason: 'rate_limited' } }),
+  handler: (_req: Req, res: Res) =>
+    res.status(200).json({ data: { source: 'offline', reason: 'rate_limited' } }),
 });
 router.post(
   '/:dealId/copilot',
@@ -319,15 +470,81 @@ webhookRouter.post(
   wrap(async (req, res) => {
     const gw = gateway();
     if (gw.name !== 'mock' && !process.env.PAYPAL_WEBHOOK_ID) {
-      return res.status(503).json({ error: { code: 'webhook_not_configured', message: 'PAYPAL_WEBHOOK_ID is not set' } });
+      return res
+        .status(503)
+        .json({
+          error: { code: 'webhook_not_configured', message: 'PAYPAL_WEBHOOK_ID is not set' },
+        });
     }
     const raw = req.rawBody ? req.rawBody.toString('utf8') : '';
     if (!raw || !(await gw.verifyWebhook(req.headers, raw))) {
-      return res.status(401).json({ error: { code: 'bad_signature', message: 'webhook signature did not verify' } });
+      return res
+        .status(401)
+        .json({ error: { code: 'bad_signature', message: 'webhook signature did not verify' } });
     }
     const r = await handlePaypalEvent(dealService(), JSON.parse(raw));
     res.json({ data: r });
   }),
 );
 
-module.exports = { router, webhookRouter };
+/* --------------------------------------------- demo pool + demo reset (sandbox) */
+
+/** /api/v1/paypal/pool: pre-approved sandbox authorizations for the judge demo (pool.cts). */
+const poolRouter = require('./pool.cts').makePoolRouter(() => {
+  const gw = gateway() as { name: string; rest?: unknown };
+  return gw.name === 'paypal-sandbox' && gw.rest ? gw.rest : null;
+});
+
+/**
+ * POST /api/v1/demo/deal/reset: the demo judge rebuilds "Diwali launch reels"
+ * (DEMO_MODE=1 only). On sandbox this draws fresh pre-approved authorizations
+ * from the pool, so it is limited to one reset every 2 minutes for everyone.
+ */
+const demoRouter = express.Router();
+const resetLimit = rateLimit({
+  windowMs: 120_000,
+  limit: 1,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: () => 'demo-reset',
+  handler: (_req: Req, res: Res) =>
+    res
+      .status(429)
+      .json({
+        error: { code: 'rate_limited', message: 'the demo was just reset; try again in 2 minutes' },
+      }),
+});
+demoRouter.post(
+  '/deal/reset',
+  authenticate,
+  wrap(async (req, res) => {
+    if (process.env.DEMO_MODE !== '1')
+      return res.status(404).json({ error: { code: 'not_found', message: 'Not found' } });
+    const { DEMO, seedDealDemo } = require('./demo.cts');
+    if (String(req.user?.email || '').toLowerCase() !== DEMO.judge.email)
+      throw bad('forbidden', 'only the demo judge can reset the demo', 403);
+    await new Promise<void>((ok) => resetLimit(req, res, () => ok()));
+    if (res.headersSent) return undefined;
+    const r = await seedDealDemo({ force: true, judgePassword: process.env.DEMO_JUDGE_PASSWORD });
+    const d = await dealService().get(r.dealId, r.orgId);
+    const ids = d.milestones.map((m: DealDoc['milestones'][number]) => ({
+      key: m.key,
+      orderId: m.funding?.orderId,
+      authorizationId: m.funding?.authorizationId,
+      captures: m.captures.map((c) => c.id),
+    }));
+    return res.json({
+      data: {
+        dealId: r.dealId,
+        organizationId: r.orgId,
+        holds: ids,
+        real: ids.every(
+          (x: { authorizationId?: string }) =>
+            !!x.authorizationId && !x.authorizationId.startsWith('SIM-'),
+        ),
+      },
+    });
+  }),
+);
+
+module.exports = { router, webhookRouter, poolRouter, demoRouter };
