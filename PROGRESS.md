@@ -33,7 +33,7 @@ To turn it on: create the Render service from `render.yaml` (env: `AGENT_SHARED_
 
 ## Real sandbox money: pre-approved pool, real capture and void (Nov 4, 2026)
 
-Goal: real buyer approval, real authorization, real capture on approve, real void on reject/dispute, with no buyer login needed by judges. Code is live (Render + Vercel); the pool is **empty** because PayPal refused the only sandbox buyer we have (see Blocker).
+Goal: real buyer approval, real authorization, real capture on approve, real void on reject/dispute, with no buyer login needed by judges. Code is live (Render + Vercel) and the pool is **filled and verified live** with a United States sandbox buyer (see "Pool filled" below). The earlier India-buyer blocker is resolved.
 
 | What | Where | Commit |
 |---|---|---|
@@ -45,7 +45,26 @@ Goal: real buyer approval, real authorization, real capture on approve, real voi
 
 Live (Nov 4, 11:35-11:50 IST): Render deploy of `65f7215` live; Vercel redeployed. `GET /api/v1/paypal/pool` -> `{ready: 0}`. Six real sandbox orders created for the pool (3 x $400, 3 x $300, e.g. `41V85181AX0023443`); the API sees them (`claim` -> `order_not_approved`, same merchant). Demo-login -> deal on the SIM fallback, every line labelled "(pre-approved pool empty)"; reset endpoint 200 then 429; split on reel2 -> `SIM-CAPTURE` + void + payout. Payout retried for real on each seed: still `PAYOUT_NOT_AVAILABLE`, so payouts stay simulated.
 
-**Blocker:** the sandbox buyer `sb-alnrx53646948@personal.example.com` cannot pay this merchant: after login PayPal shows `UNSUPPORTED_PAYEE_CURRENCY` ("This seller doesn't accept payments in your currency") for USD and EUR orders; INR orders are refused at creation; card payment is `PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING`. Most likely an India buyer paying an India merchant (PayPal has no domestic India payments). Fix: in developer.paypal.com > Testing Tools > Sandbox Accounts, create a **Personal** account with country **United States**, then run `create`, approve each link with it, and `status`.
+**Earlier blocker (resolved Nov 4):** the first sandbox buyer (an India personal account) got `UNSUPPORTED_PAYEE_CURRENCY` ("This seller doesn't accept payments in your currency") on every order. A **United States** personal sandbox buyer approves the same orders fine. Note: a browser that still holds the India buyer's PayPal session shows the same error before any login form; approve in a fresh browser session (sign in at `sandbox.paypal.com/us/signin` first, then open the approve links).
+
+### Pool filled, real capture and void verified live (Nov 4, 2026, 11:45-12:20 IST)
+
+- 18 sandbox orders (9 x $400, 9 x $300) approved by the US buyer; every return page answered "PayPal sandbox authorization ... is in the demo pool: ready" (no `claim` needed). Funding was the buyer's linked sandbox bank (no balance option offered).
+- Demo-login -> `POST /demo/deal/reset` -> `real: true`. Reel 1's seeded approval is a **real capture** on the fresh hold; Reel 2's split (`POST .../milestones/reel2/split {workerMinor: 24000}`, then the Money Agent tick, which also runs every 60 s on its own) is a **real partial capture + real void**. Checked directly on `api-m.sandbox.paypal.com`:
+
+| Step | PayPal id | PayPal status |
+|---|---|---|
+| Reel 1 hold -> capture on approve | auth `75944066TD8606012` -> capture `6CX25059D6955990M` | CAPTURED / capture COMPLETED $400.00 |
+| Reel 2 hold -> split | auth `7LJ85033A19963041` -> partial capture `8L3248257U421871X` ($240) | auth VOIDED (remaining $60 released) |
+| Earlier run (before the fixes) | auth `19214950SY9310030` -> capture `6TR90361LF839403R`; auth `1F4366324K7574252` -> partial capture `1RF08676ES6011328` + void | CAPTURED / VOIDED |
+
+- Payouts stay simulated (`SIM-PAYOUT-*`, sandbox account country `PAYOUT_NOT_AVAILABLE`).
+- Two bugs found live on the **second** reset in one process and fixed (both in `lib/paypal-sandbox.cts`, real calls only; tests `tests/sandbox-request-id.test.js`):
+  - `c47b0a8`: PayPal-Request-Id was salted per process, not per hold, so the reset's capture replayed the previous hold's capture id (`6TR90361LF839403R` again) and the new authorization stayed uncaptured. Capture / void / reauthorize / refund now scope the request id to the PayPal object id.
+  - `ff71cbd`: with the replay gone, PayPal refused the capture with `DUPLICATE_INVOICE_ID` (the invoice id `deal_demo_diwali-reel1-capture` repeats on every reset). The capture invoice id now ends with the authorization id.
+- Final reset for judges (12:16 IST): Reel 1 auth `54948034U21276604` captured as `5RB70923Y2588413D`; Reel 2 auth `5599867804919112R` held (DISPUTED, the judge's split tap left).
+- **Pool left: 3 pairs ready** (3 x $400, 3 x $300; valid to about Dec 3, 2026). **Every reset uses one pair**, and so can a Render reboot when the stored demo is no longer "untouched" (one deploy reboot did). When `ready` hits 0 the demo falls back to labelled `SIM-` ids. Refill: `create --pairs N`, approve each link as the US buyer, `status`.
+- Orphaned holds from the bug runs are still AUTHORIZED in the sandbox (e.g. `7XX30364PR417532F`, `5J4765863X083353Y`); they expire on their own and move no money.
 
 ## Real PayPal sandbox (Nov 3, 2026)
 
