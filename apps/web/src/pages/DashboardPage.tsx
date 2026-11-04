@@ -1,8 +1,14 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, BadgeCheck, Clapperboard,
-  Eye, Inbox, Megaphone, MessageSquare, Shield,
+  ArrowRight,
+  BadgeCheck,
+  Clapperboard,
+  Eye,
+  Inbox,
+  Megaphone,
+  MessageSquare,
+  Shield,
 } from 'lucide-react'
 import Chip from '../components/primitives'
 import { AssigneeAvatar } from '../components/ui'
@@ -18,6 +24,7 @@ import { Skeleton } from '../components/states'
 import Avatar from '../components/ui'
 import { useEffect, useState } from 'react'
 import { StatusChip, PlatformIcons } from '../components/status'
+import { initialsOf } from '../lib/initials'
 
 const iconProps = { size: 18, strokeWidth: 1.75 }
 
@@ -29,19 +36,44 @@ export function setTeamRef(t: typeof teamRef) {
 }
 const memberOf = (id: string) => teamRef.find((m) => m.id === id)
 
-const REVIEW = ['FIRST_DRAFT_SUBMITTED', 'UNDER_REVIEW', 'REVISION_SUBMITTED', 'REVISION_IN_PROGRESS']
+const REVIEW = [
+  'FIRST_DRAFT_SUBMITTED',
+  'UNDER_REVIEW',
+  'REVISION_SUBMITTED',
+  'REVISION_IN_PROGRESS',
+]
 const inReview = (p: Project) => REVIEW.includes(p.status)
 
-function CardHeader({ title, to, action, icon, meta }: { title: string; to?: string; action?: string; icon?: ReactNode; meta?: ReactNode }) {
+function CardHeader({
+  title,
+  to,
+  action,
+  icon,
+  meta,
+}: {
+  title: string
+  to?: string
+  action?: string
+  icon?: ReactNode
+  meta?: ReactNode
+}) {
   return (
     <header className="card-head">
-      {icon && <span className="text-umber" aria-hidden="true">{icon}</span>}
+      {icon && (
+        <span className="text-umber" aria-hidden="true">
+          {icon}
+        </span>
+      )}
       <h2 className="card-title">{title}</h2>
       {meta}
       {to ? (
         <Link to={to} className="card-link group ml-auto">
           {action ?? 'View all'}
-          <ArrowRight size={13} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight
+            size={13}
+            strokeWidth={2}
+            className="transition-transform group-hover:translate-x-0.5"
+          />
         </Link>
       ) : null}
     </header>
@@ -52,28 +84,37 @@ function ProjectRow({ p, icon }: { p: Project; icon: ReactNode }) {
   const assignee = memberOf(p.assignee)
   return (
     <li>
-      <Link
-        to={`/projects/${p.id}`}
-        className="row-link group flex items-center gap-3.5 px-5 py-3"
-      >
+      <Link to={`/projects/${p.id}`} className="row-link group flex items-center gap-3.5 px-5 py-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-ink/[0.04] text-umber transition-colors group-hover:bg-tint group-hover:text-teal">
           {icon}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-ink">{p.title}</p>
           <p className="truncate text-xs text-umber">
-            {[assignee?.name ?? 'Unassigned', p.approvedVersion, p.updated].filter(Boolean).join(' · ')}
+            {[assignee?.name ?? 'Unassigned', p.approvedVersion, p.updated]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         </div>
         <StatusChip status={p.status} label={projectStatusLabel(p)} />
-        <ArrowRight size={15} strokeWidth={1.75} className="text-umber opacity-0 transition-[transform,opacity] group-hover:translate-x-0.5 group-hover:opacity-100" />
+        <ArrowRight
+          size={15}
+          strokeWidth={1.75}
+          className="text-umber opacity-0 transition-[transform,opacity] group-hover:translate-x-0.5 group-hover:opacity-100"
+        />
       </Link>
     </li>
   )
 }
 
 function ProjectListCard({
-  title, to, action, icon, items, empty, className,
+  title,
+  to,
+  action,
+  icon,
+  items,
+  empty,
+  className,
 }: {
   title: string
   to?: string
@@ -85,10 +126,19 @@ function ProjectListCard({
 }) {
   return (
     <div className={`card flex flex-col overflow-hidden ${className ?? ''}`}>
-      <CardHeader title={title} to={to} action={action} meta={items.length ? <span className="font-mono text-xs text-label">{items.length}</span> : null} />
+      <CardHeader
+        title={title}
+        to={to}
+        action={action}
+        meta={
+          items.length ? <span className="font-mono text-xs text-label">{items.length}</span> : null
+        }
+      />
       {items.length ? (
         <ul className="divide-y divide-line">
-          {items.map((p) => <ProjectRow key={p.id} p={p} icon={icon} />)}
+          {items.map((p) => (
+            <ProjectRow key={p.id} p={p} icon={icon} />
+          ))}
         </ul>
       ) : (
         <InlineEmpty text={empty ?? 'Nothing here yet.'} />
@@ -115,7 +165,9 @@ function WorkCard({ p }: { p: Project }) {
         <span className="micro-label">{p.type}</span>
         <StatusChip status={p.status} label={projectStatusLabel(p)} />
       </div>
-      <h3 className="font-headline text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">{p.title}</h3>
+      <h3 className="font-headline text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+        {p.title}
+      </h3>
       <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-umber">{p.description}</p>
       <div className="mt-4 flex items-center justify-between">
         <AssigneeAvatar member={memberOf(p.assignee)} size="xs" />
@@ -134,7 +186,10 @@ function useUpcomingPosts() {
     void (async () => {
       try {
         const orgId = await primaryOrgId()
-        if (!orgId) { if (active) setPosts([]); return }
+        if (!orgId) {
+          if (active) setPosts([])
+          return
+        }
         const from = new Date(Date.now() - 2 * 864e5).toISOString()
         const list = await listScheduledPosts(orgId, { from })
         if (active) setPosts(list)
@@ -142,7 +197,9 @@ function useUpcomingPosts() {
         if (active) setPosts([])
       }
     })()
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [])
   return posts
 }
@@ -156,18 +213,36 @@ function ScheduledCard({ items, className }: { items: Project[]; className?: str
         .filter((x) => x.status === 'scheduled' && x.scheduledFor)
         .map((x) => new Date(x.scheduledFor as string))
         .sort((a, b) => a.getTime() - b.getTime())[0]
-      return { p, platforms: mine.map((x) => x.channel?.platform || x.platform), next, failed: mine.some((x) => x.status === 'failed') }
+      return {
+        p,
+        platforms: mine.map((x) => x.channel?.platform || x.platform),
+        next,
+        failed: mine.some((x) => x.status === 'failed'),
+      }
     })
     .sort((a, b) => (a.next?.getTime() ?? Infinity) - (b.next?.getTime() ?? Infinity))
   return (
-    <div className={`card flex flex-col overflow-hidden ${className ?? ''}`} data-testid="scheduled-card">
-      <CardHeader title="Scheduled to publish" to="/publishing/calendar" action="Calendar" meta={items.length ? <span className="font-mono text-xs text-label">{items.length}</span> : null} />
+    <div
+      className={`card flex flex-col overflow-hidden ${className ?? ''}`}
+      data-testid="scheduled-card"
+    >
+      <CardHeader
+        title="Scheduled to publish"
+        to="/publishing/calendar"
+        action="Calendar"
+        meta={
+          items.length ? <span className="font-mono text-xs text-label">{items.length}</span> : null
+        }
+      />
       {posts === null && items.length > 0 ? (
         <div className="space-y-3 px-5 py-4" aria-busy="true">
           {items.slice(0, 3).map((p) => (
             <div key={p.id} className="flex items-center gap-3">
               <Skeleton className="h-6 w-14" />
-              <div className="flex-1 space-y-1.5"><Skeleton className="h-3 w-3/4" /><Skeleton className="h-2.5 w-1/3" /></div>
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-3/4" />
+                <Skeleton className="h-2.5 w-1/3" />
+              </div>
             </div>
           ))}
         </div>
@@ -175,17 +250,33 @@ function ScheduledCard({ items, className }: { items: Project[]; className?: str
         <ul className="divide-y divide-line">
           {rows.map(({ p, platforms, next, failed }) => (
             <li key={p.id}>
-              <Link to={`/projects/${p.id}`} className="row-link flex items-center gap-3 px-5 py-3" data-testid="scheduled-row">
+              <Link
+                to={`/projects/${p.id}`}
+                className="row-link flex items-center gap-3 px-5 py-3"
+                data-testid="scheduled-row"
+              >
                 <span className="flex w-[64px] shrink-0">
-                  {platforms.length ? <PlatformIcons platforms={platforms} size="sm" /> : <span className="t-meta">-</span>}
+                  {platforms.length ? (
+                    <PlatformIcons platforms={platforms} size="sm" />
+                  ) : (
+                    <span className="t-meta">-</span>
+                  )}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink">{p.title}</p>
                   <p className="truncate text-xs text-umber">
-                    {next ? fmtWhen(next) : p.scheduleDate ? `Scheduled ${p.scheduleDate}` : 'Time not set'}
+                    {next
+                      ? fmtWhen(next)
+                      : p.scheduleDate
+                        ? `Scheduled ${p.scheduleDate}`
+                        : 'Time not set'}
                   </p>
                 </div>
-                {failed ? <StatusChip status="failed" /> : <StatusChip status={p.status} label={projectStatusLabel(p)} />}
+                {failed ? (
+                  <StatusChip status="failed" />
+                ) : (
+                  <StatusChip status={p.status} label={projectStatusLabel(p)} />
+                )}
               </Link>
             </li>
           ))}
@@ -193,7 +284,11 @@ function ScheduledCard({ items, className }: { items: Project[]; className?: str
       ) : (
         <InlineEmpty
           text="Nothing scheduled yet. Approved work lands here once it has a time."
-          action={<Link to="/publishing/compose" className="card-link">Compose a post <ArrowRight size={13} strokeWidth={2} /></Link>}
+          action={
+            <Link to="/publishing/compose" className="card-link">
+              Compose a post <ArrowRight size={13} strokeWidth={2} />
+            </Link>
+          }
         />
       )}
     </div>
@@ -203,9 +298,15 @@ function ScheduledCard({ items, className }: { items: Project[]; className?: str
 /** "Today · 6:30 PM", "Tomorrow · 9:00 AM", "Fri, Oct 16 · 6:30 PM" */
 function fmtWhen(d: Date) {
   const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  const start = new Date(); start.setHours(0, 0, 0, 0)
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
   const diff = Math.floor((new Date(d).setHours(0, 0, 0, 0) - start.getTime()) / 864e5)
-  const day = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  const day =
+    diff === 0
+      ? 'Today'
+      : diff === 1
+        ? 'Tomorrow'
+        : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
   return `${day} · ${time}`
 }
 
@@ -213,23 +314,43 @@ function fmtWhen(d: Date) {
 function describeAction(e: any): string {
   const m = e.metadata ?? {}
   switch (e.action) {
-    case 'created': return 'created the project'
-    case 'assigned': return 'assigned an owner'
-    case 'transitioned': return m.to ? `moved it to ${statusLabel(String(m.to)).toLowerCase()}` : 'moved it to a new stage'
-    case 'version_uploaded': return `uploaded ${m.label ?? 'a new version'}`
-    case 'comment_added': return 'commented on the draft'
-    case 'revision_requested': return 'requested a revision'
-    case 'approved': return `approved ${m.label ?? 'the draft'}`
-    case 'scheduled': return 'scheduled it for publishing'
-    case 'published': return 'published the project'
-    case 'metric_recorded': return 'recorded metrics'
-    case 'message_sent': return 'sent a chat message'
-    case 'channel_created': return 'created a channel'
-    default: return String(e.action).replace(/_/g, ' ')
+    case 'created':
+      return 'created the project'
+    case 'assigned':
+      return 'assigned an owner'
+    case 'transitioned':
+      return m.to
+        ? `moved it to ${statusLabel(String(m.to)).toLowerCase()}`
+        : 'moved it to a new stage'
+    case 'version_uploaded':
+      return `uploaded ${m.label ?? 'a new version'}`
+    case 'comment_added':
+      return 'commented on the draft'
+    case 'revision_requested':
+      return 'requested a revision'
+    case 'approved':
+      return `approved ${m.label ?? 'the draft'}`
+    case 'scheduled':
+      return 'scheduled it for publishing'
+    case 'published':
+      return 'published the project'
+    case 'metric_recorded':
+      return 'recorded metrics'
+    case 'message_sent':
+      return 'sent a chat message'
+    case 'channel_created':
+      return 'created a channel'
+    default:
+      return String(e.action).replace(/_/g, ' ')
   }
 }
 
-const CHAT_ACTIONS = new Set(['message_sent', 'channel_created', 'channel_joined', 'member_added_to_channel'])
+const CHAT_ACTIONS = new Set([
+  'message_sent',
+  'channel_created',
+  'channel_joined',
+  'member_added_to_channel',
+])
 const ACTIVITY_CAP = 6
 
 /** Collapse consecutive repeats (same person, same action, same project). */
@@ -256,7 +377,10 @@ function ActivityCard({ className = '' }: { className?: string }) {
     void (async () => {
       try {
         const orgId = await primaryOrgId()
-        if (!orgId) { if (active) setLoading(false); return }
+        if (!orgId) {
+          if (active) setLoading(false)
+          return
+        }
         const evts = await listOrgActivity(orgId, 60)
         if (active) setEvents(evts)
       } catch {
@@ -265,10 +389,14 @@ function ActivityCard({ className = '' }: { className?: string }) {
         if (active) setLoading(false)
       }
     })()
-    return () => { active = false }
+    return () => {
+      active = false
+    }
   }, [])
 
-  const work = events.filter((e) => !CHAT_ACTIONS.has(e.action) && e.projectId?.title !== 'Team Chat')
+  const work = events.filter(
+    (e) => !CHAT_ACTIONS.has(e.action) && e.projectId?.title !== 'Team Chat',
+  )
   const grouped = groupActivity(work)
   const shown = showAll ? grouped.slice(0, 30) : grouped.slice(0, ACTIVITY_CAP)
 
@@ -277,9 +405,18 @@ function ActivityCard({ className = '' }: { className?: string }) {
       <header className="card-head">
         <h2 className="card-title">Recent activity</h2>
         {grouped.length > ACTIVITY_CAP && (
-          <button className="card-link group ml-auto" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll} data-testid="activity-view-all">
+          <button
+            className="card-link group ml-auto"
+            onClick={() => setShowAll((v) => !v)}
+            aria-expanded={showAll}
+            data-testid="activity-view-all"
+          >
             {showAll ? 'Show less' : 'View all'}
-            <ArrowRight size={13} strokeWidth={2} className={`transition-transform ${showAll ? '-rotate-90' : 'rotate-90'}`} />
+            <ArrowRight
+              size={13}
+              strokeWidth={2}
+              className={`transition-transform ${showAll ? '-rotate-90' : 'rotate-90'}`}
+            />
           </button>
         )}
       </header>
@@ -296,7 +433,10 @@ function ActivityCard({ className = '' }: { className?: string }) {
           ))}
         </div>
       ) : shown.length ? (
-        <ul className="grid grid-cols-1 divide-y divide-line md:grid-cols-2 md:divide-y-0" data-testid="activity-list">
+        <ul
+          className="grid grid-cols-1 divide-y divide-line md:grid-cols-2 md:divide-y-0"
+          data-testid="activity-list"
+        >
           {shown.map(({ e, count }) => {
             const actor = e.actor?.name ?? 'Someone'
             const project = e.projectId?.title
@@ -307,7 +447,11 @@ function ActivityCard({ className = '' }: { className?: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm leading-snug text-ink">
                     <span className="font-medium">{actor}</span> {describeAction(e)}
-                    {count > 1 && <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 font-mono text-[11px] text-umber">×{count}</span>}
+                    {count > 1 && (
+                      <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 font-mono text-[11px] text-umber">
+                        ×{count}
+                      </span>
+                    )}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-umber">
                     {project && <span className="text-ink/80">{project}</span>}
@@ -320,7 +464,9 @@ function ActivityCard({ className = '' }: { className?: string }) {
             return (
               <li key={String(e.id)} className="md:border-b md:border-line md:odd:border-r">
                 {pid ? (
-                  <Link to={`/projects/${pid}`} className="row-link flex gap-3 px-5 py-3">{body}</Link>
+                  <Link to={`/projects/${pid}`} className="row-link flex gap-3 px-5 py-3">
+                    {body}
+                  </Link>
                 ) : (
                   <div className="flex gap-3 px-5 py-3">{body}</div>
                 )}
@@ -333,10 +479,6 @@ function ActivityCard({ className = '' }: { className?: string }) {
       )}
     </div>
   )
-}
-
-function initialsOf(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?'
 }
 
 function relTime(iso: string) {
@@ -358,7 +500,9 @@ function PublishedCard({ p }: { p: Project }) {
           <Megaphone {...iconProps} />
         </span>
       </div>
-      <h3 className="font-headline text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">{p.title}</h3>
+      <h3 className="font-headline text-[15px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+        {p.title}
+      </h3>
       <div className="mt-4 flex items-center justify-between">
         <span className="micro-label">{p.publishedAt ?? p.updated}</span>
         <Chip label="Published" tone="success" />
@@ -382,16 +526,26 @@ export default function DashboardPage() {
   // misleading "zero" state on slow connections.
 
   // My scope
-  const myWork = projects.filter((p) => p.assignee === viewer.id && p.status !== 'PUBLISHED' && p.status !== 'CLOSED')
+  const myWork = projects.filter(
+    (p) => p.assignee === viewer.id && p.status !== 'PUBLISHED' && p.status !== 'CLOSED',
+  )
   const mineInReview = projects.filter((p) => p.assignee === viewer.id && inReview(p))
-  const myWaiting = projects.filter((p) => p.assignee === viewer.id && (p.status === 'WAITING_FOR_INPUTS' || p.status === 'INPUTS_READY'))
+  const myWaiting = projects.filter(
+    (p) =>
+      p.assignee === viewer.id &&
+      (p.status === 'WAITING_FOR_INPUTS' || p.status === 'INPUTS_READY'),
+  )
 
   // Org scope
   const allInReview = projects.filter(inReview)
-  const approvedOrScheduled = projects.filter((p) => p.status === 'APPROVED' || p.status === 'SCHEDULED')
+  const approvedOrScheduled = projects.filter(
+    (p) => p.status === 'APPROVED' || p.status === 'SCHEDULED',
+  )
   const readyToPublish = projects.filter((p) => p.status === 'APPROVED')
   const publishedAll = projects.filter((p) => p.status === 'PUBLISHED')
-  const sharedWithMe = projects.filter((p) => p.reviewers.includes(viewer.id) || p.creator === viewer.id)
+  const sharedWithMe = projects.filter(
+    (p) => p.reviewers.includes(viewer.id) || p.creator === viewer.id,
+  )
   // Published work is no longer waiting to go out - only SCHEDULED counts here.
   const scheduled = projects.filter((p) => p.status === 'SCHEDULED')
 
@@ -419,12 +573,20 @@ export default function DashboardPage() {
           <Shield size={13} strokeWidth={1.75} className="text-teal" />
           <span className="micro-label">Viewing as</span>
           <span className="text-xs font-semibold text-ink">{info.label}</span>
-          <ArrowRight size={12} strokeWidth={1.75} className="text-umber/40 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight
+            size={12}
+            strokeWidth={1.75}
+            className="text-umber/40 transition-transform group-hover:translate-x-0.5"
+          />
         </Link>
       </div>
 
       {/* Pipeline: stage strip, waiting on, going live today, last week's best */}
-      {projectsError ? <ErrorBanner onRetry={() => window.location.reload()} /> : <PipelineOverview />}
+      {projectsError ? (
+        <ErrorBanner onRetry={() => window.location.reload()} />
+      ) : (
+        <PipelineOverview />
+      )}
 
       {/* ---------------- Admin: team overview ---------------- */}
       {viewer.role === 'admin' && (
@@ -445,13 +607,22 @@ export default function DashboardPage() {
             <section>
               <header className="mb-3 flex items-center justify-between">
                 <h2 className="card-title">Your work</h2>
-                <Link to="/my-work" className="group flex items-center gap-1 text-xs font-medium text-teal transition-opacity hover:opacity-80">
+                <Link
+                  to="/my-work"
+                  className="group flex items-center gap-1 text-xs font-medium text-teal transition-opacity hover:opacity-80"
+                >
                   All my work
-                  <ArrowRight size={13} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight
+                    size={13}
+                    strokeWidth={2}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
                 </Link>
               </header>
               <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {myWork.slice(0, 3).map((p) => <WorkCard key={p.id} p={p} />)}
+                {myWork.slice(0, 3).map((p) => (
+                  <WorkCard key={p.id} p={p} />
+                ))}
               </div>
             </section>
           )}
@@ -466,10 +637,14 @@ export default function DashboardPage() {
               <CardHeader title="My work" to="/my-work" action="All my work" />
               {myWork.length ? (
                 <div className="stagger grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
-                  {myWork.slice(0, 4).map((p) => <WorkCard key={p.id} p={p} />)}
+                  {myWork.slice(0, 4).map((p) => (
+                    <WorkCard key={p.id} p={p} />
+                  ))}
                 </div>
               ) : (
-                <div className="px-5 py-10 text-center text-sm text-umber">Nothing on your desk right now.</div>
+                <div className="px-5 py-10 text-center text-sm text-umber">
+                  Nothing on your desk right now.
+                </div>
               )}
             </div>
             <div className="space-y-6">
@@ -509,7 +684,11 @@ export default function DashboardPage() {
           />
           <div className="space-y-6">
             {mineInReview.length > 0 && (
-              <ProjectListCard title="In review" icon={<MessageSquare {...iconProps} />} items={mineInReview} />
+              <ProjectListCard
+                title="In review"
+                icon={<MessageSquare {...iconProps} />}
+                items={mineInReview}
+              />
             )}
             <ActivityCard />
           </div>
@@ -560,14 +739,23 @@ export default function DashboardPage() {
           <section>
             <header className="mb-3 flex items-center justify-between">
               <h2 className="card-title">Recently published</h2>
-              <Link to="/projects" className="group flex items-center gap-1 text-xs font-medium text-teal transition-opacity hover:opacity-80">
+              <Link
+                to="/projects"
+                className="group flex items-center gap-1 text-xs font-medium text-teal transition-opacity hover:opacity-80"
+              >
                 All projects
-                <ArrowRight size={13} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight
+                  size={13}
+                  strokeWidth={2}
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
               </Link>
             </header>
             {publishedAll.length ? (
               <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {publishedAll.slice(0, 3).map((p) => <PublishedCard key={p.id} p={p} />)}
+                {publishedAll.slice(0, 3).map((p) => (
+                  <PublishedCard key={p.id} p={p} />
+                ))}
               </div>
             ) : (
               <div className="card p-8 text-center text-sm text-umber">Nothing published yet.</div>

@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react'
 import * as api from '../services/api'
 import type { Project, TeamMember } from './types'
+import { initialsOf } from './initials'
 
 /* ----------------------------- helpers ----------------------------- */
 function strId(v: unknown): string {
@@ -16,15 +17,6 @@ function strId(v: unknown): string {
   if (typeof v === 'string') return v
   if (typeof v === 'object' && '_id' in (v as any)) return String((v as any)._id)
   return String(v)
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(/\s+/)
-    .map((w) => w[0] || '')
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
 }
 
 function relativeTime(iso?: string | Date): string {
@@ -152,7 +144,11 @@ export async function loadProjects(): Promise<Project[]> {
   return projectsPromise
 }
 
-export async function createProject(input: { title: string; type?: string; organizationId?: string }): Promise<Project> {
+export async function createProject(input: {
+  title: string
+  type?: string
+  organizationId?: string
+}): Promise<Project> {
   const created = await api.createProject(input)
   projectsPromise = null
   emitProjectsChanged()
@@ -187,7 +183,9 @@ export function useTeam() {
       .then((orgs) => active && orgs && orgs.length && setOrg(orgs[0]))
       .catch(() => {})
     const listener = () => {
-      loadTeam().then((t) => active && setTeam(t)).catch(() => {})
+      loadTeam()
+        .then((t) => active && setTeam(t))
+        .catch(() => {})
     }
     teamListeners.add(listener)
     return () => {
@@ -267,11 +265,16 @@ export function useChat() {
             id: strId(m.id),
             author: strId(m.author?._id ?? m.author),
             text: m.body,
-            time: new Date(m.sentAt || m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            time: new Date(m.sentAt || m.createdAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
           }))
         }
         if (active) {
-          setChannels(chans.map((c: any) => ({ id: strId(c.id), name: '#' + c.name, desc: '', unread: 0 })))
+          setChannels(
+            chans.map((c: any) => ({ id: strId(c.id), name: '#' + c.name, desc: '', unread: 0 })),
+          )
           setMessagesByChannel(messages)
         }
       } catch {
@@ -402,7 +405,9 @@ export function useReviews() {
   const [reviews, setReviews] = useState<ReviewItem[]>([])
   useEffect(() => {
     let active = true
-    loadReviews().then((r) => active && setReviews(r)).catch(() => {})
+    loadReviews()
+      .then((r) => active && setReviews(r))
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -431,11 +436,18 @@ export function useProject(id: string) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    if (id) loadProject(id).then((p) => active && setProject(p)).catch(() => {}).finally(() => active && setLoading(false))
+    if (id)
+      loadProject(id)
+        .then((p) => active && setProject(p))
+        .catch(() => {})
+        .finally(() => active && setLoading(false))
     else setLoading(false)
     // Re-read (without a loading flash) whenever a mutation invalidates projects.
     const listener = () => {
-      if (id) loadProject(id).then((p) => active && p && setProject(p)).catch(() => {})
+      if (id)
+        loadProject(id)
+          .then((p) => active && p && setProject(p))
+          .catch(() => {})
     }
     projectsListeners.add(listener)
     return () => {
@@ -466,7 +478,10 @@ export function useProjectInputs(projectId: string) {
   useEffect(() => {
     let active = true
     if (!projectId) return
-    api.listInputs(projectId).then((d) => active && setInputs(d)).catch(() => {})
+    api
+      .listInputs(projectId)
+      .then((d) => active && setInputs(d))
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -479,7 +494,10 @@ export function useProjectMetrics(projectId: string) {
   useEffect(() => {
     let active = true
     if (!projectId) return
-    api.listMetrics(projectId).then((d) => active && setMetrics(d)).catch(() => {})
+    api
+      .listMetrics(projectId)
+      .then((d) => active && setMetrics(d))
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -492,7 +510,10 @@ export function useProjectPublications(projectId: string) {
   useEffect(() => {
     let active = true
     if (!projectId) return
-    api.listPublications(projectId).then((d) => active && setPublications(d)).catch(() => {})
+    api
+      .listPublications(projectId)
+      .then((d) => active && setPublications(d))
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -505,7 +526,10 @@ export function useProjectActivity(projectId: string) {
   useEffect(() => {
     let active = true
     if (!projectId) return
-    api.listActivity(projectId).then((d) => active && setActivity(d)).catch(() => {})
+    api
+      .listActivity(projectId)
+      .then((d) => active && setActivity(d))
+      .catch(() => {})
     return () => {
       active = false
     }
@@ -570,13 +594,20 @@ export async function loadAnalytics(): Promise<AnalyticsRow[]> {
     for (const p of published) {
       const pubs = await api.listPublications(p.id)
       const metrics = await api.listMetrics(p.id)
-      const sum = (m: string) => metrics.filter((x: any) => x.metric === m).reduce((s: number, x: any) => s + (x.value || 0), 0)
+      const sum = (m: string) =>
+        metrics
+          .filter((x: any) => x.metric === m)
+          .reduce((s: number, x: any) => s + (x.value || 0), 0)
       const pub = pubs[0]
       rows.push({
         projectId: strId(p.id),
         title: p.title,
         platform: pub?.platform ?? p.platform ?? '-',
-        posted: pub?.publishedAt ? fmtDate(pub.publishedAt) : p.publishedAt ? fmtDate(p.publishedAt) : '-',
+        posted: pub?.publishedAt
+          ? fmtDate(pub.publishedAt)
+          : p.publishedAt
+            ? fmtDate(p.publishedAt)
+            : '-',
         views: sum('views'),
         likes: sum('likes'),
         comments: sum('comments'),
@@ -597,7 +628,9 @@ export function useAnalytics() {
   const [rows, setRows] = useState<AnalyticsRow[]>([])
   useEffect(() => {
     let active = true
-    loadAnalytics().then((r) => active && setRows(r)).catch(() => {})
+    loadAnalytics()
+      .then((r) => active && setRows(r))
+      .catch(() => {})
     return () => {
       active = false
     }

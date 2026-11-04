@@ -100,7 +100,9 @@ export function useDealLedger(orgId: string | null, dealId: string | undefined) 
       return
     }
     const join = () =>
-      socket?.emit('deal:join', { dealId }, (ack: { ok?: boolean } | undefined) => setLive(!!ack?.ok))
+      socket?.emit('deal:join', { dealId }, (ack: { ok?: boolean } | undefined) =>
+        setLive(!!ack?.ok),
+      )
     const onLedger = (msg: DealLedgerPush) => {
       if (!msg || msg.dealId !== dealId || !msg.entry) return
       qc.setQueryData<DealLedgerView | undefined>(['deal-ledger', orgId, dealId], (prev) =>
@@ -182,7 +184,12 @@ export function when(iso?: string | null) {
   const d = new Date(iso)
   return isNaN(d.getTime())
     ? '—'
-    : d.toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
 }
 
 /** Role words, never names (identity-blind; matches the agent side's identity.py). */
@@ -218,7 +225,11 @@ export function redactedDeal(deal: DealView) {
         hasDisputeProposal: !!r?.proposals?.dispute,
       }
     }),
-    changeOrders: deal.changeOrders.map((c) => ({ id: c.id, milestoneKey: c.milestoneKey, status: c.status })),
+    changeOrders: deal.changeOrders.map((c) => ({
+      id: c.id,
+      milestoneKey: c.milestoneKey,
+      status: c.status,
+    })),
     pendingApprovals: deal.pendingApprovals.map((p) => ({ key: p.key, reason: p.reason })),
   }
 }
@@ -249,12 +260,17 @@ export function moneyMajor(amount: number | undefined | null, currency = 'USD'):
 export function dateOnly(iso?: string | null) {
   if (!iso) return '—'
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  return isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 /** The one invoice status vocabulary every screen uses. */
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'void'
-export const INVOICE_STATUS: Record<InvoiceStatus, { label: string; tone: 'neutral' | 'warning' | 'teal' | 'success' | 'danger'; hint: string }> = {
+export const INVOICE_STATUS: Record<
+  InvoiceStatus,
+  { label: string; tone: 'neutral' | 'warning' | 'teal' | 'success' | 'danger'; hint: string }
+> = {
   draft: { label: 'Draft', tone: 'neutral', hint: 'Not sent to the client yet' },
   sent: { label: 'Sent', tone: 'warning', hint: 'Waiting for payment' },
   paid: { label: 'Paid', tone: 'success', hint: 'Payment received' },
@@ -263,9 +279,11 @@ export const INVOICE_STATUS: Record<InvoiceStatus, { label: string; tone: 'neutr
 }
 
 /**
- * PayPal environment for an id. The mock gateway mints ids ending in MOCK; the
- * sandbox demo mints SIM- ids for steps after a buyer approval it had to simulate
- * (no sandbox buyer can log in from the demo). Everything else is a real sandbox id.
+ * PayPal environment for an id. The mock gateway mints ids ending in MOCK. On the
+ * sandbox demo, holds come from authorizations a sandbox buyer really approved
+ * (real ids); SIM- ids are only minted for payouts (not available to this sandbox
+ * account) and, when the pre-approved pool runs out, for a simulated buyer approval.
+ * Everything else is a real PayPal sandbox id.
  */
 export type PaypalEnv = 'mock' | 'sandbox' | 'simulated'
 export function paypalEnv(id?: string | null): PaypalEnv {
@@ -275,7 +293,11 @@ export function paypalEnv(id?: string | null): PaypalEnv {
 export const PAYPAL_ENV: Record<PaypalEnv, { tag: string; title: string }> = {
   mock: { tag: 'mock', title: 'Mock PayPal gateway: no real PayPal object exists' },
   sandbox: { tag: 'PayPal sandbox', title: 'PayPal sandbox: a real sandbox id, test money only' },
-  simulated: { tag: 'PayPal sandbox · simulated', title: 'PayPal sandbox: buyer approval simulated (no sandbox buyer can log in from the demo). Test money only.' },
+  simulated: {
+    tag: 'PayPal sandbox · simulated',
+    title:
+      'Simulated, not a PayPal object: payouts are not available to this sandbox account, or the pre-approved buyer pool was empty. Test money only.',
+  },
 }
 /** A change-order invoice in the PayPal sandbox is created and sent; the mock only drafts. */
 export function invoiceSent(id?: string | null): boolean {
@@ -289,8 +311,12 @@ export function changeOrderStage(co: DealView['changeOrders'][number]): {
   tone: 'neutral' | 'warning' | 'teal' | 'success' | 'danger'
 } {
   if (co.status === 'declined') return { invoice: 'void', label: 'Declined', tone: 'neutral' }
-  if (co.status === 'invoiced') return invoiceSent(co.invoiceId) ? { invoice: 'sent', label: 'Invoice sent', tone: 'teal' } : { invoice: 'draft', label: 'Invoice drafted', tone: 'teal' }
-  if (co.status === 'accepted') return { invoice: null, label: 'Accepted · invoicing', tone: 'warning' }
+  if (co.status === 'invoiced')
+    return invoiceSent(co.invoiceId)
+      ? { invoice: 'sent', label: 'Invoice sent', tone: 'teal' }
+      : { invoice: 'draft', label: 'Invoice drafted', tone: 'teal' }
+  if (co.status === 'accepted')
+    return { invoice: null, label: 'Accepted · invoicing', tone: 'warning' }
   return { invoice: null, label: 'Awaiting client', tone: 'warning' }
 }
 
@@ -318,7 +344,8 @@ export function ruleName(rule: string) {
   return { id, name: RULE_NAME[id] ?? rule.replace(/^P\d+_/, '').replace(/_/g, ' ') }
 }
 
-const STATE_WORDS = /\b(SIGNED|APPROVED|AUTO_APPROVED|CAPTURED|PAID_OUT|CANCELLED|KILLED|DISPUTED|IN_REVIEW|DRAFT|FUNDED|SUBMITTED|DELIVERED)\b/g
+const STATE_WORDS =
+  /\b(SIGNED|APPROVED|AUTO_APPROVED|CAPTURED|PAID_OUT|CANCELLED|KILLED|DISPUTED|IN_REVIEW|DRAFT|FUNDED|SUBMITTED|DELIVERED)\b/g
 
 /**
  * Policy messages carry raw minor units ("got 45000") and internal keys.
@@ -332,9 +359,15 @@ export function humanizePolicyMessage(msg: string, currency = 'USD'): string {
     // "price must be 6000 x 1 = 6000"
     .replace(/(\d+) x (\d+) = (\d+)/g, (_s, a, q, t) => `${m(a)} × ${q} = ${m(t)}`)
     // "<verb> 45000 exceeds"
-    .replace(/\b(capture|partial capture|refund|payout) (\d+) exceeds\b/g, (_s, v, n) => `${v} of ${m(n)} exceeds`)
+    .replace(
+      /\b(capture|partial capture|refund|payout) (\d+) exceeds\b/g,
+      (_s, v, n) => `${v} of ${m(n)} exceeds`,
+    )
     // "... exactly 0", "got 45000", "held amount 0", "the capture 1200", "share 300", "accepted 900", "unpaid 0"
-    .replace(/\b(exactly|got|held amount|the capture|share|accepted|captured-but-unpaid) (\d+)\b/g, (_s, w, n) => `${w} ${m(n)}`)
+    .replace(
+      /\b(exactly|got|held amount|the capture|share|accepted|captured-but-unpaid) (\d+)\b/g,
+      (_s, w, n) => `${w} ${m(n)}`,
+    )
     .replace(/= (\d+)\b/g, (_s, n) => `= ${m(n)}`)
     // "signed milestone amount (40000)"
     .replace(/amount \((\d+)\)/g, (_s, n) => `amount (${m(n)})`)
@@ -376,8 +409,10 @@ const RULE_ORDER = ['P5', 'P2', 'P4', 'P1', 'P6', 'P13', 'P9', 'P11', 'P10', 'P3
 /** A blocked ledger line in one sentence: what was tried, for how much, and the main reason. */
 export function blockedSummary(entry: DealLedgerEntry, currency = 'USD') {
   const kindRaw = /^Blocked ([a-z ]+):/.exec(entry.explanation || '')?.[1]?.trim() ?? ''
-  const action = ACTION_WORD[kindRaw] ?? (kindRaw ? kindRaw[0].toUpperCase() + kindRaw.slice(1) : 'Money move')
-  const amount = entry.amountMinor > 0 ? ` of ${money(entry.amountMinor, entry.currency || currency)}` : ''
+  const action =
+    ACTION_WORD[kindRaw] ?? (kindRaw ? kindRaw[0].toUpperCase() + kindRaw.slice(1) : 'Money move')
+  const amount =
+    entry.amountMinor > 0 ? ` of ${money(entry.amountMinor, entry.currency || currency)}` : ''
   const groups = groupViolations(entry.policy?.violations, entry.currency || currency)
   const rank = (id: string) => {
     const i = RULE_ORDER.indexOf(id)

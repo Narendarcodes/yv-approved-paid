@@ -17,6 +17,7 @@ import {
 import { compact } from '../lib/publishing'
 import { SimulatedBadge, pctText } from '../components/charts'
 import { PlatformIcon } from '../components/status'
+import { initialsOf } from '../lib/initials'
 
 const TYPE_LABEL: Record<Concept['type'], string> = {
   'New Concept': 'New Concept',
@@ -50,7 +51,14 @@ export default function ConceptsPage() {
   const [top, setTop] = useState<TopPerformers | null>(null)
   // concept -> project conversion (project + pre-filled brief in one step)
   const [converting, setConverting] = useState<Concept | null>(null)
-  const [conv, setConv] = useState({ goal: '', audience: '', deliverables: '', deadline: '', client: '', campaign: '' })
+  const [conv, setConv] = useState({
+    goal: '',
+    audience: '',
+    deliverables: '',
+    deadline: '',
+    client: '',
+    campaign: '',
+  })
 
   useEffect(() => {
     primaryOrgId()
@@ -60,7 +68,14 @@ export default function ConceptsPage() {
   }, [])
 
   const openConvert = (c: Concept) => {
-    setConv({ goal: c.description, audience: '', deliverables: '', deadline: '', client: '', campaign: '' })
+    setConv({
+      goal: c.description,
+      audience: '',
+      deliverables: '',
+      deadline: '',
+      client: '',
+      campaign: '',
+    })
     setConverting(c)
   }
 
@@ -117,7 +132,10 @@ export default function ConceptsPage() {
         brief: {
           goal: conv.goal.trim(),
           targetAudience: conv.audience.trim(),
-          deliverables: conv.deliverables.split(/[,\n]/).map((x) => x.trim()).filter(Boolean),
+          deliverables: conv.deliverables
+            .split(/[,\n]/)
+            .map((x) => x.trim())
+            .filter(Boolean),
           deadline: conv.deadline || null,
         },
       })
@@ -161,7 +179,9 @@ export default function ConceptsPage() {
       {loadError && (
         <div className="card flex items-center justify-between gap-4 border-danger/30 p-4">
           <p className="text-sm text-danger">Couldn't load concepts.</p>
-          <button className="btn-secondary btn-sm" onClick={load}>Retry</button>
+          <button className="btn-secondary btn-sm" onClick={load}>
+            Retry
+          </button>
         </div>
       )}
 
@@ -179,17 +199,28 @@ export default function ConceptsPage() {
                 <Trophy size={16} strokeWidth={1.75} className="text-teal" />
                 <h2 className="card-title">What worked in {top.label}</h2>
                 <SimulatedBadge show={!!top.simulated} />
-                <Link to="/analytics" className="ml-auto text-xs font-medium text-teal hover:underline">
+                <Link
+                  to="/analytics"
+                  className="ml-auto text-xs font-medium text-teal hover:underline"
+                >
                   All analytics →
                 </Link>
               </div>
-              <p className="mb-3 text-xs text-umber">Last month's best performers by engagement rate - build the next idea on what landed.</p>
+              <p className="mb-3 text-xs text-umber">
+                Last month's best performers by engagement rate - build the next idea on what
+                landed.
+              </p>
               <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {top.items.map((t, i) => (
                   <li key={t.projectId} className="rounded-[10px] border border-line p-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink font-mono text-[10px] text-white">{i + 1}</span>
-                      <Link to={`/projects/${t.projectId}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-teal">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink font-mono text-[10px] text-white">
+                        {i + 1}
+                      </span>
+                      <Link
+                        to={`/projects/${t.projectId}`}
+                        className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-teal"
+                      >
                         {t.title}
                       </Link>
                     </div>
@@ -197,10 +228,18 @@ export default function ConceptsPage() {
                       {t.platforms.map((p) => (
                         <PlatformIcon key={p} platform={p} size="sm" />
                       ))}
-                      <span className="ml-auto font-mono text-xs text-ink">{compact(t.views)} views</span>
-                      <span className="font-mono text-xs font-medium text-teal">{pctText(t.engagementRate)}</span>
+                      <span className="ml-auto font-mono text-xs text-ink">
+                        {compact(t.views)} views
+                      </span>
+                      <span className="font-mono text-xs font-medium text-teal">
+                        {pctText(t.engagementRate)}
+                      </span>
                     </div>
-                    {t.concept && <p className="mt-1.5 truncate text-[11px] text-umber">From concept: {t.concept.title}</p>}
+                    {t.concept && (
+                      <p className="mt-1.5 truncate text-[11px] text-umber">
+                        From concept: {t.concept.title}
+                      </p>
+                    )}
                   </li>
                 ))}
               </ol>
@@ -210,10 +249,12 @@ export default function ConceptsPage() {
           <div className="space-y-4">
             {openIdeas.map((c) => (
               <article key={c.id} className="card flex flex-wrap items-start gap-4 p-5">
-                <Avatar initials={(c.proposerName ?? '?').slice(0, 2).toUpperCase()} size="md" tone="tint" />
+                <Avatar initials={initialsOf(c.proposerName)} size="md" tone="tint" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-headline text-[15px] font-semibold tracking-tight text-ink">{c.title}</h3>
+                    <h3 className="font-headline text-[15px] font-semibold tracking-tight text-ink">
+                      {c.title}
+                    </h3>
                     <Chip label={TYPE_LABEL[c.type]} tone="neutral" />
                     <Chip label="Open for discussion" tone="warning" dot />
                   </div>
@@ -226,11 +267,20 @@ export default function ConceptsPage() {
                 {mayReview && (
                   <div className="flex items-center gap-2">
                     {mayApprove(c) && (
-                      <button className="btn-secondary btn-sm" disabled={busyId === c.id} onClick={() => openConvert(c)} data-testid="concept-convert">
+                      <button
+                        className="btn-secondary btn-sm"
+                        disabled={busyId === c.id}
+                        onClick={() => openConvert(c)}
+                        data-testid="concept-convert"
+                      >
                         Approve &amp; start project
                       </button>
                     )}
-                    <button className="btn-ghost btn-sm text-danger" disabled={busyId === c.id} onClick={() => decline(c.id)}>
+                    <button
+                      className="btn-ghost btn-sm text-danger"
+                      disabled={busyId === c.id}
+                      onClick={() => decline(c.id)}
+                    >
                       Decline
                     </button>
                   </div>
@@ -256,10 +306,15 @@ export default function ConceptsPage() {
               <div className="mt-3 space-y-2">
                 {decided.map((c) => (
                   <div key={c.id} className="card flex flex-wrap items-center gap-3 p-4 opacity-80">
-                    <span className={`inline-block h-2 w-2 rounded-full ${c.status === 'APPROVED' ? 'bg-success' : 'bg-danger/60'}`} />
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${c.status === 'APPROVED' ? 'bg-success' : 'bg-danger/60'}`}
+                    />
                     <p className="min-w-0 flex-1 truncate text-sm text-ink">{c.title}</p>
                     {c.status === 'APPROVED' && c.approvedProjectId ? (
-                      <Link to={`/projects/${c.approvedProjectId}`} className="text-xs font-medium text-teal hover:underline">
+                      <Link
+                        to={`/projects/${c.approvedProjectId}`}
+                        className="text-xs font-medium text-teal hover:underline"
+                      >
                         View project →
                       </Link>
                     ) : (
@@ -274,35 +329,90 @@ export default function ConceptsPage() {
       )}
 
       {/* Concept -> project (+ brief) */}
-      <Modal open={!!converting} onClose={() => setConverting(null)} title={converting ? `Start project: ${converting.title}` : 'Start project'}>
+      <Modal
+        open={!!converting}
+        onClose={() => setConverting(null)}
+        title={converting ? `Start project: ${converting.title}` : 'Start project'}
+      >
         {converting && (
           <div className="space-y-3" data-testid="convert-modal">
-            <p className="text-xs text-umber">Creates the project and its creative brief in one step. Everything here can be edited later on the project.</p>
-            <label className="label block" htmlFor="cv-goal">Goal</label>
-            <textarea id="cv-goal" rows={3} className="input w-full" value={conv.goal} onChange={(e) => setConv({ ...conv, goal: e.target.value })} />
-            <label className="label block" htmlFor="cv-aud">Audience</label>
-            <input id="cv-aud" className="input w-full" placeholder="Who is this for?" value={conv.audience} onChange={(e) => setConv({ ...conv, audience: e.target.value })} />
-            <label className="label block" htmlFor="cv-del">Deliverables</label>
-            <input id="cv-del" className="input w-full" placeholder="30s reel, cover still" value={conv.deliverables} onChange={(e) => setConv({ ...conv, deliverables: e.target.value })} data-testid="convert-deliverables" />
+            <p className="text-xs text-umber">
+              Creates the project and its creative brief in one step. Everything here can be edited
+              later on the project.
+            </p>
+            <label className="label block" htmlFor="cv-goal">
+              Goal
+            </label>
+            <textarea
+              id="cv-goal"
+              rows={3}
+              className="input w-full"
+              value={conv.goal}
+              onChange={(e) => setConv({ ...conv, goal: e.target.value })}
+            />
+            <label className="label block" htmlFor="cv-aud">
+              Audience
+            </label>
+            <input
+              id="cv-aud"
+              className="input w-full"
+              placeholder="Who is this for?"
+              value={conv.audience}
+              onChange={(e) => setConv({ ...conv, audience: e.target.value })}
+            />
+            <label className="label block" htmlFor="cv-del">
+              Deliverables
+            </label>
+            <input
+              id="cv-del"
+              className="input w-full"
+              placeholder="30s reel, cover still"
+              value={conv.deliverables}
+              onChange={(e) => setConv({ ...conv, deliverables: e.target.value })}
+              data-testid="convert-deliverables"
+            />
             <div className="grid grid-cols-3 gap-3">
               <label className="label">
                 Deadline
-                <input type="date" className="input mt-1 w-full" value={conv.deadline} onChange={(e) => setConv({ ...conv, deadline: e.target.value })} />
+                <input
+                  type="date"
+                  className="input mt-1 w-full"
+                  value={conv.deadline}
+                  onChange={(e) => setConv({ ...conv, deadline: e.target.value })}
+                />
               </label>
               <label className="label">
                 Client
-                <input className="input mt-1 w-full" value={conv.client} onChange={(e) => setConv({ ...conv, client: e.target.value })} />
+                <input
+                  className="input mt-1 w-full"
+                  value={conv.client}
+                  onChange={(e) => setConv({ ...conv, client: e.target.value })}
+                />
               </label>
               <label className="label">
                 Campaign
-                <input className="input mt-1 w-full" value={conv.campaign} onChange={(e) => setConv({ ...conv, campaign: e.target.value })} />
+                <input
+                  className="input mt-1 w-full"
+                  value={conv.campaign}
+                  onChange={(e) => setConv({ ...conv, campaign: e.target.value })}
+                />
               </label>
             </div>
-            {submitError && <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{submitError}</p>}
+            {submitError && (
+              <p className="rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{submitError}</p>
+            )}
             <div className="flex justify-end gap-2 pt-2">
-              <button className="btn-ghost" onClick={() => setConverting(null)}>Cancel</button>
-              <button className="btn-primary" disabled={busyId === converting.id} onClick={() => void approve(converting.id)} data-testid="convert-submit">
-                {busyId === converting.id ? 'Creating…' : 'Create project & brief'} <ArrowRight size={14} strokeWidth={1.75} />
+              <button className="btn-ghost" onClick={() => setConverting(null)}>
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                disabled={busyId === converting.id}
+                onClick={() => void approve(converting.id)}
+                data-testid="convert-submit"
+              >
+                {busyId === converting.id ? 'Creating…' : 'Create project & brief'}{' '}
+                <ArrowRight size={14} strokeWidth={1.75} />
               </button>
             </div>
           </div>
@@ -311,7 +421,9 @@ export default function ConceptsPage() {
 
       {/* Propose a concept */}
       <Modal open={open} onClose={() => setOpen(false)} title="Propose a concept">
-        <label className="label" htmlFor="cn-title">Title</label>
+        <label className="label" htmlFor="cn-title">
+          Title
+        </label>
         <input
           id="cn-title"
           value={title}
@@ -321,14 +433,23 @@ export default function ConceptsPage() {
           className="input mt-1.5 w-full"
         />
 
-        <label className="label mt-4 block" htmlFor="cn-type">Type</label>
-        <select id="cn-type" value={type} onChange={(e) => setType(e.target.value as Concept['type'])} className="input mt-1.5 w-full">
+        <label className="label mt-4 block" htmlFor="cn-type">
+          Type
+        </label>
+        <select
+          id="cn-type"
+          value={type}
+          onChange={(e) => setType(e.target.value as Concept['type'])}
+          className="input mt-1.5 w-full"
+        >
           <option value="New Concept">New Concept</option>
           <option value="Experiment">Experiment</option>
           <option value="Revision">Revision</option>
         </select>
 
-        <label className="label mt-4 block" htmlFor="cn-desc">What is it?</label>
+        <label className="label mt-4 block" htmlFor="cn-desc">
+          What is it?
+        </label>
         <textarea
           id="cn-desc"
           value={description}
@@ -338,11 +459,21 @@ export default function ConceptsPage() {
           className="input mt-1.5 w-full"
         />
 
-        {submitError && <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">{submitError}</p>}
+        {submitError && (
+          <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">
+            {submitError}
+          </p>
+        )}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
-          <button className="btn-primary" onClick={() => void submit()} disabled={!title.trim() || !description.trim() || submitting}>
+          <button className="btn-ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => void submit()}
+            disabled={!title.trim() || !description.trim() || submitting}
+          >
             {submitting ? 'Saving…' : 'Propose concept'}
           </button>
         </div>

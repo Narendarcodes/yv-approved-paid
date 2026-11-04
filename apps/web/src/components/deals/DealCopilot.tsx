@@ -15,7 +15,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Bot, Send, Sparkles } from 'lucide-react'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
-import { captureDryRun, fromLive, matchIntent, SUGGESTIONS, type CopilotAction } from '../../lib/copilot'
+import {
+  captureDryRun,
+  fromLive,
+  matchIntent,
+  SUGGESTIONS,
+  type CopilotAction,
+} from '../../lib/copilot'
 import { blockedSummary, money, useDealLedger, useDealRefresh } from '../../lib/deals'
 import { Skeleton } from '../states'
 import { DealCardShell, Motto } from './common'
@@ -27,8 +33,18 @@ import ChangeOrderCard from './ChangeOrderCard'
 import DisputeSplitCard from './DisputeSplitCard'
 import PolicyBlockedChip from './PolicyBlockedChip'
 
-type Mode = { kind: 'live'; provider: string | null; model: string | null; cached: boolean } | { kind: 'offline'; reason?: string } | { kind: 'thinking' }
-type Turn = { id: number; role: 'user' | 'copilot'; text?: string; actions?: CopilotAction[]; mode?: Mode; note?: string | null }
+type Mode =
+  | { kind: 'live'; provider: string | null; model: string | null; cached: boolean }
+  | { kind: 'offline'; reason?: string }
+  | { kind: 'thinking' }
+type Turn = {
+  id: number
+  role: 'user' | 'copilot'
+  text?: string
+  actions?: CopilotAction[]
+  mode?: Mode
+  note?: string | null
+}
 
 /** The web gives the live path this long (the API itself gives up at ~15 s), then replays offline. */
 const LIVE_BUDGET_MS = 18_000
@@ -37,15 +53,29 @@ const STICKY_OFFLINE = new Set(['agent_disabled', 'not_found'])
 
 function ModeLabel({ mode }: { mode?: Mode }) {
   if (!mode) return null
-  if (mode.kind === 'thinking') return <p className="font-mono text-[10px] uppercase text-label">asking live AI…</p>
+  if (mode.kind === 'thinking')
+    return <p className="font-mono text-[10px] uppercase text-label">asking live AI…</p>
   if (mode.kind === 'live')
     return (
-      <p className="font-mono text-[10px] uppercase text-teal" title={mode.model ?? undefined} data-testid="copilot-mode">
-        live AI{mode.provider ? ` · ${mode.provider}` : ''}{mode.cached ? ' · cached' : ''}
+      <p
+        className="font-mono text-[10px] uppercase text-teal"
+        title={mode.model ?? undefined}
+        data-testid="copilot-mode"
+      >
+        live AI{mode.provider ? ` · ${mode.provider}` : ''}
+        {mode.cached ? ' · cached' : ''}
       </p>
     )
   return (
-    <p className="font-mono text-[10px] uppercase text-label" title={mode.reason ? `Live AI unavailable (${mode.reason}); matched offline from your words, no model call` : 'Matched offline from your words; no model call'} data-testid="copilot-mode">
+    <p
+      className="font-mono text-[10px] uppercase text-label"
+      title={
+        mode.reason
+          ? `Live AI unavailable (${mode.reason}); matched offline from your words, no model call`
+          : 'Matched offline from your words; no model call'
+      }
+      data-testid="copilot-mode"
+    >
       offline replay
     </p>
   )
@@ -65,10 +95,17 @@ function BlockedAttempts({ deal, orgId }: { deal: DealView; orgId: string }) {
         <ul className="space-y-3">
           {blocked.map((e) => (
             <li key={e.seq}>
-              <p className="text-[13px] font-medium text-danger">{blockedSummary(e, deal.terms.currency).title}</p>
-              <p className="text-[12.5px] text-ink/80">{blockedSummary(e, deal.terms.currency).reason}</p>
+              <p className="text-[13px] font-medium text-danger">
+                {blockedSummary(e, deal.terms.currency).title}
+              </p>
+              <p className="text-[12.5px] text-ink/80">
+                {blockedSummary(e, deal.terms.currency).reason}
+              </p>
               <div className="mt-1">
-                <PolicyBlockedChip violations={e.policy?.violations ?? []} currency={deal.terms.currency} />
+                <PolicyBlockedChip
+                  violations={e.policy?.violations ?? []}
+                  currency={deal.terms.currency}
+                />
               </div>
             </li>
           ))}
@@ -79,7 +116,15 @@ function BlockedAttempts({ deal, orgId }: { deal: DealView; orgId: string }) {
 }
 
 /** proposeCapture: a read-only policy dry-run. Never a button that moves money. */
-function CaptureProposal({ deal, orgId, action }: { deal: DealView; orgId: string; action: Extract<CopilotAction, { name: 'proposeCapture' }> }) {
+function CaptureProposal({
+  deal,
+  orgId,
+  action,
+}: {
+  deal: DealView
+  orgId: string
+  action: Extract<CopilotAction, { name: 'proposeCapture' }>
+}) {
   const plan = captureDryRun(deal, action)
   const q = useQuery({
     queryKey: ['deal-dry-run', orgId, deal.id, JSON.stringify(plan?.body ?? null)],
@@ -90,29 +135,46 @@ function CaptureProposal({ deal, orgId, action }: { deal: DealView; orgId: strin
   const cur = deal.terms.currency
   const ms = deal.terms.milestones.find((m) => m.key === action.milestoneKey)
   return (
-    <DealCardShell testId="capture-proposal" label="Proposal · dry run" title={`Capture on ${ms?.title ?? action.milestoneKey}`}>
+    <DealCardShell
+      testId="capture-proposal"
+      label="Proposal · dry run"
+      title={`Capture on ${ms?.title ?? action.milestoneKey}`}
+    >
       {!plan ? (
-        <p className="text-[13px] text-umber">There is no submitted version to capture against yet.</p>
+        <p className="text-[13px] text-umber">
+          There is no submitted version to capture against yet.
+        </p>
       ) : (
         <>
           <p className="text-[13px] text-ink">
             Capture <span className="t-num">{money(plan.amountMinor, cur)}</span>{' '}
-            <span className="text-umber">({plan.amountFrom === 'typed' ? 'the number you typed' : 'the signed amount'})</span> for version{' '}
-            <span className="font-mono">{plan.versionId}</span>
-            {plan.latestId && plan.versionId !== plan.latestId && <span className="text-umber"> (latest is {plan.latestId})</span>}.
+            <span className="text-umber">
+              ({plan.amountFrom === 'typed' ? 'the number you typed' : 'the signed amount'})
+            </span>{' '}
+            for version <span className="font-mono">{plan.versionId}</span>
+            {plan.latestId && plan.versionId !== plan.latestId && (
+              <span className="text-umber"> (latest is {plan.latestId})</span>
+            )}
+            .
           </p>
           <div className="mt-3">
             {q.isLoading ? (
               <Skeleton className="h-8 w-full" />
             ) : q.isError ? (
-              <p className="text-[13px] text-danger">The policy check did not answer: {(q.error as Error)?.message}</p>
+              <p className="text-[13px] text-danger">
+                The policy check did not answer: {(q.error as Error)?.message}
+              </p>
             ) : q.data?.allowed ? (
               <p className="text-[13px] text-umber">
-                Policy would allow this{q.data?.needsHumanApproval ? ' after one human tap' : ''}. The copilot does not move money: the client approves the
-                version on its card and the Money Agent captures the signed amount.
+                Policy would allow this{q.data?.needsHumanApproval ? ' after one human tap' : ''}.
+                The copilot does not move money: the client approves the version on its card and the
+                Money Agent captures the signed amount.
               </p>
             ) : (
-              <PolicyBlockedChip violations={q.data?.violations ?? []} currency={deal.terms.currency} />
+              <PolicyBlockedChip
+                violations={q.data?.violations ?? []}
+                currency={deal.terms.currency}
+              />
             )}
           </div>
         </>
@@ -121,20 +183,65 @@ function CaptureProposal({ deal, orgId, action }: { deal: DealView; orgId: strin
   )
 }
 
-function Rendered({ action, deal, orgId, onChanged }: { action: CopilotAction; deal: DealView; orgId: string; onChanged: () => void }) {
+function Rendered({
+  action,
+  deal,
+  orgId,
+  onChanged,
+}: {
+  action: CopilotAction
+  deal: DealView
+  orgId: string
+  onChanged: () => void
+}) {
   switch (action.name) {
     case 'showDeal':
       return <DealCard deal={deal} orgId={orgId} onChanged={onChanged} />
     case 'showChecks':
-      return <LiveChecksCard deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+      return (
+        <LiveChecksCard
+          deal={deal}
+          orgId={orgId}
+          milestoneKey={action.milestoneKey}
+          onChanged={onChanged}
+        />
+      )
     case 'showReviewMerge':
-      return <ReviewMergeCard deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+      return (
+        <ReviewMergeCard
+          deal={deal}
+          orgId={orgId}
+          milestoneKey={action.milestoneKey}
+          onChanged={onChanged}
+        />
+      )
     case 'showMoneyTimeline':
-      return <MoneyTimeline deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+      return (
+        <MoneyTimeline
+          deal={deal}
+          orgId={orgId}
+          milestoneKey={action.milestoneKey}
+          onChanged={onChanged}
+        />
+      )
     case 'showChangeOrder':
-      return <ChangeOrderCard deal={deal} orgId={orgId} changeOrderId={action.changeOrderId} onChanged={onChanged} />
+      return (
+        <ChangeOrderCard
+          deal={deal}
+          orgId={orgId}
+          changeOrderId={action.changeOrderId}
+          onChanged={onChanged}
+        />
+      )
     case 'showDisputeSplit':
-      return <DisputeSplitCard deal={deal} orgId={orgId} milestoneKey={action.milestoneKey} onChanged={onChanged} />
+      return (
+        <DisputeSplitCard
+          deal={deal}
+          orgId={orgId}
+          milestoneKey={action.milestoneKey}
+          onChanged={onChanged}
+        />
+      )
     case 'showBlocked':
       return <BlockedAttempts deal={deal} orgId={orgId} />
     case 'proposeCapture':
@@ -142,7 +249,8 @@ function Rendered({ action, deal, orgId, onChanged }: { action: CopilotAction; d
     default:
       return (
         <p className="text-[13px] text-umber">
-          I answer with cards: ask about the deal, the checks, the review notes, the money, a change order or the dispute split.
+          I answer with cards: ask about the deal, the checks, the review notes, the money, a change
+          order or the dispute split.
         </p>
       )
   }
@@ -160,7 +268,8 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
   }, [turns])
 
   const liveOff = useRef<string | null>(null)
-  const [lastMode, setLastMode] = useState<Mode['kind']>('offline')
+  // null until the first reply: the badge only says "offline replay" once a reply really came from it
+  const [lastMode, setLastMode] = useState<Mode['kind'] | null>(null)
 
   const ask = async (q: string) => {
     const t = q.trim()
@@ -169,19 +278,40 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
     const cid = ++seq.current
     setText('')
     const offline = (reason?: string) => {
-      setTurns((prev) => prev.map((x) => (x.id === cid ? { ...x, actions: matchIntent(t, deal), mode: { kind: 'offline', reason } } : x)))
+      setTurns((prev) =>
+        prev.map((x) =>
+          x.id === cid
+            ? { ...x, actions: matchIntent(t, deal), mode: { kind: 'offline', reason } }
+            : x,
+        ),
+      )
       setLastMode('offline')
     }
     if (liveOff.current) {
-      setTurns((prev) => [...prev, { id: uid, role: 'user', text: t }, { id: cid, role: 'copilot', actions: matchIntent(t, deal), mode: { kind: 'offline', reason: liveOff.current ?? undefined } }])
+      setTurns((prev) => [
+        ...prev,
+        { id: uid, role: 'user', text: t },
+        {
+          id: cid,
+          role: 'copilot',
+          actions: matchIntent(t, deal),
+          mode: { kind: 'offline', reason: liveOff.current ?? undefined },
+        },
+      ])
       setLastMode('offline')
       return
     }
-    setTurns((prev) => [...prev, { id: uid, role: 'user', text: t }, { id: cid, role: 'copilot', mode: { kind: 'thinking' } }])
+    setTurns((prev) => [
+      ...prev,
+      { id: uid, role: 'user', text: t },
+      { id: cid, role: 'copilot', mode: { kind: 'thinking' } },
+    ])
     try {
       const reply = await Promise.race([
         api.dealCopilot(orgId, deal.id, t),
-        new Promise<never>((_, rej) => setTimeout(() => rej(new Error('live AI timed out')), LIVE_BUDGET_MS)),
+        new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error('live AI timed out')), LIVE_BUDGET_MS),
+        ),
       ])
       if (reply?.source !== 'live') {
         const reason = reply && 'reason' in reply ? reply.reason : 'no_answer'
@@ -192,13 +322,26 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
       if (!actions.length) return offline('unusable_answer')
       setTurns((prev) =>
         prev.map((x) =>
-          x.id === cid ? { ...x, actions, note: reply.note, mode: { kind: 'live', provider: reply.provider, model: reply.model, cached: reply.cached } } : x,
+          x.id === cid
+            ? {
+                ...x,
+                actions,
+                note: reply.note,
+                mode: {
+                  kind: 'live',
+                  provider: reply.provider,
+                  model: reply.model,
+                  cached: reply.cached,
+                },
+              }
+            : x,
         ),
       )
       setLastMode('live')
     } catch (e) {
       // An API without the route (older deploy) answers 404: stop trying this visit.
-      if ((e as Error)?.message?.includes('404') || (e as { code?: string })?.code === 'not_found') liveOff.current = 'not_found'
+      if ((e as Error)?.message?.includes('404') || (e as { code?: string })?.code === 'not_found')
+        liveOff.current = 'not_found'
       offline('unreachable')
     }
   }
@@ -208,7 +351,11 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
   }
 
   return (
-    <aside className="card flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden" aria-label="Deal copilot" data-testid="deal-copilot">
+    <aside
+      className="card flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden"
+      aria-label="Deal copilot"
+      data-testid="deal-copilot"
+    >
       <div className="card-head justify-between">
         <div className="flex items-center gap-2">
           <Bot size={16} strokeWidth={1.75} className="text-teal" />
@@ -216,28 +363,48 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
         </div>
         <span
           className={`font-mono text-[10px] uppercase ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
-          title={lastMode === 'live' ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)' : 'Answers are matched offline from your words; no model call. Live AI is used when the agent is on.'}
+          title={
+            lastMode === 'live'
+              ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)'
+              : lastMode === 'offline'
+                ? 'The last answer was matched offline from your words; no model call. Live AI is used when the agent is on.'
+                : 'Ask about this deal: the live AI answers when the agent is on, otherwise an offline replay does'
+          }
           data-testid="copilot-badge"
         >
-          {lastMode === 'live' ? 'live AI' : 'offline replay'}
+          {lastMode === 'live' ? 'live AI' : lastMode === 'offline' ? 'offline replay' : 'ready'}
         </span>
       </div>
       <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
         <Motto />
         {turns.length === 0 && (
-          <p className="text-[13px] text-umber">Ask about this deal. Answers come back as cards; proposals are dry-run through policy and never move money.</p>
+          <p className="text-[13px] text-umber">
+            Ask about this deal. Answers come back as cards; proposals are dry-run through policy
+            and never move money.
+          </p>
         )}
         {turns.map((t) =>
           t.role === 'user' ? (
-            <p key={t.id} className="ml-auto w-fit max-w-[90%] rounded-xl bg-teal/10 px-3 py-2 text-[13px] text-ink">
+            <p
+              key={t.id}
+              className="ml-auto w-fit max-w-[90%] rounded-xl bg-teal/10 px-3 py-2 text-[13px] text-ink"
+            >
               {t.text}
             </p>
           ) : (
             <div key={t.id} className="space-y-3">
               <ModeLabel mode={t.mode} />
-              {t.mode?.kind === 'live' && t.note && <p className="text-[12.5px] text-umber">{t.note}</p>}
+              {t.mode?.kind === 'live' && t.note && (
+                <p className="text-[12.5px] text-umber">{t.note}</p>
+              )}
               {(t.actions ?? []).map((a, i) => (
-                <Rendered key={i} action={a} deal={deal} orgId={orgId} onChanged={() => void refresh()} />
+                <Rendered
+                  key={i}
+                  action={a}
+                  deal={deal}
+                  orgId={orgId}
+                  onChanged={() => void refresh()}
+                />
               ))}
             </div>
           ),
@@ -266,7 +433,12 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
             aria-label="Ask the deal copilot"
             className="input flex-1 !h-9 text-[13px]"
           />
-          <button type="submit" className="btn-primary !h-9" aria-label="Send" disabled={!text.trim()}>
+          <button
+            type="submit"
+            className="btn-primary !h-9"
+            aria-label="Send"
+            disabled={!text.trim()}
+          >
             <Send size={14} strokeWidth={2} />
           </button>
         </form>

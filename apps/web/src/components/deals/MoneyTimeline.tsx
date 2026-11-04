@@ -57,8 +57,12 @@ export default function MoneyTimeline({
   const ledger = useDealLedger(orgId, deal.id)
   const [busy, setBusy] = useState<string | null>(null)
   const cur = deal.terms.currency
-  const entries = (ledger.data?.entries ?? []).filter((e) => !milestoneKey || e.milestoneKey === milestoneKey)
-  const pending = deal.pendingApprovals.filter((p) => !milestoneKey || (p.action as any)?.milestoneKey === milestoneKey)
+  const entries = (ledger.data?.entries ?? []).filter(
+    (e) => !milestoneKey || e.milestoneKey === milestoneKey,
+  )
+  const pending = deal.pendingApprovals.filter(
+    (p) => !milestoneKey || (p.action as any)?.milestoneKey === milestoneKey,
+  )
 
   const release = async (key: string) => {
     setBusy(key)
@@ -75,7 +79,9 @@ export default function MoneyTimeline({
 
   const t = ledger.data?.totals
   // invoice lines move no money, so the API's invoicedMinor counts 0; show what was billed
-  const invoicedMinor = entries.filter((e) => e.type === 'invoice').reduce((a, e) => a + (e.amountMinor || 0), 0)
+  const invoicedMinor = entries
+    .filter((e) => e.type === 'invoice')
+    .reduce((a, e) => a + (e.amountMinor || 0), 0)
   return (
     <DealCardShell
       testId="money-timeline"
@@ -84,13 +90,19 @@ export default function MoneyTimeline({
       meta={
         <>
           {ledger.live && (
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-teal" title="Live: new ledger lines appear as they are written">
+            <span
+              className="inline-flex items-center gap-1 font-mono text-[11px] text-teal"
+              title="Live: new ledger lines appear as they are written"
+            >
               <Radio size={12} strokeWidth={2} /> LIVE
             </span>
           )}
           {ledger.data &&
             (ledger.data.chain.ok ? (
-              <span className="status-chip bg-st-scheduled-bg text-st-scheduled" data-testid="chain-ok">
+              <span
+                className="status-chip bg-st-scheduled-bg text-st-scheduled"
+                data-testid="chain-ok"
+              >
                 <Link2 size={12} strokeWidth={2} /> Chain verified
               </span>
             ) : (
@@ -115,9 +127,14 @@ export default function MoneyTimeline({
               <Stat label="Held" value={money(t.heldMinor, cur)} />
               <Stat label="Captured" value={money(t.capturedMinor, cur)} tone="teal" />
               <Stat label="Paid out" value={money(t.paidOutMinor, cur)} />
-              <Stat label="Blocked" value={t.blockedCount} tone={t.blockedCount ? 'danger' : undefined} />
+              <Stat
+                label="Blocked"
+                value={t.blockedCount}
+                tone={t.blockedCount ? 'danger' : undefined}
+              />
             </div>
           )}
+          <PaypalHolds deal={deal} milestoneKey={milestoneKey} />
           {invoicedMinor > 0 && (
             <p className="mt-3 flex items-baseline justify-between gap-2 rounded-lg bg-canvas px-3 py-2 text-[12px] text-umber">
               <span>Invoiced for change orders (not charged until paid)</span>
@@ -128,9 +145,16 @@ export default function MoneyTimeline({
           {pending.length > 0 && (
             <div className="mt-4 space-y-2">
               {pending.map((p) => (
-                <div key={p.key} className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2">
+                <div
+                  key={p.key}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2"
+                >
                   <span className="text-[13px] text-ink">{p.reason}</span>
-                  <button className="btn-primary ml-auto !h-8 text-[12px]" disabled={busy === p.key} onClick={() => release(p.key)}>
+                  <button
+                    className="btn-primary ml-auto !h-8 text-[12px]"
+                    disabled={busy === p.key}
+                    onClick={() => release(p.key)}
+                  >
                     Release (one tap)
                   </button>
                 </div>
@@ -139,7 +163,9 @@ export default function MoneyTimeline({
           )}
 
           {entries.length === 0 ? (
-            <p className="mt-4 text-[13px] text-umber">No money has moved yet. The first line appears when the client funds a milestone.</p>
+            <p className="mt-4 text-[13px] text-umber">
+              No money has moved yet. The first line appears when the client funds a milestone.
+            </p>
           ) : (
             <ol className="relative mt-5 space-y-4 border-l border-line pl-5" aria-label="Ledger">
               {entries.map((e) => (
@@ -169,12 +195,26 @@ export default function MoneyTimeline({
   )
 }
 
-function LineHead({ entry: e, currency, amount }: { entry: DealLedgerEntry; currency: string; amount?: boolean }) {
+function LineHead({
+  entry: e,
+  currency,
+  amount,
+}: {
+  entry: DealLedgerEntry
+  currency: string
+  amount?: boolean
+}) {
   const showAmount = amount ?? (e.moved && e.amountMinor > 0)
   return (
     <div className="flex flex-wrap items-baseline gap-x-2">
-      <span className={`text-[13px] font-medium ${e.type === 'blocked' ? 'text-danger' : 'text-ink'}`}>{LABEL[e.type]}</span>
-      {showAmount && <span className="t-num !text-[14px]">{money(e.amountMinor, e.currency || currency)}</span>}
+      <span
+        className={`text-[13px] font-medium ${e.type === 'blocked' ? 'text-danger' : 'text-ink'}`}
+      >
+        {LABEL[e.type]}
+      </span>
+      {showAmount && (
+        <span className="t-num !text-[14px]">{money(e.amountMinor, e.currency || currency)}</span>
+      )}
       <span className="font-mono text-[11px] text-label">
         #{e.seq} · {e.milestoneKey} · {when(e.at)}
       </span>
@@ -186,8 +226,9 @@ function LineHead({ entry: e, currency, amount }: { entry: DealLedgerEntry; curr
 function InvoiceLine({ entry: e, deal }: { entry: DealLedgerEntry; deal: DealView }) {
   const cur = e.currency || deal.terms.currency
   const co =
-    deal.changeOrders.find((c) => c.milestoneKey === e.milestoneKey && c.amountMinor === e.amountMinor && c.invoiceId) ??
-    deal.changeOrders.find((c) => c.milestoneKey === e.milestoneKey && c.invoiceId)
+    deal.changeOrders.find(
+      (c) => c.milestoneKey === e.milestoneKey && c.amountMinor === e.amountMinor && c.invoiceId,
+    ) ?? deal.changeOrders.find((c) => c.milestoneKey === e.milestoneKey && c.invoiceId)
   const item = co ? deal.terms.rateCard.find((r) => r.id === co.rateCardItemId) : undefined
   const id = co?.invoiceId ?? e.paypalRef
   return (
@@ -199,7 +240,9 @@ function InvoiceLine({ entry: e, deal }: { entry: DealLedgerEntry; deal: DealVie
             {co.quantity} × {item.label} @ {money(item.unitPriceMinor, cur)}
           </span>
         )}
-        <span className="status-chip !h-5 bg-ink/[0.05] !text-[11px] text-umber">{invoiceSent(id) ? 'Sent · not paid yet' : 'Draft · not charged'}</span>
+        <span className="status-chip !h-5 bg-ink/[0.05] !text-[11px] text-umber">
+          {invoiceSent(id) ? 'Sent · not paid yet' : 'Draft · not charged'}
+        </span>
         {id && <PaypalInvoiceId id={id} />}
       </div>
       <Details>{e.explanation}</Details>
@@ -223,11 +266,20 @@ function BlockedLine({ entry: e, currency }: { entry: DealLedgerEntry; currency:
       {s.ruleCount > 0 && (
         <details className="group mt-1.5">
           <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded text-[12px] font-medium text-teal hover:text-teal-press [&::-webkit-details-marker]:hidden">
-            <ChevronRight size={13} strokeWidth={2} className="transition-transform group-open:rotate-90" aria-hidden="true" />
+            <ChevronRight
+              size={13}
+              strokeWidth={2}
+              className="transition-transform group-open:rotate-90"
+              aria-hidden="true"
+            />
             {s.ruleCount} policy {s.ruleCount === 1 ? 'rule' : 'rules'} failed
           </summary>
           <div className="mt-2">
-            <PolicyBlockedChip violations={e.policy?.violations ?? []} currency={e.currency || currency} showFooter={false} />
+            <PolicyBlockedChip
+              violations={e.policy?.violations ?? []}
+              currency={e.currency || currency}
+              showFooter={false}
+            />
           </div>
         </details>
       )}
@@ -240,10 +292,55 @@ function Details({ children }: { children: string }) {
   return (
     <details className="group mt-1">
       <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] text-umber hover:text-ink [&::-webkit-details-marker]:hidden">
-        <ChevronRight size={12} strokeWidth={2} className="transition-transform group-open:rotate-90" aria-hidden="true" />
+        <ChevronRight
+          size={12}
+          strokeWidth={2}
+          className="transition-transform group-open:rotate-90"
+          aria-hidden="true"
+        />
         Details
       </summary>
       <p className="mt-1 text-[12px] leading-relaxed text-umber">{children}</p>
     </details>
+  )
+}
+
+/**
+ * The PayPal objects behind each milestone: the hold (authorization id), every
+ * capture id, and whether the rest of the hold was voided. Real sandbox ids are
+ * tagged "PayPal sandbox"; anything simulated says so on its own tag.
+ */
+function PaypalHolds({ deal, milestoneKey }: { deal: DealView; milestoneKey?: string }) {
+  const rows = deal.milestones.filter(
+    (m) => (!milestoneKey || m.key === milestoneKey) && m.funding?.authorizationId,
+  )
+  if (!rows.length) return null
+  return (
+    <div className="mt-4 space-y-2 rounded-lg bg-canvas px-3 py-2.5" data-testid="paypal-holds">
+      <p className="micro-label">PayPal ids</p>
+      {rows.map((m) => {
+        const title = deal.terms.milestones.find((t) => t.key === m.key)?.title ?? m.key
+        const f = m.funding!
+        return (
+          <div key={m.key} className="min-w-0 space-y-1 text-[12px] text-umber">
+            <p className="truncate font-medium text-ink">{title}</p>
+            <p className="flex min-w-0 flex-wrap items-center gap-x-2">
+              <span className="w-[86px] shrink-0">Authorization</span>
+              <PaypalId id={f.authorizationId!} className="max-w-full" />
+              <span className="font-mono text-[10.5px] uppercase text-label">{f.status}</span>
+            </p>
+            {m.captures.map((c) => (
+              <p key={c.id} className="flex min-w-0 flex-wrap items-center gap-x-2">
+                <span className="w-[86px] shrink-0">Capture</span>
+                <PaypalId id={c.id} className="max-w-full" />
+                <span className="t-num !text-[12px]">
+                  {money(c.amountMinor, deal.terms.currency)}
+                </span>
+              </p>
+            ))}
+          </div>
+        )
+      })}
+    </div>
   )
 }

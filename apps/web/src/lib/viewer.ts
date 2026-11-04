@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from './auth'
 import type { RoleName } from './types'
+import { initialsOf } from './initials'
 
 export interface Viewer {
   id: string
@@ -22,17 +23,23 @@ export interface Viewer {
   profileImage?: string | null
 }
 
-function toViewer(user: { id?: string; name?: string; email?: string; role?: string; title?: string; photoUrl?: string | null; profileImage?: string | null } | null | undefined): Viewer | null {
+function toViewer(
+  user:
+    | {
+        id?: string
+        name?: string
+        email?: string
+        role?: string
+        title?: string
+        photoUrl?: string | null
+        profileImage?: string | null
+      }
+    | null
+    | undefined,
+): Viewer | null {
   if (!user?.id) return null
   const name = user.name ?? ''
-  const initials =
-    name
-      .split(/\s+/)
-      .map((w) => w[0] || '')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() || '?'
+  const initials = initialsOf(name)
   return {
     id: user.id,
     name,

@@ -17,6 +17,7 @@ import type { DealView } from '../../contracts/types'
 import { useTeam } from '../../lib/data'
 import { money } from '../../lib/deals'
 import { DealCardShell } from './common'
+import { initialsOf } from '../../lib/initials'
 
 type Row = { userId: string; pct: string; label: string }
 
@@ -24,7 +25,15 @@ const shareOf = (minor: number, bp: number) => Math.floor((minor * bp + 5000) / 
 const pctText = (bp: number) => `${(bp / 100).toFixed(bp % 100 ? 2 : 0)}%`
 const toBp = (pct: string) => Math.round(Number(pct) * 100)
 
-export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealView; orgId: string; onChanged?: () => void }) {
+export default function DealTeamCard({
+  deal,
+  orgId,
+  onChanged,
+}: {
+  deal: DealView
+  orgId: string
+  onChanged?: () => void
+}) {
   const toast = useToast()
   const { team } = useTeam()
   const [editing, setEditing] = useState<string | null>(null)
@@ -39,14 +48,26 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
 
   const start = (key: string) => {
     const t = deal.terms.milestones.find((m) => m.key === key)
-    setRows((t?.payees || []).map((p) => ({ userId: p.userId, pct: String(p.shareBp / 100), label: p.displayName || '' })))
+    setRows(
+      (t?.payees || []).map((p) => ({
+        userId: p.userId,
+        pct: String(p.shareBp / 100),
+        label: p.displayName || '',
+      })),
+    )
     setProblems([])
     setEditing(key)
   }
   const totalBp = rows.reduce((a, r) => a + (Number.isFinite(toBp(r.pct)) ? toBp(r.pct) : 0), 0)
 
   const save = async (key: string) => {
-    const input = { payees: rows.map((r) => ({ userId: r.userId, shareBp: toBp(r.pct), label: r.label.trim() || undefined })) }
+    const input = {
+      payees: rows.map((r) => ({
+        userId: r.userId,
+        shareBp: toBp(r.pct),
+        label: r.label.trim() || undefined,
+      })),
+    }
     setBusy(true)
     try {
       const plan = await api.checkDealTeam(orgId, deal.id, key, input)
@@ -55,11 +76,21 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
         return
       }
       await api.setDealTeam(orgId, deal.id, key, input)
-      toast('success', 'Team saved', plan.clearsSignatures ? 'Signatures were cleared: both sides sign the new split.' : 'Both sides sign this split.')
+      toast(
+        'success',
+        'Team saved',
+        plan.clearsSignatures
+          ? 'Signatures were cleared: both sides sign the new split.'
+          : 'Both sides sign this split.',
+      )
       setEditing(null)
       onChanged?.()
     } catch (e: any) {
-      setProblems(Array.isArray(e?.details) ? e.details.map((v: any) => v.message) : [e?.message || 'Could not save the team'])
+      setProblems(
+        Array.isArray(e?.details)
+          ? e.details.map((v: any) => v.message)
+          : [e?.message || 'Could not save the team'],
+      )
     } finally {
       setBusy(false)
     }
@@ -111,12 +142,17 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
                       aria-label="Member"
                       className="input !h-9 min-w-[180px] flex-1"
                       value={r.userId}
-                      onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, userId: e.target.value } : x)))}
+                      onChange={(e) =>
+                        setRows(
+                          rows.map((x, j) => (j === i ? { ...x, userId: e.target.value } : x)),
+                        )
+                      }
                     >
                       <option value="">Choose a member…</option>
                       {choices.map((m) => (
                         <option key={m.id} value={m.id}>
-                          {m.name} ({m.role}{m.pending ? ', pending' : ''})
+                          {m.name} ({m.role}
+                          {m.pending ? ', pending' : ''})
                         </option>
                       ))}
                     </select>
@@ -126,7 +162,9 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
                       placeholder="Editor, designer…"
                       maxLength={40}
                       value={r.label}
-                      onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                      onChange={(e) =>
+                        setRows(rows.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                      }
                     />
                     <div className="flex items-center gap-1">
                       <input
@@ -134,12 +172,16 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
                         className="input !h-9 w-20 text-right"
                         inputMode="decimal"
                         value={r.pct}
-                        onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))}
+                        onChange={(e) =>
+                          setRows(rows.map((x, j) => (j === i ? { ...x, pct: e.target.value } : x)))
+                        }
                       />
                       <span className="text-[13px] text-umber">%</span>
                     </div>
                     <span className="t-num w-20 text-right text-[12.5px] text-umber">
-                      {Number.isFinite(toBp(r.pct)) && toBp(r.pct) > 0 ? money(shareOf(t.amountMinor, toBp(r.pct)), cur) : '-'}
+                      {Number.isFinite(toBp(r.pct)) && toBp(r.pct) > 0
+                        ? money(shareOf(t.amountMinor, toBp(r.pct)), cur)
+                        : '-'}
                     </span>
                     <button
                       type="button"
@@ -152,10 +194,18 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
                   </div>
                 ))}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <button type="button" className="btn-ghost btn-xs text-teal" onClick={() => setRows([...rows, { userId: '', pct: '', label: '' }])} disabled={rows.length >= 10}>
+                  <button
+                    type="button"
+                    className="btn-ghost btn-xs text-teal"
+                    onClick={() => setRows([...rows, { userId: '', pct: '', label: '' }])}
+                    disabled={rows.length >= 10}
+                  >
                     <Plus size={13} strokeWidth={2} /> Add person
                   </button>
-                  <span className={`t-num text-[12.5px] ${totalBp === 10000 ? '!text-teal' : '!text-danger'}`} data-testid="team-total">
+                  <span
+                    className={`t-num text-[12.5px] ${totalBp === 10000 ? '!text-teal' : '!text-danger'}`}
+                    data-testid="team-total"
+                  >
                     Total {pctText(totalBp)}
                   </span>
                 </div>
@@ -167,10 +217,20 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
                   </ul>
                 )}
                 <div className="flex justify-end gap-2 pt-1">
-                  <button type="button" className="btn-ghost btn-xs" onClick={() => setEditing(null)} disabled={busy}>
+                  <button
+                    type="button"
+                    className="btn-ghost btn-xs"
+                    onClick={() => setEditing(null)}
+                    disabled={busy}
+                  >
                     Cancel
                   </button>
-                  <button type="button" className="btn-primary btn-xs" onClick={() => void save(t.key)} disabled={busy || rows.some((r) => !r.userId)}>
+                  <button
+                    type="button"
+                    className="btn-primary btn-xs"
+                    onClick={() => void save(t.key)}
+                    disabled={busy || rows.some((r) => !r.userId)}
+                  >
                     {busy ? 'Checking…' : 'Save team'}
                   </button>
                 </div>
@@ -181,14 +241,24 @@ export default function DealTeamCard({ deal, orgId, onChanged }: { deal: DealVie
                   const m = memberOf(p.userId)
                   return (
                     <li key={p.userId} className="flex items-center gap-3 px-3 py-2.5">
-                      <Avatar initials={m?.initials ?? (p.displayName || '?').slice(0, 2).toUpperCase()} size="sm" tone="tint" />
+                      <Avatar
+                        initials={m?.initials ?? initialsOf(p.displayName)}
+                        size="sm"
+                        tone="tint"
+                      />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium text-ink">{m?.name ?? p.displayName ?? 'Payee'}</p>
-                        <p className="truncate text-[11.5px] text-umber">{p.displayName || (m ? m.role : 'payee')}</p>
+                        <p className="truncate text-[13px] font-medium text-ink">
+                          {m?.name ?? p.displayName ?? 'Payee'}
+                        </p>
+                        <p className="truncate text-[11.5px] text-umber">
+                          {p.displayName || (m ? m.role : 'payee')}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className="t-num text-[14px]">{pctText(p.shareBp)}</p>
-                        <p className="t-num text-[11.5px] text-umber">{money(shareOf(t.amountMinor, p.shareBp), cur)}</p>
+                        <p className="t-num text-[11.5px] text-umber">
+                          {money(shareOf(t.amountMinor, p.shareBp), cur)}
+                        </p>
                       </div>
                     </li>
                   )
