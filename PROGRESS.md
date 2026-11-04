@@ -31,6 +31,22 @@ Smoke tests (from the build sandbox, keys injected on the wire): River `Qwen/Qwe
 
 To turn it on: create the Render service from `render.yaml` (env: `AGENT_SHARED_SECRET`, `RIVER_API_KEY`, `NVIDIA_API_KEY`), then on the API service set `AGENT_ENABLED=true`, `AGENT_URL`, the same `AGENT_SHARED_SECRET`, and (required by the existing boot checks once the agent is on) `SERVICE_JWT_SECRET` and `INTERNAL_API_TOKEN`.
 
+## Real sandbox money: pre-approved pool, real capture and void (Nov 4, 2026)
+
+Goal: real buyer approval, real authorization, real capture on approve, real void on reject/dispute, with no buyer login needed by judges. Code is live (Render + Vercel); the pool is **empty** because PayPal refused the only sandbox buyer we have (see Blocker).
+
+| What | Where | Commit |
+|---|---|---|
+| Pre-approved authorization pool: `GET /api/v1/paypal/pool/return?token=` (PayPal's return URL) and `POST /api/v1/paypal/pool/claim` verify the order with PayPal (`custom_id` `yv-auth-pool:*`, intent `AUTHORIZE`, buyer-approved), call `/v2/checkout/orders/{id}/authorize` and keep the real authorization (`PaypalAuthPool`). `GET /api/v1/paypal/pool` = ready/used counts. Demo deals (`deal_demo_*`) draw one per milestone (same amount, oldest first, valid 2+ days, re-checked with PayPal; dead rows marked invalid). Capture on approve, partial capture + void on a split or kill fee are then real sandbox calls. SIM- fallback only when the pool is empty, labelled "buyer approval simulated (pre-approved pool empty)". | `modules/deals/pool.cts`, `lib/paypal-sandbox.cts`, `lib/paypal-rest.cts` (`getOrderDetail`), `lib/models.cts`, `paypal.cts`, `http.cts`, `app.js` | `ce8ba9a` |
+| Demo seed keeps an untouched real-sandbox deal across reboots (Render free restarts would otherwise burn two authorizations per boot); `POST /api/v1/demo/deal/reset` (judge only, 1 per 2 min) forces a fresh pair. Engine: one reauthorization per hold on PayPal (`maxReauthorizations: 1`; the mock keeps unlimited). | `demo.cts`, `lib/engine.cts` | `ce8ba9a` |
+| Refill script: `scripts/paypal-auth-pool.cjs create --pairs 3 | claim <id...> | status` (sandbox only). | `apps/api/scripts/paypal-auth-pool.cjs` | `ce8ba9a` |
+| Tests: stateful fake PayPal; claim rules, re-check + skip of a voided row, seed on real holds (real capture id, reused on reboot, split -> real partial capture + void), SIM- only when empty, reauthorize once. | `tests/sandbox-pool.test.js` | `ce8ba9a` |
+| Web: "PayPal ids" panel on the money timeline (authorization + capture ids per milestone, tagged `PayPal sandbox`); copilot badge reads `ready` until a reply and `offline replay` only after a replayed reply; avatar initials skip bracketed text ("Ravi (demo editor)" -> R, was "R("). | `components/deals/MoneyTimeline.tsx`, `DealCopilot.tsx`, `lib/initials.ts`, `lib/deals.ts` | `65f7215` |
+
+Live (Nov 4, 11:35-11:50 IST): Render deploy of `65f7215` live; Vercel redeployed. `GET /api/v1/paypal/pool` -> `{ready: 0}`. Six real sandbox orders created for the pool (3 x $400, 3 x $300, e.g. `41V85181AX0023443`); the API sees them (`claim` -> `order_not_approved`, same merchant). Demo-login -> deal on the SIM fallback, every line labelled "(pre-approved pool empty)"; reset endpoint 200 then 429; split on reel2 -> `SIM-CAPTURE` + void + payout. Payout retried for real on each seed: still `PAYOUT_NOT_AVAILABLE`, so payouts stay simulated.
+
+**Blocker:** the sandbox buyer `sb-alnrx53646948@personal.example.com` cannot pay this merchant: after login PayPal shows `UNSUPPORTED_PAYEE_CURRENCY` ("This seller doesn't accept payments in your currency") for USD and EUR orders; INR orders are refused at creation; card payment is `PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING`. Most likely an India buyer paying an India merchant (PayPal has no domestic India payments). Fix: in developer.paypal.com > Testing Tools > Sandbox Accounts, create a **Personal** account with country **United States**, then run `create`, approve each link with it, and `status`.
+
 ## Real PayPal sandbox (Nov 3, 2026)
 
 `PAYPAL_MODE=sandbox` now runs the demo on the real PayPal sandbox (app `APP-7ML73805E1390660U`). Mock mode is unchanged.
