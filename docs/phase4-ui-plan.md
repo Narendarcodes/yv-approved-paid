@@ -1,6 +1,11 @@
 # Phase 4 UI plan: CopilotKit generative UI for "Approved = Paid"
 
-Status (Nov 2, 2026): **built**, except the CopilotKit packages themselves (see section 4 "As built"). Backend gaps (section 5) closed earlier the same day. `apps/web` now has `/deals`, `/deals/:dealId` (+ the PayPal fund return route), every card in section 3, the "Try the demo" button, and a deal copilot panel that renders the cards from actions with an offline replay. `contracts/schemas/deal.schema.json` holds the shared types. See PROGRESS.md for commits.
+Status (Nov 4, 2026): **built and live**, except the CopilotKit packages themselves (see section 4 "As built"). `apps/web` has `/deals`, `/deals/:dealId` (+ the PayPal fund return route), every card in section 3, the "Try the demo" button, and a deal copilot panel that renders the cards from actions. Since Nov 2:
+
+- **Real PayPal sandbox money (Nov 4):** holds are real Orders v2 `AUTHORIZE` orders approved by a sandbox buyer; approve = real capture, split / kill / reject = real partial capture + void, reauthorize after the 3-day honor period, INV2 invoices for change orders. The judge demo draws holds from a pre-approved authorization pool (labelled `SIM-` only when it is empty); payouts stay simulated (`SIM-PAYOUT`). The money timeline has a "PayPal ids" panel. Details: [paypal-sandbox.md](paypal-sandbox.md).
+- **Live LLM copilot (Nov 3):** River AI -> NVIDIA NIM through the lean agent on Render, with the offline replay as the labelled fallback. The badge reads "ready" until a reply, "offline replay" only after a replayed one.
+
+Backend gaps (section 5) closed on Nov 2. `contracts/schemas/deal.schema.json` holds the shared types. See PROGRESS.md for commits.
 
 Motto on every screen: **AI checks facts, people own taste, the deal decides the money.**
 
@@ -64,7 +69,7 @@ Each card is a plain React component taking `{ deal, milestoneKey }` (or the age
 
 - **Decision: no CopilotKit packages yet.** `@copilotkit/react-core` 1.83 pulls lit, katex, recharts, streamdown, radix, a web inspector and a `maplibre-gl` peer into the web bundle; `@copilotkit/runtime` 1.83 pulls about 40 packages into the API (graphql-yoga, type-graphql, the AI SDK with Google/Vertex/Anthropic providers, langgraph, MCP SDK, Segment analytics, a license verifier). The API job gates on `npm audit --omit=dev --audit-level=high`, so each of those transitive packages becomes a CI risk; the bundled Google/Vertex providers are code we would never call (no Google sign-in LLMs); and the demo has to work with no LLM anyway. Not installed or audited here: this is a judgement from the published dependency lists.
 - **What ships instead:** `apps/web/src/lib/copilot.tsx` defines the same actions one to one (`showDeal`, `showChecks`, `showReviewMerge`, `showMoneyTimeline`, `showChangeOrder`, `showDisputeSplit`, `showBlocked`, and `proposeCapture` as a read-only `policy-check` dry-run). Parameters are ids only; a typed number is used only in a dry-run and labelled as the person's. `components/deals/DealCopilot.tsx` renders the cards inline. The default path is the **offline replay**: suggested prompts and typed questions are matched deterministically, no model call. Moving to CopilotKit later means registering these actions with `useCopilotAction` / `useRenderToolCall` and mounting a runtime; the cards do not change.
-- **LLM path (not wired yet):** when added, it should be one path: `POST /api/v1/organizations/:org/deals/:dealId/copilot` (Node, auth + org access) -> `services/agent` -> `llm_router.py` (River AI -> NVIDIA NIM -> OmniRoute, disk cache, identity assert), returning an action name + ids only, with the offline matcher as the fallback and replay cache.
+- **LLM path (wired Nov 3, live):** one path: `POST /api/v1/organizations/:org/deals/:dealId/copilot` (Node, auth + org access) -> `services/agent` -> `llm_router.py` (River AI -> NVIDIA NIM -> OmniRoute, disk cache, identity assert), returning an action name + ids only, with the offline matcher as the fallback and replay cache.
 
 ## 5. Gaps to close before the UI build (all closed Nov 2, 2026)
 
@@ -77,13 +82,13 @@ Each card is a plain React component taking `{ deal, milestoneKey }` (or the age
 
 ## 6. Demo flow judges will click
 
-1. **Try the demo** on the login page -> lands on `/deals`, opens "Diwali launch reels" (seeded). DealCard: both sides signed the hash-locked terms; reel 1 is **held** on PayPal (authorization, not a charge).
+1. **Try the demo** on the login page -> lands on `/deals`, opens "Diwali launch reels" (seeded). DealCard: both sides signed the hash-locked terms; reel 1 is **held** on PayPal (a real sandbox authorization from the pre-approved pool, not a charge).
 2. Editor submits v1 -> **LiveChecksCard** fills in: length, hook, logo window, loudness. Loudness fails at -20.1 LUFS with a timestamped screenshot; "feels festive" is marked Taste for people.
 3. Client types two notes ("too quiet", "make it more festive") -> **ReviewMergeCard** tags "too quiet" as Fix (cites the failed loudness line) and "more festive" as Taste (costs a revision round, not pay).
 4. Client asks for an extra 15s cut -> **ChangeOrderCard** prices it from the signed rate card ($60 x 1); one tap accepts it and a PayPal invoice is drafted.
 5. Editor submits v2, every check passes -> client taps **Approve v2** -> **MoneyTimeline**: capture of exactly the signed $400, payouts split 70/30 to the two payees, ledger chain verified.
 6. Judge asks the copilot to "capture $450" or "pay the old version" -> the proposal is dry-run and comes back **blocked** with `P3_amount` / `P6_version` on the timeline, "No money moved".
-7. Reel 2 goes to **DisputeSplitCard**: 4 of 5 lines met -> proposed 80%; the button stays disabled until both sides accept the same number; then the Money Agent captures 80% and voids the rest.
+7. Reel 2 goes to **DisputeSplitCard**: 4 of 5 lines met -> proposed 80%; the button stays disabled until both sides accept the same number; then the Money Agent captures 80% and voids the rest (a real sandbox partial capture + void; the ids show in the "PayPal ids" panel).
 8. Silence path (optional): fast-forward the clock on the seeded deal; the review window lapses and a version that passed every check auto-captures.
 
 ## 7. Out of scope for Phase 4

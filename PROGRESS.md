@@ -2,6 +2,23 @@
 
 Motto: **AI checks facts, people own taste, the deal decides the money.**
 
+## Status at a glance (Nov 4, 2026)
+
+| Piece | Status |
+|---|---|
+| PayPal Orders v2 hold (`AUTHORIZE`), buyer approval, authorization | **Real** (sandbox; the judge demo uses a pre-approved authorization pool) |
+| Full capture on approve; partial capture + void on split / kill / reject | **Real** (sandbox) |
+| Reauthorize after the 3-day honor period (once per hold) | **Real** (sandbox) |
+| Change-order invoices (Invoicing v2, sent) | **Real** (sandbox) |
+| Demo with an empty pool | Simulated, labelled `SIM-` ("pre-approved pool empty") |
+| Payouts | Simulated, labelled `SIM-PAYOUT` (`PAYOUT_NOT_AVAILABLE` for the India sandbox merchant) |
+| Deal copilot | Live AI (River `Qwen/Qwen3.8-27B-FP8` -> NVIDIA NIM fallback), offline replay as the labelled fallback |
+| Hosting | Render (API + deal agent), Vercel (web), MongoDB Atlas |
+
+Verified live: reel 1 auth `75944066TD8606012` -> capture `6CX25059D6955990M` ($400 COMPLETED); split auth `7LJ85033A19963041` -> partial capture `8L3248257U421871X` ($240), then VOIDED. Flow, pool refill and limits: [docs/paypal-sandbox.md](docs/paypal-sandbox.md). Demo video: https://youtu.be/b_RgJWPBiKY.
+
+Sections below are in reverse date order; older sections describe the state on their own date (each one notes what later work superseded).
+
 ## Team assignment (Nov 3, 2026)
 
 Who does the work, and who gets paid for it. Live on the demo.
@@ -16,9 +33,9 @@ Who does the work, and who gets paid for it. Live on the demo.
 
 Not done: a signed deal's team cannot be changed at all (the existing change-order flow prices extra work from the rate card; it does not move payees). Changing who is paid after signing means a new deal.
 
-## Live AI agents for the deal copilot (Nov 3, 2026): code ready, not deployed
+## Live AI agents for the deal copilot (Nov 3, 2026)
 
-The copilot can now answer through a real LLM, and still falls back to the offline replay. Nothing is deployed to Render yet and the API still runs with `AGENT_ENABLED=false`, so production keeps the offline replay until the agent service and keys are added.
+The copilot answers through a real LLM, and still falls back to the offline replay. *Update:* the lean deal agent now runs on Render next to the API (River AI -> NVIDIA NIM); when it is slow or down the copilot answers as a labelled offline replay. When this section was written the agent was not deployed yet.
 
 | What | Where | Commit |
 |---|---|---|
@@ -43,7 +60,7 @@ Goal: real buyer approval, real authorization, real capture on approve, real voi
 | Tests: stateful fake PayPal; claim rules, re-check + skip of a voided row, seed on real holds (real capture id, reused on reboot, split -> real partial capture + void), SIM- only when empty, reauthorize once. | `tests/sandbox-pool.test.js` | `ce8ba9a` |
 | Web: "PayPal ids" panel on the money timeline (authorization + capture ids per milestone, tagged `PayPal sandbox`); copilot badge reads `ready` until a reply and `offline replay` only after a replayed reply; avatar initials skip bracketed text ("Ravi (demo editor)" -> R, was "R("). | `components/deals/MoneyTimeline.tsx`, `DealCopilot.tsx`, `lib/initials.ts`, `lib/deals.ts` | `65f7215` |
 
-Live (Nov 4, 11:35-11:50 IST): Render deploy of `65f7215` live; Vercel redeployed. `GET /api/v1/paypal/pool` -> `{ready: 0}`. Six real sandbox orders created for the pool (3 x $400, 3 x $300, e.g. `41V85181AX0023443`); the API sees them (`claim` -> `order_not_approved`, same merchant). Demo-login -> deal on the SIM fallback, every line labelled "(pre-approved pool empty)"; reset endpoint 200 then 429; split on reel2 -> `SIM-CAPTURE` + void + payout. Payout retried for real on each seed: still `PAYOUT_NOT_AVAILABLE`, so payouts stay simulated.
+Live, before the pool was filled (Nov 4, 11:35-11:50 IST): Render deploy of `65f7215` live; Vercel redeployed. `GET /api/v1/paypal/pool` -> `{ready: 0}`. Six real sandbox orders created for the pool (3 x $400, 3 x $300, e.g. `41V85181AX0023443`); the API sees them (`claim` -> `order_not_approved`, same merchant). Demo-login -> deal on the SIM fallback, every line labelled "(pre-approved pool empty)"; reset endpoint 200 then 429; split on reel2 -> `SIM-CAPTURE` + void + payout. Payout retried for real on each seed: still `PAYOUT_NOT_AVAILABLE`, so payouts stay simulated.
 
 **Earlier blocker (resolved Nov 4):** the first sandbox buyer (an India personal account) got `UNSUPPORTED_PAYEE_CURRENCY` ("This seller doesn't accept payments in your currency") on every order. A **United States** personal sandbox buyer approves the same orders fine. Note: a browser that still holds the India buyer's PayPal session shows the same error before any login form; approve in a fresh browser session (sign in at `sandbox.paypal.com/us/signin` first, then open the approve links).
 
@@ -68,6 +85,8 @@ Live (Nov 4, 11:35-11:50 IST): Render deploy of `65f7215` live; Vercel redeploye
 
 ## Real PayPal sandbox (Nov 3, 2026)
 
+> **Superseded Nov 4, 2026:** buyer approval, authorization, capture and void are now **real** for the demo (pre-approved pool, section above). The simulated approval described here is only the labelled fallback when the pool is empty.
+
 `PAYPAL_MODE=sandbox` now runs the demo on the real PayPal sandbox (app `APP-7ML73805E1390660U`). Mock mode is unchanged.
 
 | What | Where | Commit |
@@ -77,7 +96,7 @@ Live (Nov 4, 11:35-11:50 IST): Render deploy of `65f7215` live; Vercel redeploye
 
 Verified from the build sandbox against `api-m.sandbox.paypal.com`: OAuth token for the app; order `6HK390168K880724C` (PAYER_ACTION_REQUIRED) -> `SIM-AUTH-6HK390168K880724C` -> `SIM-CAPTURE-0001` -> void; payout refused `PAYOUT_NOT_AVAILABLE` -> `SIM-PAYOUT-0002`; invoice `INV2-LZDF-QZ68-R845-7BJY` created and sent.
 
-Not real (and labelled so): buyer approval, the authorization/capture that depends on it, and payouts (sandbox account country).
+Not real on Nov 3 (and labelled so): buyer approval, the authorization/capture that depends on it, and payouts (sandbox account country). Since Nov 4 only payouts (and the empty-pool fallback) remain simulated.
 
 ## Phase 4 backend (Nov 2, 2026): done
 
@@ -106,7 +125,7 @@ DEMO_MODE=1 PAYPAL_MODE=mock npm run dev      # seeds "Diwali launch reels" on b
 curl -X POST localhost:3000/api/v1/auth/demo-login -c jar.txt   # judge cookie session
 ```
 
-## Next phase (not started)
+## Next phase (written Nov 2; all done since: cards, `/deals` pages, Try the demo, live ledger, `deal.schema.json`, `node_deals.py` wiring, live LLM copilot)
 
 - **CopilotKit generative-UI cards in `apps/web`** (DealCard, LiveChecksCard, ReviewMergeCard, MoneyTimeline, ChangeOrderCard, DisputeSplitCard, PolicyBlockedChip), the `/deals` pages, the "Try the demo" button on `/login` calling `/auth/demo-login`, the MoneyTimeline subscribing to `deal:join` / `deal:ledger`, and the CopilotKit runtime route (section 4 of the plan).
 - Python side: `services/agent/app/deals/node_deals.py` should post Review / Scope & Dispute output to the two new internal routes (the dispute call must send no `workerMinor`; Node computes it).
@@ -133,5 +152,5 @@ Motto on every new screen: **AI checks facts, people own taste, the deal decides
 
 ### Left
 
-- CopilotKit runtime/packages and the LLM path (`/deals/:dealId/copilot` -> agent `llm_router` River -> NIM -> OmniRoute) are not wired; the copilot runs offline only.
+- CopilotKit packages are still not added (by choice, see the plan). The LLM path (`/deals/:dealId/copilot` -> lean agent, River -> NIM) was wired on Nov 3 and is live; the offline replay remains the fallback.
 - No web unit/e2e tests for the cards.

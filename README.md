@@ -1,29 +1,151 @@
-# yv. — content ops
+# yv. Approved = Paid
 
-> **yv-content-ops** — Content Operations & Project Memory Platform
+**AI checks facts, people own taste, the deal decides the money.**
 
-The backend + frontend for the **yv. Content Operations & Project Memory Platform** — an agency-grade hub to take content from **idea → brief → tasks → review → approval → publish → invoice**, with full project memory, chat, and client workflows.
+yv. Approved = Paid turns a content deal into money that moves by itself, and only when the deal says so. It is built for **brands and their content operations teams**, and for the **editors and designers they pay**. Both sides sign the terms (hash-locked). Each milestone is funded with a **PayPal hold** (an authorization, not a charge). Machine checks run on every cut, and the hold is captured when the client approves the video. A dispute settles by the deal's own arithmetic: part of the hold is captured and the rest is voided.
 
-Built under the **yv.** brand. Monorepo: Node.js + Express + MongoDB API and a React + Vite frontend.
+**Live demo:** https://yv-approved-paid.vercel.app  ·  **Demo video (2:30):** https://youtu.be/b_RgJWPBiKY  ·  **PayPal flow in detail:** [docs/paypal-sandbox.md](docs/paypal-sandbox.md)
 
-[![Node](https://img.shields.io/badge/node-24-black)](#tech-stack)
-[![MongoDB](https://img.shields.io/badge/MongoDB-7-green)](#tech-stack)
-[![React](https://img.shields.io/badge/frontend-React%20%2B%20Vite-149eca)](#tech-stack)
-[![License](https://img.shields.io/badge/license-private-lightgrey)](#license)
-
-![yv-content-ops social preview](.github/social-preview.png)
+![yv. Approved = Paid social preview](.github/social-preview.png)
 
 ---
 
-> **Monorepo (Oct 2026):** `apps/api` (Node API, previously the repo root), `apps/web` (previously `frontend/`),
-> `services/agent` (Python agent + worker), `contracts` (shared schemas + codegen), `infra` (docker compose, e2e).
-> See [ARCHITECTURE.md](ARCHITECTURE.md). Run API commands from `apps/api` (e.g. `cd apps/api && npm test`).
+## What's real vs simulated
+
+Everything below runs in the **PayPal sandbox** (`api-m.sandbox.paypal.com`). No live money moves anywhere.
+
+| Piece | Status | Detail |
+|---|---|---|
+| Orders v2 hold (`intent: AUTHORIZE`) | **Real** | A real sandbox order, approved by a real sandbox buyer account |
+| Authorization | **Real** | `/v2/checkout/orders/{id}/authorize`. The id is stored on the milestone |
+| Full capture when the client approves | **Real** | `/v2/payments/authorizations/{id}/capture` for exactly the signed amount |
+| Partial capture + void (split, kill fee, reject) | **Real** | The share owed is captured, then `/void` releases the rest |
+| Reauthorize after the 3-day honor period | **Real** | The Money Agent reauthorizes once per hold (PayPal allows one) |
+| Change-order invoices (Invoicing v2) | **Real** | `INV2-...` invoices are created **and sent** |
+| Judge demo without a PayPal login | **Real ids** | Holds come from a pool of authorizations a sandbox buyer approved ahead of time (see below) |
+| Demo when the pool is empty | Simulated, labelled | Falls back to `SIM-AUTH-` / `SIM-CAPTURE-` ids on an in-memory twin with PayPal's rules. Each ledger line says "buyer approval simulated (pre-approved pool empty)" |
+| Payouts to the editor and designer | Simulated, labelled | Tried for real every time. PayPal refuses Payouts for this India sandbox merchant (`PAYOUT_NOT_AVAILABLE`), so the ledger records `SIM-PAYOUT-...` with that error |
+| Deal copilot | **Real** (with a labelled fallback) | Live LLM: River AI (`Qwen/Qwen3.8-27B-FP8`), then NVIDIA NIM. Falls back to an **offline replay** with no model call when the agent is slow or down |
+
+**Verified live on Nov 4, 2026** (each id checked directly on `api-m.sandbox.paypal.com`):
+
+| Milestone | Authorization | Result |
+|---|---|---|
+| Reel 1, approved | `75944066TD8606012` | Capture `6CX25059D6955990M`, **$400.00 COMPLETED** |
+| Reel 2, dispute split | `7LJ85033A19963041` | Partial capture `8L3248257U421871X` (**$240**), then the authorization **VOIDED** (the remaining $60 released) |
+
+In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal sandbox · simulated`. The money timeline has a **PayPal ids** panel with each milestone's authorization and capture ids.
+
+---
+
+## Judge quick start
+
+1. Open **https://yv-approved-paid.vercel.app** and press **Try the demo** on the login page. You don't need a PayPal account or a password.
+2. The first load can take **about a minute**: the API and the agent run on Render's free tier and sleep when idle.
+3. You land on the **"Diwali launch reels"** deal:
+   - **Reel 1** has already been approved. Its hold was captured for the signed $400, and the authorization and capture ids are in the **PayPal ids** panel on the money timeline.
+   - **Reel 2** is in dispute. 4 of 5 checklist lines passed, so the proposed split is 80% ($240). Accept the split and the Money Agent captures $240 and voids the rest (it runs every 60 s).
+   - Ask the copilot to "capture $450" or "pay the old version". The request is dry-run and comes back **blocked** (`P3_amount` / `P6_version`) with "No money moved".
+4. To start over on a fresh pair of real holds, the judge account can reset the demo (`POST /api/v1/demo/deal/reset`, at most once every 2 minutes for everyone).
+
+The copilot badge reads **ready** until it answers, then **live AI · provider** for a model reply, or **offline replay** only after a replayed one.
+
+---
+
+## Architecture and money flow
+
+```
+ apps/web (React + Vite, Vercel)
+     │  REST + Socket.IO (deal:join -> deal:ledger)
+     ▼
+ apps/api (Node + Express, Render) ── the only writer ──► MongoDB Atlas
+     │   policy engine: every money move is dry-run first; AI never sets an amount or a verdict
+     │   Money Agent: acts on the signed terms, appends to a hash-chained ledger
+     ├──► PayPal sandbox: Orders v2, Payments v2 (authorize / capture / void / reauthorize), Invoicing v2, Payouts
+     └──► services/agent deal copilot (FastAPI, Render) ──► River AI ─(fallback)─► NVIDIA NIM
+```
+
+**Money flow, per milestone:**
+
+```
+ sign terms (hash-locked)
+   └─► fund: Orders v2 AUTHORIZE ─► buyer approves ─► authorize   = HOLD (no charge yet)
+         │                          (demo: drawn from the pre-approved pool)
+         ├─ client approves the version ─────────► capture the signed amount       = PAID
+         ├─ dispute split / kill fee ────────────► partial capture of the agreed share
+         │                                         + void the rest               = SPLIT
+         ├─ reject, nothing owed ────────────────► void                          = RELEASED
+         └─ still open after the 3-day honor period ─► reauthorize once            = HOLD KEPT
+ change order (priced from the signed rate card) ─► Invoicing v2 invoice, sent
+ captured money ─► payouts to the payees by the signed split (simulated: PAYOUT_NOT_AVAILABLE)
+```
+
+A split is computed in Node from the checklist (lines passed / lines signed × milestone amount, capped at what is held). It counts as agreed only when both sides accept the same number. No route takes an amount from an agent or a model.
+
+---
+
+## Built With
+
+- **PayPal** (sandbox): Orders v2 (`intent: AUTHORIZE`), Payments v2 (authorize, capture, void, reauthorize), Invoicing v2, Payouts (simulated, see above)
+- **River AI**: `Qwen/Qwen3.8-27B-FP8`, the copilot's primary model
+- **NVIDIA NIM**: `nvidia/nemotron-3.5-lightning-30b-a3b`, the copilot's fallback model
+- **Render**: the API and the lean deal agent (free tier)
+- **Vercel**: the web app
+- **MongoDB Atlas**: the system of record (deals, hash-chained ledger, authorization pool)
+- **React + Vite** (TypeScript, Tailwind CSS, TanStack Query, Socket.IO client)
+- **Node.js 24** + Express, Mongoose, Socket.IO; **Python** FastAPI for the agent
+
+---
+
+## Run locally
+
+Needs Node.js 24+, npm and a MongoDB 7 (for example `docker run -d -p 27017:27017 mongo:7`, or an Atlas URI in `MONGO_URI`).
+
+```bash
+# 1. API with the judge demo on the mock PayPal (no PayPal account needed)
+cd apps/api && npm ci && cp .env.example .env
+DEMO_MODE=1 PAYPAL_MODE=mock npm run dev        # http://localhost:3000, seeds "Diwali launch reels" on boot
+
+# 2. Web app, in another terminal
+cd apps/web && npm ci && npm run dev            # http://localhost:5173 -> /login -> "Try the demo"
+```
+
+On the real PayPal sandbox instead (your own sandbox app's REST credentials, never committed):
+
+```bash
+cd apps/api
+DEMO_MODE=1 PAYPAL_MODE=sandbox PAYPAL_CLIENT_ID=... PAYPAL_CLIENT_SECRET=... npm run dev
+# real holds from the pre-approved pool, real capture / void, INV2 invoices; SIM- ids only if the pool is empty
+```
+
+Your sandbox starts with an empty pool. Fill it with `apps/api/scripts/paypal-auth-pool.cjs` ([docs/paypal-sandbox.md](docs/paypal-sandbox.md#refilling-the-pool)).
+
+Live copilot (needs a River or NIM key in the agent's env; without it the copilot runs as an offline replay):
+
+```bash
+cd services/agent && pip install -r requirements-deals.txt
+AGENT_SHARED_SECRET=<32+ chars> RIVER_API_KEY=... NVIDIA_API_KEY=... uvicorn app.deals_service:app --port 8100
+cd apps/api && AGENT_ENABLED=true AGENT_URL=http://127.0.0.1:8100 AGENT_SHARED_SECRET=<same> DEMO_MODE=1 PAYPAL_MODE=mock npm run dev
+```
+
+Tests: `cd apps/api && npm test` (Jest + mongodb-memory-server; no test calls real PayPal) and `cd services/agent && python -m pytest -q`.
+
+---
+
+> **Monorepo:** `apps/api` (Node API), `apps/web` (React + Vite), `services/agent` (Python agents and the lean deal copilot),
+> `contracts` (shared schemas + codegen), `infra` (docker compose, e2e). See [ARCHITECTURE.md](ARCHITECTURE.md).
+> Approved = Paid is built on **yv.**, a content operations platform (idea -> brief -> tasks -> review -> approval -> publish -> invoice) described further down.
 
 ## Table of contents
 
-- [What this is](#what-this-is)
+- [What's real vs simulated](#whats-real-vs-simulated)
+- [Judge quick start](#judge-quick-start)
+- [Architecture and money flow](#architecture-and-money-flow)
+- [Built With](#built-with)
+- [Run locally](#run-locally)
 - [Built during the PayPal AI Hackathon](#built-during-the-paypal-ai-hackathon)
 - [Deals (Approved = Paid)](#deals-approved--paid)
+- [What yv. content ops is](#what-yv-content-ops-is)
 - [Features](#features)
 - [Tech stack](#tech-stack)
 - [Project layout](#project-layout)
@@ -38,16 +160,6 @@ Built under the **yv.** brand. Monorepo: Node.js + Express + MongoDB API and a R
 - [Status & roadmap](#status--roadmap)
 
 ---
-
-## What this is
-
-**yv-content-ops** powers the content operations loop for agencies and in-house teams:
-
-- **Projects** with a strict lifecycle state machine, versioning, inputs, comments, revisions, approvals, scheduling, publication and performance metrics.
-- **Tasks** (kanban), **Briefs**, **Review locking & summarization**, **Chat** (channels + threads), **Contracts** and **Invoices** — the Fluit-aligned agency surface.
-- **Org-scoped RBAC**, JWT auth with hashed refresh tokens, notifications, activity history, file uploads, and a pluggable storage adapter.
-
-Product spec: see the PRD PDF in the repo root.
 
 ## Built during the PayPal AI Hackathon
 
@@ -73,7 +185,7 @@ yv. is my own project. I started its content-ops core (projects, tasks, briefs, 
 
 **AI checks facts, people own taste, the deal decides the money.**
 
-Built for the PayPal AI Hackathon; the use case comes from a real case study: an NGO's content team. A deal is signed terms (hash-locked), a PayPal hold per milestone (an authorization, not a charge), machine checks on every cut, and money that moves only when the deal says so.
+Built for the PayPal AI Hackathon, for brands and their content operations teams and the editors and designers they pay. A deal is signed terms (hash-locked), a PayPal hold per milestone (an authorization, not a charge), machine checks on every cut, and money that moves only when the deal says so.
 
 - **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded "Diwali launch reels" deal.
 - **Cards** (`apps/web/src/components/deals/`): DealCard (terms hash, both signatures, per-milestone amount, due + grace, review window, rounds left, kill fee), LiveChecksCard (measured vs target per checklist line, screenshot evidence from `GET .../deals/:dealId/evidence/:file`; taste lines say "people decide"), ReviewMergeCard (Fix cites a failed line, Taste costs a round, never pay), MoneyTimeline (hash-chained ledger, live over Socket.IO `deal:join` -> `deal:ledger`; blocked attempts show the rule and "No money moved"), ChangeOrderCard (priced from the signed rate card; Accept drafts the PayPal invoice), DisputeSplitCard (split from checklist arithmetic; agreed only when both sides accept the same number), PolicyBlockedChip.
@@ -113,6 +225,14 @@ Design and status: [docs/phase4-ui-plan.md](docs/phase4-ui-plan.md), [PROGRESS.m
 
 ---
 
+## What yv. content ops is
+
+The platform under Approved = Paid powers the content operations loop for brands, agencies and in-house teams:
+
+- **Projects** with a strict lifecycle state machine, versioning, inputs, comments, revisions, approvals, scheduling, publication and performance metrics.
+- **Tasks** (kanban), **Briefs**, **Review locking & summarization**, **Chat** (channels + threads), **Contracts** and **Invoices**: the Fluit-aligned agency surface.
+- **Org-scoped RBAC**, JWT auth with hashed refresh tokens, notifications, activity history, file uploads, and a pluggable storage adapter.
+
 ## Features
 
 **MVP (PRD)**
@@ -149,14 +269,15 @@ Design and status: [docs/phase4-ui-plan.md](docs/phase4-ui-plan.md), [PROGRESS.m
 ## Project layout
 
 ```
-yv-content-ops/
-├── src/                 # API — Express app
+yv-approved-paid/
+├── apps/api/src/        # API — Express app
 │   ├── config/          # env / config
 │   ├── controllers/     # HTTP handlers
 │   ├── db/              # mongoose connection
 │   ├── events/          # domain event bus (activity, notifications)
 │   ├── middleware/      # auth, validation, errors
 │   ├── models/          # mongoose models
+│   ├── modules/deals/   # Approved = Paid: engine, policy, ledger, PayPal gateways, authorization pool, demo seed
 │   ├── realtime/        # Socket.IO (src/realtime/socket.js)
 │   ├── routes/          # express routers
 │   ├── seed/            # default roles
@@ -174,7 +295,8 @@ yv-content-ops/
 ├── docs/
 │   └── openapi.yaml     # OpenAPI 3.1 spec
 ├── tests/               # Jest + Supertest (in-memory MongoDB)
-├── apps/api/scripts/    # seed-chat.js, seed-agent-demo.js etc.
+├── apps/api/scripts/    # seed-deal-demo.cjs, paypal-auth-pool.cjs (pool refill), seed-chat.js etc.
+├── services/agent/      # Python agents + the lean deal copilot (deals_service.py)
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md
@@ -184,48 +306,25 @@ yv-content-ops/
 
 ## Quickstart
 
-### Prerequisites
-
-- Node.js 24+, npm
-- MongoDB 7 (or Docker)
-
-### 1. Start MongoDB + install
+For the Approved = Paid demo, see [Run locally](#run-locally). The general setup:
 
 ```bash
-docker compose up -d mongo
-npm install
-cd frontend && npm install && cd ..
-```
-
-Copy env:
-
-```bash
-cp .env.example .env
-# set JWT_ACCESS_SECRET — app refuses to start in production with the default
-```
-
-### 2. Run
-
-```bash
-# API (http://localhost:3000)
-npm run dev
-
-# Frontend (http://localhost:5175) — in another terminal
-cd frontend && npm run dev
+docker run -d -p 27017:27017 mongo:7      # or set MONGO_URI to an Atlas cluster
+cd apps/api && npm ci && cp .env.example .env   # set JWT_ACCESS_SECRET; production refuses the default
+npm run dev                                     # API on http://localhost:3000
+cd apps/web && npm ci && npm run dev            # web on http://localhost:5173 (proxies /api to :3000)
 ```
 
 Health check: `GET http://localhost:3000/api/v1/health`
 
-### 3. Tests & lint
+Tests and lint:
 
 ```bash
-npm test              # Jest + mongodb-memory-server (no external DB)
-npm run lint
-npm run format        # prettier
-
-cd frontend && npm run lint
-npm run build         # tsc + vite build
+cd apps/api && npm test && npm run lint   # Jest + mongodb-memory-server (no external DB)
+cd apps/web && npm run lint && npm run build
 ```
+
+---
 
 ---
 
@@ -496,17 +595,17 @@ API tests (~55 s with mongodb-memory-server, and growing) run in CI, not in the 
 
 Fluit is a one-stop agency hub (Drive, Review, Brief, Tasks, Client CRM, Chats, Intelligence). This repo covers the core loop **onboard → contract → brief → tasks → review (lock) → approve → invoice** with tasks, briefs, review lock/summarize, chat, contracts and invoices.
 
-**Deferred (needs third-party infra):** real AI/LLM summarization (current rule-based placeholder with `generatedBy: 'rule-based-summarizer'` — swappable), timestamped video annotations/drawings/voice notes, anonymous client file-request links, third-party e-sign / payment gateways (DocuSign, Stripe — currently self-attested), and a client-facing portal.
+**Deferred (needs third-party infra):** real AI/LLM summarization (current rule-based placeholder with `generatedBy: 'rule-based-summarizer'` — swappable), timestamped video annotations/drawings/voice notes, anonymous client file-request links, third-party e-sign (DocuSign; generic contracts are currently self-attested), and a client-facing portal. Payments for deals go through PayPal (sandbox: real holds, capture and void; see [What's real vs simulated](#whats-real-vs-simulated)); the generic invoice pages outside deals are still marked paid by hand.
 
 ---
 
 ## Status & roadmap
 
-MVP backend + frontend are functional. Next:
+MVP backend + frontend are functional, and Approved = Paid runs on real PayPal sandbox holds, capture and void. Next:
 
 - Cloud storage adapter (S3/R2), real-time notifications UI polish, client portal
 - LLM-powered review summarization, video player annotations
-- Stripe + e-sign integrations
+- PayPal Payouts on a merchant account where they are available (today simulated, `PAYOUT_NOT_AVAILABLE`), PayPal live mode, e-sign integration
 
 ---
 
@@ -514,7 +613,7 @@ MVP backend + frontend are functional. Next:
 
 **yv.** — official logo is the cursive script `yv.` with teal dot — exact vector trace `INK_PATH`/`TEAL_PATH` (985:529) in `apps/web/src/components/BrandLogo.tsx` (`#171310` + `#035E5E`). `logo.png` is a raster export of the same. No other wordmark/icon variants are kept in the repo.
 
-Repo name: **`yv-content-ops`** → `github.com/Narendarcodes/yv-content-ops`
+This repo: `github.com/Narendarcodes/yv-approved-paid` (the PayPal AI Hackathon build of yv.).
 
 ---
 
