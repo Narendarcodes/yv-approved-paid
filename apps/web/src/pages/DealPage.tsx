@@ -21,8 +21,9 @@ import ChangeOrderCard from '../components/deals/ChangeOrderCard'
 import DisputeSplitCard from '../components/deals/DisputeSplitCard'
 import DealCopilot from '../components/deals/DealCopilot'
 import DealTeamCard from '../components/deals/DealTeamCard'
+import JudgeTour from '../components/deals/JudgeTour'
 import * as api from '../services/api'
-import { invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
+import { DEMO_DEAL_PATH, invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
 
 export default function DealPage() {
   const { dealId, key: fundKey } = useParams()
@@ -34,6 +35,8 @@ export default function DealPage() {
   const confirmed = useRef(false)
   // copilot open on wide screens, closed on small ones
   const [copilot, setCopilot] = useState(() => typeof window === 'undefined' || window.matchMedia?.('(min-width: 1024px)').matches !== false)
+  const [autoAsk, setAutoAsk] = useState<{ text: string; nonce: number } | null>(null)
+  const isDemoDeal = `/deals/${dealId}` === DEMO_DEAL_PATH
 
   // PayPal sent the buyer back: confirm the hold once, then drop the return path.
   useEffect(() => {
@@ -90,6 +93,14 @@ export default function DealPage() {
             }
           />
           <Motto className="-mt-3 mb-5" />
+          {isDemoDeal && (
+            <JudgeTour
+              onAsk={(text) => {
+                setCopilot(true)
+                setAutoAsk((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
+              }}
+            />
+          )}
           {(waitingCos.length > 0 || invoicedCos.length > 0) && (
             <div
               className={`mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-4 py-3 ${waitingCos.length ? 'border-st-production/25 bg-st-production-bg' : 'border-line bg-surface'}`}
@@ -155,7 +166,7 @@ export default function DealPage() {
               })}
             </div>
             <div className="min-w-0 space-y-5">
-              {copilot && <DealCopilot deal={deal} orgId={orgId} />}
+              {copilot && <DealCopilot deal={deal} orgId={orgId} autoAsk={autoAsk} />}
               <MoneyTimeline deal={deal} orgId={orgId} onChanged={changed} />
             </div>
           </div>

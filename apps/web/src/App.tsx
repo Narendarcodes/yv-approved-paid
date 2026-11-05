@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { DEMO_DEAL_PATH, isDemoJudge } from './lib/deals'
 import AppShell from './layouts/AppShell'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -61,11 +62,13 @@ function RequireBackend({ children }: { children: ReactNode }) {
 
 /** Keeps signed-in users out of the auth screens - returns them to where they were headed. */
 function RedirectIfAuthed({ children }: { children: ReactNode }) {
-  const { authenticated } = useAuth()
+  const { authenticated, session } = useAuth()
   const location = useLocation()
   if (authenticated) {
     const from = (location.state as { from?: string } | null)?.from
-    return <Navigate to={from ?? '/dashboard'} replace />
+    // the demo judge always lands on the demo deal, whichever way they got signed in
+    const home = isDemoJudge(session?.user?.email) ? DEMO_DEAL_PATH : '/dashboard'
+    return <Navigate to={from && from !== '/' ? from : home} replace />
   }
   return <>{children}</>
 }

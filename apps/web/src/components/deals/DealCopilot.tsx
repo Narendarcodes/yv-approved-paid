@@ -283,7 +283,16 @@ function Rendered({
   }
 }
 
-export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: string }) {
+export default function DealCopilot({
+  deal,
+  orgId,
+  autoAsk,
+}: {
+  deal: DealView
+  orgId: string
+  /** Ask this once per nonce (the judge tour's step 3). */
+  autoAsk?: { text: string; nonce: number } | null
+}) {
   const [turns, setTurns] = useState<Turn[]>([])
   const [text, setText] = useState('')
   const seq = useRef(0)
@@ -383,6 +392,16 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
       offline('unreachable')
     }
   }
+  const asked = useRef(0)
+  const panel = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!autoAsk || asked.current === autoAsk.nonce) return
+    asked.current = autoAsk.nonce
+    panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    void ask(autoAsk.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAsk?.nonce])
+
   const submit = (e: FormEvent) => {
     e.preventDefault()
     void ask(text)
@@ -390,7 +409,8 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
 
   return (
     <aside
-      className="card flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden"
+      ref={panel}
+      className="card flex max-h-[calc(100vh-2rem)] scroll-mt-4 flex-col overflow-hidden"
       aria-label="Deal copilot"
       data-testid="deal-copilot"
     >

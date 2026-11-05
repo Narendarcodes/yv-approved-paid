@@ -82,7 +82,7 @@ export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  // collapsed-by-default groups (Business); remembered per browser
+  // collapsed-by-default groups (More); remembered per browser
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     try {
       return JSON.parse(localStorage.getItem('yv.nav.open') || '{}')
@@ -157,14 +157,17 @@ export default function AppShell() {
     <>
       {/* Brand */}
       <div className="flex items-center gap-3 px-4 pt-5 pb-4">
-        <BrandLogo to="/dashboard" size={36} />
+        <BrandLogo to="/deals" size={36} />
       </div>
 
       {/* Nav */}
       <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
         {groups.map((group) => {
-          const containsActive = group.items.some((i) => location.pathname.startsWith(i.to))
+          const containsActive = group.items.some(
+            (i) => location.pathname === i.to || location.pathname.startsWith(`${i.to}/`),
+          )
           const expanded = !group.collapsible || openGroups[group.section] || containsActive
+          const hiddenBadge = group.items.reduce((a, i) => a + (i.badge || 0), 0)
           return (
             <div key={group.section} data-testid={`nav-group-${group.section.toLowerCase()}`}>
               {group.collapsible ? (
@@ -179,7 +182,16 @@ export default function AppShell() {
                     strokeWidth={2}
                     className={`transition-transform ${expanded ? 'rotate-90' : ''}`}
                   />
-                  {group.section}
+                  <span className="flex-1">{group.section}</span>
+                  {!expanded && hiddenBadge > 0 && (
+                    <span
+                      className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-teal px-1 font-mono text-[9.5px] font-medium normal-case text-on-accent"
+                      data-testid={`nav-badge-${group.section.toLowerCase()}`}
+                      aria-label={`${hiddenBadge} new`}
+                    >
+                      {hiddenBadge}
+                    </span>
+                  )}
                 </button>
               ) : (
                 <p className="nav-section">{group.section}</p>
@@ -311,7 +323,7 @@ export default function AppShell() {
             <Menu size={18} strokeWidth={1.75} />
           </button>
           <span className="lg:hidden">
-            <BrandLogo to="/dashboard" size={26} />
+            <BrandLogo to="/deals" size={26} />
           </span>
           <p className="micro-label hidden items-center lg:flex">{crumb}</p>
           <button
@@ -410,13 +422,33 @@ export default function AppShell() {
 }
 
 /**
- * Sidebar follows the content pipeline: Create -> Review -> Publish -> Measure.
- * Business admin (contracts, invoices, members, settings) is secondary and
- * collapsed by default.
+ * Sidebar: the deal flow first (Deals, Projects, Review, Invoices), everything
+ * else under a collapsible "More" that opens itself on its own pages and shows
+ * the badges it hides. No page is removed; every route is still one click away.
  */
 const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] = [
   {
-    section: 'Pipeline',
+    section: 'Workspace',
+    items: [
+      { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
+      { to: '/projects', label: 'Projects', icon: () => <FolderKanban {...iconProps} /> },
+      {
+        to: '/review',
+        label: 'Review',
+        icon: () => <MessageSquare {...iconProps} />,
+        roles: ['admin', 'reviewer'],
+      },
+      {
+        to: '/invoices',
+        label: 'Invoices',
+        icon: () => <Receipt {...iconProps} />,
+        roles: ['admin', 'editor'],
+      },
+    ],
+  },
+  {
+    section: 'More',
+    collapsible: true,
     items: [
       {
         to: '/dashboard',
@@ -424,35 +456,13 @@ const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] 
         icon: () => <LayoutGrid {...iconProps} />,
         end: true,
       },
-    ],
-  },
-  {
-    section: 'Create',
-    items: [
       {
         to: '/concepts',
         label: 'Concepts',
         icon: () => <Lightbulb {...iconProps} />,
         roles: ['admin', 'editor', 'designer', 'reviewer'],
       },
-      { to: '/projects', label: 'Projects', icon: () => <FolderKanban {...iconProps} /> },
       { to: '/my-work', label: 'My work', icon: () => <ListTodo {...iconProps} /> },
-    ],
-  },
-  {
-    section: 'Review',
-    items: [
-      {
-        to: '/review',
-        label: 'Review',
-        icon: () => <MessageSquare {...iconProps} />,
-        roles: ['admin', 'reviewer'],
-      },
-    ],
-  },
-  {
-    section: 'Publish',
-    items: [
       {
         to: '/publishing/calendar',
         label: 'Calendar',
@@ -471,37 +481,14 @@ const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] 
         icon: () => <Radio {...iconProps} />,
         roles: ['admin', 'publisher', 'editor'],
       },
-    ],
-  },
-  {
-    section: 'Measure',
-    items: [
       { to: '/analytics', label: 'Analytics', icon: () => <BarChart3 {...iconProps} /> },
       { to: '/brand-brain', label: 'Brand Brain', icon: () => <Brain {...iconProps} /> },
-    ],
-  },
-  {
-    section: 'Team',
-    items: [
       { to: '/notifications', label: 'Notifications', icon: () => <Bell {...iconProps} /> },
       { to: '/chat', label: 'Team chat', icon: () => <MessageCircle {...iconProps} /> },
-    ],
-  },
-  {
-    section: 'Business',
-    collapsible: true,
-    items: [
-      { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
       {
         to: '/contracts',
         label: 'Contracts',
         icon: () => <FileSignature {...iconProps} />,
-        roles: ['admin', 'editor'],
-      },
-      {
-        to: '/invoices',
-        label: 'Invoices',
-        icon: () => <Receipt {...iconProps} />,
         roles: ['admin', 'editor'],
       },
       { to: '/members', label: 'Members', icon: () => <Users {...iconProps} />, roles: ['admin'] },

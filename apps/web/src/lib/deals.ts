@@ -140,6 +140,13 @@ export function useDealLedger(orgId: string | null, dealId: string | undefined) 
   return { ...q, live, autoRefresh: enabled && !live }
 }
 
+/** The seeded judge demo (DEMO_MODE=1): its judge lands on this deal. */
+export const DEMO_DEAL_PATH = '/deals/deal_demo_diwali'
+export const DEMO_JUDGE_EMAIL = 'judge@yv-demo.example.com'
+export function isDemoJudge(email: string | null | undefined): boolean {
+  return (email || '').toLowerCase() === DEMO_JUDGE_EMAIL
+}
+
 /** How often the ledger is refetched while live pushes are not arriving. */
 export const LEDGER_FALLBACK_MS = 10_000
 
