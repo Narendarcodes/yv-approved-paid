@@ -24,6 +24,30 @@ const base = '/:organizationId/agent';
 const view = [authenticate, requireOrg('organizationId'), requirePermission('project.view')];
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res)).catch(next);
 
+/**
+ * A short, readable error for a failed agent response. A proxy in front of the
+ * agent (Render's 502/503 page while it cold-starts) answers with a whole HTML
+ * document; the browser must never get that dumped into the chat.
+ */
+function agentErrorMessage(status, text) {
+  const raw = String(text || '').trim();
+  const code = status ? ` (HTTP ${status})` : '';
+  if (/^<|<html|<!doctype|<body/i.test(raw)) {
+    return status === 429
+      ? `The agent is busy right now${code}. Try again in a moment.`
+      : `The agent service is waking up or unavailable${code}. Try again in a minute.`;
+  }
+  try {
+    const j = JSON.parse(raw);
+    const m = (j && (j.error?.message || j.detail || j.message || (typeof j.error === 'string' && j.error))) || '';
+    if (typeof m === 'string' && m.trim()) return m.trim().replace(/\s+/g, ' ').slice(0, 300);
+  } catch {
+    /* not JSON */
+  }
+  const plain = raw.replace(/\s+/g, ' ').slice(0, 300);
+  return plain || `The agent service returned an error${code}.`;
+}
+
 router.post(
   `${base}/chat`,
   ...view,
@@ -52,7 +76,9 @@ router.post(
     if (!upstream.ok || !upstream.body) {
       clearTimeout(timer);
       const text = await upstream.text().catch(() => '');
-      return res.status(upstream.status === 429 ? 429 : 502).json({ error: { code: 'agent_error', message: text.slice(0, 500) } });
+      return res
+        .status(upstream.status === 429 ? 429 : 502)
+        .json({ error: { code: 'agent_error', message: agentErrorMessage(upstream.status, text) } });
     }
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
     res.flushHeaders?.();
@@ -116,3 +142,4 @@ router.get(
 );
 
 module.exports = router;
+module.exports.agentErrorMessage = agentErrorMessage;

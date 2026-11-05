@@ -7,6 +7,7 @@
  *                             voids; simulated approval only when the pool is empty)
  *                             opts.force rebuilds even an untouched real-sandbox deal (reset)
  *   demoJudge()               the seeded judge user, or null
+ *   ensureEvidenceFrames(d)   rewrite missing placeholder frames from the stored check results
  *
  * Idempotent: the demo deal always has the same id; a re-run deletes that one
  * deal and its ledger rows (by id, guarded to the demo id) and builds it again,
@@ -255,6 +256,38 @@ function writeFrames(dir: string | false, dealId: string, versionId: string, lin
   }
 }
 
+/**
+ * Rewrite any missing placeholder frame the deal's stored check results point at.
+ * The frames live on local (on Render: ephemeral) disk and are deterministic, so a
+ * restart that reuses an untouched real-sandbox deal, or a cold disk, can rebuild
+ * them from the stored results alone. Returns how many files were written.
+ */
+function ensureEvidenceFrames(deal: DealDoc | null, dir: string | false = evidenceDir()): number {
+  if (!deal || !dir || !/^[A-Za-z0-9_-]{1,64}$/.test(deal.id)) return 0;
+  let wrote = 0;
+  try {
+    const d = path.join(dir, deal.id);
+    for (const m of deal.milestones || []) {
+      for (const v of m.versions || []) {
+        for (const r of v.checks?.results || []) {
+          for (const e of r.evidence || []) {
+            const name = typeof e.screenshot === 'string' ? path.basename(e.screenshot) : '';
+            if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}\.png$/.test(name) || name.includes('..')) continue;
+            const file = path.join(d, name);
+            if (fs.existsSync(file) || fs.existsSync(path.join(dir, name))) continue;
+            fs.mkdirSync(d, { recursive: true });
+            fs.writeFileSync(file, framePng(!!r.passed));
+            wrote += 1;
+          }
+        }
+      }
+    }
+  } catch {
+    /* frames are a nicety; the deal states do not depend on them */
+  }
+  return wrote;
+}
+
 /* --------------------------------------------------------------------- seed */
 
 async function upsertUser(u: { email: string; name: string }, password?: string) {
@@ -442,6 +475,8 @@ async function seedDealDemo(
   if (!opts.force && gw.name === 'paypal-sandbox') {
     const existing = await s.get(id, orgId).catch(() => null);
     if (untouchedRealDemo(existing, Date.now())) {
+      // the deal survived the restart, its frames (local disk) may not have
+      ensureEvidenceFrames(existing, dir);
       await purgeDemoDeal(DEMO.teamDealId);
       await s.create(orgId, J, teamDraftTerms(J, E, String(motion._id)), { id: DEMO.teamDealId });
       return {
@@ -659,4 +694,11 @@ async function demoJudge() {
   return User.findOne({ email: DEMO.judge.email, disabled: { $ne: true } });
 }
 
-module.exports = { DEMO, seedDealDemo, demoJudge, demoTerms, untouchedRealDemo };
+module.exports = {
+  DEMO,
+  seedDealDemo,
+  demoJudge,
+  demoTerms,
+  untouchedRealDemo,
+  ensureEvidenceFrames,
+};

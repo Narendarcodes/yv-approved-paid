@@ -282,4 +282,36 @@ describe('chat SSE proxy', () => {
     config.agent.url = prev;
     expect(r.status).toBe(502);
   });
+  test('an upstream HTML error page (Render 502 while waking) becomes a short readable message', async () => {
+    const fakeAgent = http.createServer((req, res) => {
+      res.writeHead(502, { 'content-type': 'text/html' });
+      res.end('<!DOCTYPE html><html><head><title>502</title><style>body{}</style></head><body>Bad Gateway</body></html>');
+    });
+    await new Promise((r) => fakeAgent.listen(0, '127.0.0.1', r));
+    const prev = config.agent.url;
+    config.agent.url = `http://127.0.0.1:${fakeAgent.address().port}`;
+    try {
+      const r = await request(app)
+        .post(`/api/v1/organizations/${seed.orgId}/agent/chat`)
+        .set({ Authorization: `Bearer ${userToken}` })
+        .send({ message: 'hi' });
+      expect(r.status).toBe(502);
+      expect(r.body.error.code).toBe('agent_error');
+      expect(r.body.error.message).toBe('The agent service is waking up or unavailable (HTTP 502). Try again in a minute.');
+      expect(r.body.error.message).not.toMatch(/</);
+    } finally {
+      config.agent.url = prev;
+      fakeAgent.close();
+    }
+  });
+
+  test('agentErrorMessage: JSON detail, plain text, empty', () => {
+    const { agentErrorMessage } = require('../src/routes/agent');
+    expect(agentErrorMessage(500, '{"detail":"model quota exceeded"}')).toBe('model quota exceeded');
+    expect(agentErrorMessage(500, '{"error":{"message":"bad input"}}')).toBe('bad input');
+    expect(agentErrorMessage(503, '  upstream\n  timeout ')).toBe('upstream timeout');
+    expect(agentErrorMessage(502, '')).toBe('The agent service returned an error (HTTP 502).');
+    expect(agentErrorMessage(429, '<html>busy</html>')).toMatch(/busy right now \(HTTP 429\)/);
+    expect(agentErrorMessage(502, 'x'.repeat(1000))).toHaveLength(300);
+  });
 });

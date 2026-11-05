@@ -153,7 +153,13 @@ router.get(
   '/:dealId/evidence/:file',
   wrap(async (req, res) => {
     const d = await readable(req, req.params.dealId);
-    const file = resolveEvidence(d, req.params.file);
+    let file = resolveEvidence(d, req.params.file);
+    if (!file && process.env.DEMO_MODE === '1') {
+      // the judge demo's placeholder frames sit on ephemeral disk: rebuild them on demand
+      const { DEMO, ensureEvidenceFrames } = require('./demo.cts');
+      if ([DEMO.dealId, DEMO.teamDealId].includes(d.id) && ensureEvidenceFrames(d) > 0)
+        file = resolveEvidence(d, req.params.file);
+    }
     if (!file)
       return res
         .status(404)

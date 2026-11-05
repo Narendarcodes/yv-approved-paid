@@ -9,7 +9,7 @@ const path = require('node:path');
 const mongoose = require('mongoose');
 const { configureDeals, dealService } = require('../service.cts');
 const { makeMockGateway, makeSandboxGateway } = require('../paypal.cts');
-const { DEMO, seedDealDemo } = require('../demo.cts');
+const { DEMO, seedDealDemo, ensureEvidenceFrames } = require('../demo.cts');
 
 let dir;
 let seeded;
@@ -104,6 +104,24 @@ describe('seed-deal-demo', () => {
     expect(l.chain.ok).toBe(true);
     expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([expect.objectContaining({ amountMinor: 6000, moved: false })]);
     await seedDealDemo({ evidenceDir: false }); // back to the judge's starting state
+  });
+
+  test('ensureEvidenceFrames rewrites every missing frame from the stored results (restart on ephemeral disk)', async () => {
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    const cold = fs.mkdtempSync(path.join(os.tmpdir(), 'yv-demo-cold-'));
+    try {
+      const wrote = ensureEvidenceFrames(d, cold);
+      expect(wrote).toBeGreaterThanOrEqual(11);
+      const files = fs.readdirSync(path.join(cold, DEMO.dealId));
+      expect(files).toHaveLength(wrote);
+      const loud = files.find((f) => /^loud_v1_/.test(f));
+      expect(fs.readFileSync(path.join(cold, DEMO.dealId, loud)).subarray(1, 4).toString()).toBe('PNG');
+      expect(ensureEvidenceFrames(d, cold)).toBe(0); // nothing missing now
+      expect(ensureEvidenceFrames(null, cold)).toBe(0);
+      expect(ensureEvidenceFrames(d, false)).toBe(0);
+    } finally {
+      fs.rmSync(cold, { recursive: true, force: true });
+    }
   });
 
   test('idempotent: a second run rebuilds the same deal with the same ledger shape', async () => {

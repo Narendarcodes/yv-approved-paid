@@ -162,4 +162,29 @@ describe('evidence screenshots', () => {
     fs.unlinkSync(path.join(root, 'loud_002.40.jpg'));
     expect((await request(app).get(E('loud_002.40.jpg')).set(auth(U.client))).status).toBe(404);
   });
+  test('DEMO_MODE=1 rebuilds the judge demo frames on demand (ephemeral disk); never for other deals', async () => {
+    const { DEMO, seedDealDemo } = require('../demo.cts');
+    const seeded = await seedDealDemo({ evidenceDir: false, judgePassword: PASSWORD });
+    const login = await request(app).post('/api/v1/auth/login').send({ email: DEMO.judge.email, password: PASSWORD });
+    const judge = { token: login.body.data.accessToken };
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    const shot = d.milestones[0].versions[0].checks.results.find((r) => r.checklistId === 'loud').evidence[0].screenshot;
+    const url = E(shot, DEMO.dealId, seeded.orgId);
+    const prev = process.env.DEMO_MODE;
+    try {
+      delete process.env.DEMO_MODE;
+      expect((await request(app).get(url).set(auth(judge))).status).toBe(404);
+      process.env.DEMO_MODE = '1';
+      const r = await request(app).get(url).set(auth(judge));
+      expect(r.status).toBe(200);
+      expect(r.headers['content-type']).toMatch(/image\/png/);
+      expect(fs.existsSync(path.join(root, DEMO.dealId, shot))).toBe(true);
+      // a non-demo deal's missing frame stays a 404 and nothing is written for it
+      expect((await request(app).get(E('loud_002.40.jpg')).set(auth(U.client))).status).toBe(404);
+      expect(fs.existsSync(path.join(root, dealId, 'loud_002.40.jpg'))).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.DEMO_MODE;
+      else process.env.DEMO_MODE = prev;
+    }
+  });
 });
