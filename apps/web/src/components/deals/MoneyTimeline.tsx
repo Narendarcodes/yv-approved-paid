@@ -332,7 +332,14 @@ function PaypalHolds({ deal, milestoneKey }: { deal: DealView; milestoneKey?: st
         const f = m.funding!
         return (
           <div key={m.key} className="min-w-0 space-y-1 text-[12px] text-umber">
-            <p className="truncate font-medium text-ink">{title}</p>
+            <p className="flex min-w-0 items-baseline justify-between gap-2">
+              <span className="truncate font-medium text-ink">{title}</span>
+              {typeof f.authorizedMinor === 'number' && f.authorizedMinor > 0 && (
+                <span className="shrink-0 text-[12px]" data-testid={`held-${m.key}`}>
+                  Held <span className="t-num !text-[12px]">{money(f.authorizedMinor, deal.terms.currency)}</span>
+                </span>
+              )}
+            </p>
             <p className="flex min-w-0 flex-wrap items-center gap-x-2">
               <span className="w-[86px] shrink-0">Authorization</span>
               <PaypalId id={f.authorizationId!} className="max-w-full" />

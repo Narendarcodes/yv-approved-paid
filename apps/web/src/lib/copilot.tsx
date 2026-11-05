@@ -116,6 +116,24 @@ export function matchIntent(text: string, deal: DealView): CopilotAction[] {
 }
 
 /**
+ * A money ask that policy can judge on its own: a money verb (capture, pay,
+ * release, charge, refund, payout) AND a typed amount or a version. Those are
+ * answered with a deterministic policy dry-run and no model call, so a live LLM
+ * can never answer "Capture $450 on reel 1" with an unrelated card. Returns the
+ * proposeCapture to render, or null when the ask is not one of these.
+ */
+export function moneyAsk(text: string, deal: DealView): Extract<CopilotAction, { name: 'proposeCapture' }> | null {
+  const low = text.toLowerCase()
+  if (!/\b(capture|pay|paid|release|charge|refund|payout|pay out)\b/.test(low)) return null
+  if (/timeline|where is|ledger|history/.test(low)) return null
+  const typed = moneyFrom(text)
+  const version = /\bv\d+\b|\b(old|older|previous|first|earlier) version\b/.test(low)
+  if (typed === undefined && !version) return null
+  const a = matchIntent(text, deal).find((x) => x.name === 'proposeCapture')
+  return (a as Extract<CopilotAction, { name: 'proposeCapture' }> | undefined) ?? null
+}
+
+/**
  * The capture a proposal would dry-run. The amount is the SIGNED milestone
  * amount from the deal unless the person typed a number (then theirs, so policy
  * can say why it is wrong). Never a number the copilot made up.

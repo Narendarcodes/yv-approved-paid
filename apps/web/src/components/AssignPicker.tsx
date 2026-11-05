@@ -59,6 +59,8 @@ export default function AssignPicker({
     try {
       await onAssign(id)
       setOpen(false)
+    } catch {
+      // onAssign already told the person (toast); keep the menu open so they can retry
     } finally {
       setBusy(null)
     }

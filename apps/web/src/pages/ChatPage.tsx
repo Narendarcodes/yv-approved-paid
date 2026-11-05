@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Info, Paperclip, Send, Plus, WifiOff, X, Hash, Users } from 'lucide-react'
+import { Info, Send, Plus, WifiOff, X, Hash, Users } from 'lucide-react'
 import Avatar from '../components/ui'
 import { Skeleton, ErrorBanner } from '../components/states'
 import { useViewer } from '../lib/viewer'
@@ -61,7 +61,14 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="fade-in flex h-[calc(100vh-140px)] gap-4">
+    <div className="fade-in">
+    <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <h1 className="t-display">Team chat</h1>
+        <p className="mt-1 text-sm text-umber">Channels for the whole workspace</p>
+      </div>
+    </header>
+    <div className="flex h-[calc(100vh-210px)] min-h-[420px] gap-4">
       {/* Channel list */}
       <aside className="card hidden w-60 shrink-0 flex-col p-0 sm:flex">
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
@@ -106,7 +113,16 @@ export default function ChatPage() {
                   <Skeleton className="h-5 w-full" />
                 </li>
               ))
-            : chat.channels.map((c) => (
+            : chat.channels.length === 0
+              ? (
+                  <li className="px-2 py-3 text-[13px] text-umber" data-testid="chat-empty-channels">
+                    No channels yet.{' '}
+                    <button className="font-medium text-teal hover:underline" onClick={() => setNewChannelOpen(true)}>
+                      Create the first one
+                    </button>
+                  </li>
+                )
+              : chat.channels.map((c) => (
                 <li key={c.id}>
                   <button
                     onClick={() => setChannelId(c.id)}
@@ -157,6 +173,13 @@ export default function ChatPage() {
             </div>
           ) : chat.error ? (
             <ErrorBanner onRetry={() => void chat.retry()} />
+          ) : !chat.channels.length ? (
+            <div className="py-10 text-center" data-testid="chat-empty">
+              <p className="text-sm text-umber">No channels yet.</p>
+              <button className="btn-primary mt-3" onClick={() => setNewChannelOpen(true)}>
+                <Plus size={14} strokeWidth={2} /> Create the first one
+              </button>
+            </div>
           ) : messages.length === 0 ? (
             <p className="text-center text-sm text-label">
               No messages yet{active ? ` — say hi in ${active.name}` : ''}.
@@ -190,9 +213,6 @@ export default function ChatPage() {
         {/* Composer */}
         <footer className="border-t border-line p-3">
           <div className="flex items-center gap-2 rounded-[8px] border border-line bg-canvas/50 px-3 py-2 focus-within:border-teal/50">
-            <button className="icon-btn icon-btn-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-teal/20" aria-label="Attach" disabled title="Attachments coming soon">
-              <Paperclip size={15} strokeWidth={1.75} aria-hidden="true" />
-            </button>
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -295,6 +315,7 @@ export default function ChatPage() {
           </div>,
           document.body,
         )}
+    </div>
     </div>
   )
 }

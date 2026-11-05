@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { useViewer } from '../lib/viewer'
 import { ROLES, PERMISSION_LABELS } from '../lib/roles'
@@ -40,29 +40,42 @@ function Row({
   )
 }
 
+const PREFS_KEY = 'yv.settings'
+type Prefs = { notifEmail: boolean; notifDigest: boolean; mentions: boolean }
+const DEFAULT_PREFS: Prefs = { notifEmail: true, notifDigest: true, mentions: true }
+
+/** Notification preferences live on this browser only (there is no settings API yet). */
+function loadPrefs(): Prefs {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null')
+    if (!raw || typeof raw !== 'object') return DEFAULT_PREFS
+    return {
+      notifEmail: typeof raw.notifEmail === 'boolean' ? raw.notifEmail : DEFAULT_PREFS.notifEmail,
+      notifDigest: typeof raw.notifDigest === 'boolean' ? raw.notifDigest : DEFAULT_PREFS.notifDigest,
+      mentions: typeof raw.mentions === 'boolean' ? raw.mentions : DEFAULT_PREFS.mentions,
+    }
+  } catch {
+    return DEFAULT_PREFS
+  }
+}
+
 export default function SettingsPage() {
   const viewer = useViewer()
   const toast = useToast()
   const { org } = useTeam()
-  const [notifEmail, setNotifEmail] = useState(true)
-  const [notifDigest, setNotifDigest] = useState(true)
-  const [mentions, setMentions] = useState(true)
-  const [twoFactor, setTwoFactor] = useState(false)
-  const [orgName, setOrgName] = useState(org?.name ?? '')
-
-  useEffect(() => { if (org) setOrgName(org.name) }, [org])
+  const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
+  const [saved, setSaved] = useState<Prefs>(prefs)
+  const dirty = JSON.stringify(prefs) !== JSON.stringify(saved)
+  const set = (k: keyof Prefs) => (v: boolean) => setPrefs((p) => ({ ...p, [k]: v }))
 
   const save = () => {
-    // Persist preferences locally - backend settings API replaces this later
     try {
-      localStorage.setItem(
-        'yv.settings',
-        JSON.stringify({ orgName: orgName.trim(), notifEmail, notifDigest, mentions, twoFactor }),
-      )
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
+      setSaved(prefs)
+      toast('success', 'Saved on this browser', 'Your notification preferences are kept on this device.')
     } catch {
-      /* storage unavailable */
+      toast('danger', 'Could not save', 'This browser does not allow local storage.')
     }
-    toast('success', 'Settings saved', 'Your preferences are up to date.')
   }
 
   return (
@@ -79,7 +92,14 @@ export default function SettingsPage() {
           <div className="mt-4 space-y-4">
             <div>
               <label className="label">Organization name</label>
-              <input value={orgName} onChange={(e) => setOrgName(e.target.value)} className="input" />
+              <input
+                value={org?.name ?? ''}
+                readOnly
+                aria-readonly="true"
+                className="input bg-canvas/60 text-umber"
+                data-testid="org-name"
+              />
+              <p className="mt-1 text-[12px] text-label">Set when the workspace was created.</p>
             </div>
             <div>
               <label className="label">Workspace slug</label>
@@ -128,31 +148,30 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <section className="card p-6">
-          <h2 className="card-title">Notifications</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="card-title">Notifications</h2>
+            <span className="font-mono text-[10.5px] uppercase text-label" data-testid="prefs-scope">
+              Saved on this browser
+            </span>
+          </div>
           <div className="mt-2 divide-y divide-line">
             <Row title="Email notifications" desc="Receive important updates by email">
-              <Toggle on={notifEmail} onChange={setNotifEmail} />
+              <Toggle on={prefs.notifEmail} onChange={set('notifEmail')} />
             </Row>
             <Row title="Weekly digest" desc="A summary of the week every Monday">
-              <Toggle on={notifDigest} onChange={setNotifDigest} />
+              <Toggle on={prefs.notifDigest} onChange={set('notifDigest')} />
             </Row>
             <Row title="Mentions" desc="Get notified when someone mentions you">
-              <Toggle on={mentions} onChange={setMentions} />
+              <Toggle on={prefs.mentions} onChange={set('mentions')} />
             </Row>
           </div>
-        </section>
-
-        {/* Security */}
-        <section className="card p-6">
-          <h2 className="card-title">Security</h2>
-          <div className="mt-2 divide-y divide-line">
-            <Row title="Two-factor authentication" desc="Add an extra layer of security to your account">
-              <Toggle on={twoFactor} onChange={setTwoFactor} />
-            </Row>
+          <div className="mt-4 flex items-center gap-3">
+            <button onClick={save} className="btn-primary" disabled={!dirty}>
+              Save preferences
+            </button>
+            {!dirty && <span className="text-[12px] text-label">Up to date</span>}
           </div>
         </section>
-
-        <button onClick={save} className="btn-primary">Save changes</button>
       </div>
     </div>
   )

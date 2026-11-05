@@ -19,10 +19,17 @@ import {
   captureDryRun,
   fromLive,
   matchIntent,
+  moneyAsk,
   SUGGESTIONS,
   type CopilotAction,
 } from '../../lib/copilot'
-import { blockedSummary, money, useDealLedger, useDealRefresh } from '../../lib/deals'
+import {
+  blockedSummary,
+  groupViolations,
+  money,
+  useDealLedger,
+  useDealRefresh,
+} from '../../lib/deals'
 import { Skeleton } from '../states'
 import { DealCardShell, Motto } from './common'
 import DealCard from './DealCard'
@@ -36,6 +43,7 @@ import PolicyBlockedChip from './PolicyBlockedChip'
 type Mode =
   | { kind: 'live'; provider: string | null; model: string | null; cached: boolean }
   | { kind: 'offline'; reason?: string }
+  | { kind: 'policy' }
   | { kind: 'thinking' }
 type Turn = {
   id: number
@@ -55,6 +63,16 @@ function ModeLabel({ mode }: { mode?: Mode }) {
   if (!mode) return null
   if (mode.kind === 'thinking')
     return <p className="font-mono text-[10px] uppercase text-label">asking live AI…</p>
+  if (mode.kind === 'policy')
+    return (
+      <p
+        className="font-mono text-[10px] uppercase text-label"
+        title="A money ask with an amount or a version is dry-run straight through the policy engine; no model call"
+        data-testid="copilot-mode"
+      >
+        policy dry-run · no AI
+      </p>
+    )
   if (mode.kind === 'live')
     return (
       <p
@@ -171,10 +189,19 @@ function CaptureProposal({
                 Money Agent captures the signed amount.
               </p>
             ) : (
-              <PolicyBlockedChip
-                violations={q.data?.violations ?? []}
-                currency={deal.terms.currency}
-              />
+              <>
+                <p className="mb-2 text-[13px] font-medium text-danger" data-testid="dry-run-headline">
+                  Blocked, no money moved
+                  {(() => {
+                    const ids = groupViolations(q.data?.violations ?? [], cur).map((g) => g.id)
+                    return ids.length ? ` · ${ids.join(' ')}` : ''
+                  })()}
+                </p>
+                <PolicyBlockedChip
+                  violations={q.data?.violations ?? []}
+                  currency={deal.terms.currency}
+                />
+              </>
             )}
           </div>
         </>
@@ -277,6 +304,17 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
     const uid = ++seq.current
     const cid = ++seq.current
     setText('')
+    // a money verb with an amount or a version: policy answers it, deterministically, no model
+    const dry = moneyAsk(t, deal)
+    if (dry) {
+      setTurns((prev) => [
+        ...prev,
+        { id: uid, role: 'user', text: t },
+        { id: cid, role: 'copilot', actions: [dry], mode: { kind: 'policy' } },
+      ])
+      setLastMode('policy')
+      return
+    }
     const offline = (reason?: string) => {
       setTurns((prev) =>
         prev.map((x) =>
@@ -366,13 +404,21 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
           title={
             lastMode === 'live'
               ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)'
-              : lastMode === 'offline'
+              : lastMode === 'policy'
+                ? 'The last answer was a policy dry-run of a money ask; no model call'
+                : lastMode === 'offline'
                 ? 'The last answer was matched offline from your words; no model call. Live AI is used when the agent is on.'
                 : 'Ask about this deal: the live AI answers when the agent is on, otherwise an offline replay does'
           }
           data-testid="copilot-badge"
         >
-          {lastMode === 'live' ? 'live AI' : lastMode === 'offline' ? 'offline replay' : 'ready'}
+          {lastMode === 'live'
+            ? 'live AI'
+            : lastMode === 'offline'
+              ? 'offline replay'
+              : lastMode === 'policy'
+                ? 'policy dry-run'
+                : 'ready'}
         </span>
       </div>
       <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">

@@ -63,6 +63,7 @@ export default function NotificationsPage() {
   const toast = useToast()
   const all = useNotifications()
   const [tab, setTab] = useState<'All' | 'Unread'>('All')
+  const unread = all.filter((n) => n.unread).length
   const visible = tab === 'All' ? all : all.filter((n) => n.unread)
 
   const open = async (n: (typeof all)[number]) => {
@@ -70,7 +71,7 @@ export default function NotificationsPage() {
       await markRead(n.id)
       toast('info', 'Marked as read')
     }
-    navigate(routeFor(n as any))
+    navigate(routeFor(n))
   }
 
   return (
@@ -78,17 +79,25 @@ export default function NotificationsPage() {
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="t-display">Notifications</h1>
-          <p className="mt-1 text-sm text-umber">Mentions, approvals and deadlines</p>
+          <p className="mt-1 text-sm text-umber" data-testid="notif-summary">
+            {all.length === 0
+              ? 'Mentions, approvals and deadlines'
+              : unread
+                ? `${unread} unread of ${all.length}`
+                : `All ${all.length} read`}
+          </p>
         </div>
-        <button
-          onClick={async () => {
-            await markAllRead()
-            toast('success', 'All caught up')
-          }}
-          className="btn-ghost text-teal"
-        >
-          Mark all as read
-        </button>
+        {unread > 0 && (
+          <button
+            onClick={async () => {
+              await markAllRead()
+              toast('success', 'All caught up')
+            }}
+            className="btn-ghost text-teal"
+          >
+            Mark all as read
+          </button>
+        )}
       </header>
 
       <div className="mb-5 flex rounded-[8px] border border-line bg-surface p-0.5 w-fit">
@@ -101,6 +110,9 @@ export default function NotificationsPage() {
             }`}
           >
             {t}
+            <span className="ml-1.5 font-mono text-[11px] opacity-70">
+              {t === 'All' ? all.length : unread}
+            </span>
           </button>
         ))}
       </div>
@@ -122,7 +134,14 @@ export default function NotificationsPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-ink">{n.title}</p>
-                  {n.unread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden="true" />}
+                  {n.unread ? (
+                    <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-teal">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden="true" />
+                      Unread
+                    </span>
+                  ) : (
+                    <span className="font-mono text-[10px] uppercase text-label">Read</span>
+                  )}
                 </div>
                 <p className="mt-0.5 truncate text-[13px] text-umber">{n.desc}</p>
                 <p className="micro-label mt-1">{n.time}</p>
@@ -131,7 +150,9 @@ export default function NotificationsPage() {
           )
         })}
         {visible.length === 0 && (
-          <p className="px-5 py-10 text-center text-sm text-umber">You&apos;re all caught up.</p>
+          <p className="px-5 py-10 text-center text-sm text-umber">
+            {tab === 'Unread' && all.length ? 'Nothing unread. You\u2019re all caught up.' : 'No notifications yet.'}
+          </p>
         )}
       </div>
     </div>

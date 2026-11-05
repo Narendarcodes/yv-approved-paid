@@ -18,6 +18,7 @@ const { hashOf } = require('./lib/canonical.cts');
 const { validateTerms } = require('./lib/validate.cts');
 const { actorRole } = require('./lib/engine.cts');
 const { verifyChain } = require('./lib/ledger.cts');
+const path = require('node:path');
 const { resolveEvidence } = require('./lib/evidence.cts');
 const { askCopilot } = require('./copilot.cts');
 const { planTeam, applyTeam, statusOf } = require('./team.cts');
@@ -170,7 +171,13 @@ router.get(
       'Content-Security-Policy': "default-src 'none'",
     });
     await new Promise<void>((ok, fail) =>
-      res.sendFile(file, { dotfiles: 'deny' }, (err: unknown) => (err ? fail(err) : ok())),
+      // root = the file's own folder, so dotfiles:'deny' judges the file name only and an
+      // evidence dir that sits under a dot-folder (e.g. ~/.cache/...) still serves
+      res.sendFile(
+        path.basename(file),
+        { root: path.dirname(file), dotfiles: 'deny' },
+        (err: unknown) => (err ? fail(err) : ok()),
+      ),
     );
   }),
 );

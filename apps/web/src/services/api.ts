@@ -32,6 +32,25 @@ const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 let csrfToken: string | null = null
 
+/**
+ * A short, readable error for a failed response. A proxy in front of the API
+ * (Render's or Vercel's error page while a service wakes up) answers with a
+ * whole HTML document, and an API error message can carry one too: neither is
+ * ever shown as-is.
+ */
+export function readableError(res: { status: number } | null, body: any, fallback: string): string {
+  const looksHtml = (t: unknown) => typeof t === 'string' && /^\s*<|<html|<!doctype|<body/i.test(t)
+  const status = res?.status
+  const waking = `The server is waking up or unavailable${status ? ` (HTTP ${status})` : ''}. Try again in a minute.`
+  const msg = body?.error?.message
+  if (typeof msg === 'string' && msg.trim()) {
+    if (looksHtml(msg)) return waking
+    return msg.trim().replace(/\s+/g, ' ').slice(0, 300)
+  }
+  if (status && [502, 503, 504].includes(status)) return waking
+  return fallback
+}
+
 function readCookie(name: string): string | null {
   const hit = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`))
   return hit ? decodeURIComponent(hit.slice(name.length + 1)) : null
@@ -183,7 +202,7 @@ export async function register(
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new Error(body?.error?.message || 'Registration failed')
+    throw new Error(readableError(res, body, 'Registration failed'))
   }
   const body = await res.json()
   const u = (body.data ?? {}) as SessionUser & { _id?: string }
@@ -224,7 +243,7 @@ export async function login(email: string, password: string): Promise<Session> {
   if (!res.ok) {
     const errBody = await res.json().catch(() => null)
     const code: string = errBody?.error?.code || ''
-    const msg: string = errBody?.error?.message || ''
+    const msg: string = readableError(res, errBody, '')
     if (code === 'invalid_credentials' || res.status === 401) {
       throw new LoginError('invalid_credentials', msg || 'Invalid credentials', res.status)
     }
@@ -267,7 +286,7 @@ export async function updateMe(patch: { name?: string; email?: string }): Promis
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new Error(body?.error?.message || 'Profile update failed')
+    throw new Error(readableError(res, body, 'Profile update failed'))
   }
   const body = await res.json()
   const u = (body.data ?? {}) as SessionUser & { _id?: string }
@@ -301,7 +320,7 @@ export async function removeProfilePhoto(): Promise<
   })
   if (!res.ok) {
     const b = await res.json().catch(() => null)
-    throw new Error(b?.error?.message || 'Remove photo failed')
+    throw new Error(readableError(res, b, 'Remove photo failed'))
   }
   const body = await res.json()
   const u = (body.data ?? {}) as any
@@ -472,6 +491,9 @@ export interface AppNotification {
   desc: string
   time: string
   unread: boolean
+  projectId?: string
+  payload?: unknown
+  createdAt?: string
 }
 
 export async function listNotifications(unreadOnly = false): Promise<AppNotification[]> {
@@ -486,8 +508,11 @@ export async function listNotifications(unreadOnly = false): Promise<AppNotifica
     type: n.type,
     title: n.title || '',
     desc: n.body || n.desc || '',
-    time: n.time || n.createdAt || '',
+    time: n.time || '',
+    createdAt: n.createdAt || undefined,
     unread: n.unread ?? !n.read,
+    projectId: n.projectId ? String(n.projectId?._id ?? n.projectId) : undefined,
+    payload: n.payload,
   })) as AppNotification[]
 }
 
@@ -767,7 +792,7 @@ export async function sendChannelMessage(projectId: string, channelId: string, b
   })
   if (!res.ok) {
     const err = await res.json().catch(() => null)
-    throw new Error(err?.error?.message || 'Failed to send message')
+    throw new Error(readableError(res, err, 'Failed to send message'))
   }
   const payload = await res.json()
   return normalize(payload.data)
@@ -783,7 +808,7 @@ export async function createChannel(projectId: string, name: string) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => null)
-    throw new Error(err?.error?.message || 'Failed to create channel')
+    throw new Error(readableError(res, err, 'Failed to create channel'))
   }
   const payload = await res.json()
   return normalize(payload.data)
@@ -824,7 +849,7 @@ export async function setTaskStatus(
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
-    throw new Error(body?.error?.message || 'Failed to move task')
+    throw new Error(readableError(res, body, 'Failed to move task'))
   }
   const body = await res.json()
   return normalize(body.data) as TaskItem
@@ -911,7 +936,7 @@ async function sendJson<T>(method: string, path: string, payload?: unknown): Pro
   const body = await res.json().catch(() => null)
   if (!res.ok)
     throw new ApiError(
-      body?.error?.message || `Request failed (${res.status})`,
+      readableError(res, body, `Request failed (${res.status})`),
       body?.error?.code,
       body?.error?.details,
     )
@@ -930,7 +955,7 @@ export class ApiError extends Error {
 async function getJson<T>(path: string): Promise<T> {
   const res = await authFetch(`${API_BASE}${path}`, { credentials: 'include' })
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(body?.error?.message || `Request failed (${res.status})`)
+  if (!res.ok) throw new Error(readableError(res, body, `Request failed (${res.status})`))
   return body?.data as T
 }
 
@@ -1624,7 +1649,7 @@ export interface AgentInsight {
 async function agentJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await authFetch(url, init)
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(body?.error?.message || 'Request failed')
+  if (!res.ok) throw new Error(readableError(res, body, 'Request failed'))
   return body.data as T
 }
 export const getAgentPosts = (orgId: string) =>
@@ -1655,7 +1680,7 @@ export async function streamAgentChat(
   })
   if (!res.ok || !res.body) {
     const body = await res.json().catch(() => null)
-    throw new Error(body?.error?.message || 'Agent unavailable')
+    throw new Error(readableError(res, body, 'Agent unavailable'))
   }
   const reader = res.body.getReader()
   const dec = new TextDecoder()
@@ -1796,7 +1821,7 @@ export async function demoLogin(): Promise<{ session: Session; dealId: string; o
   })
   if (res.status === 404) return null
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(body?.error?.message || `Demo sign-in failed (HTTP ${res.status})`)
+  if (!res.ok) throw new Error(readableError(res, body, `Demo sign-in failed (HTTP ${res.status})`))
   csrfToken = body?.data?.csrfToken ?? readCookie('csrfToken')
   const u = (body?.data?.user ?? {}) as SessionUser & { _id?: string }
   const session: Session = { user: { ...u, id: u.id ?? u._id ?? '' }, loggedInAt: new Date().toISOString() }

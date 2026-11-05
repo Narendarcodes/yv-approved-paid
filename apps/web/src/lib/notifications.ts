@@ -14,6 +14,9 @@ export interface AppNotification {
   desc: string
   time: string
   unread: boolean
+  /** The project this notification is about, when there is one (clicks open it). */
+  projectId?: string
+  payload?: unknown
 }
 
 // Start empty - real notifications arrive from the backend on refresh.
@@ -48,8 +51,10 @@ export async function refreshNotifications(): Promise<AppNotification[]> {
       type: n.type,
       title: n.title || '',
       desc: n.body || n.desc || '',
-      time: n.time || relativeTime(n.createdAt),
+      time: n.createdAt ? relativeTime(n.createdAt) : n.time || '-',
       unread: n.unread ?? !n.read,
+      projectId: n.projectId ? String(n.projectId?._id ?? n.projectId) : undefined,
+      payload: n.payload,
     }))
   } catch {
     // Backend unreachable - keep whatever we already have
