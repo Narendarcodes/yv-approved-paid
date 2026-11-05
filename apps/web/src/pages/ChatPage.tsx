@@ -60,30 +60,7 @@ export default function ChatPage() {
     }
   }
 
-  return (
-    <div className="fade-in">
-    <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
-      <div>
-        <h1 className="t-display">Team chat</h1>
-        <p className="mt-1 text-sm text-umber">Channels for the whole workspace</p>
-      </div>
-    </header>
-    <div className="flex h-[calc(100vh-210px)] min-h-[420px] gap-4">
-      {/* Channel list */}
-      <aside className="card hidden w-60 shrink-0 flex-col p-0 sm:flex">
-        <header className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h2 className="card-title">Channels</h2>
-          <button
-            onClick={() => setNewChannelOpen((v) => !v)}
-            className="icon-btn icon-btn-sm"
-            aria-label="New channel"
-            title="New channel"
-          >
-            <Plus size={15} strokeWidth={1.75} />
-          </button>
-        </header>
-
-        {newChannelOpen && (
+  const createForm = (
           <div className="border-b border-line p-2">
             <input
               autoFocus
@@ -104,7 +81,58 @@ export default function ChatPage() {
               <p className="mt-1 font-mono text-[10px] text-danger" role="alert">{channelError}</p>
             )}
           </div>
+  )
+
+  return (
+    <div className="fade-in">
+    <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <h1 className="t-display">Team chat</h1>
+        <p className="mt-1 text-sm text-umber">Channels for the whole workspace</p>
+      </div>
+    </header>
+    {/* Mobile channel bar: the channel list is hidden below sm */}
+    <div className="card mb-3 p-2 sm:hidden" data-testid="chat-mobile-channels">
+      <div className="flex items-center gap-2">
+        {chat.channels.length > 0 && (
+          <select
+            aria-label="Channel"
+            value={active?.id ?? ''}
+            onChange={(e) => setChannelId(e.target.value)}
+            className="input !h-9 flex-1 font-mono text-[13px]"
+          >
+            {chat.channels.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         )}
+        <button
+          onClick={() => setNewChannelOpen((v) => !v)}
+          className={chat.channels.length > 0 ? 'icon-btn' : 'btn-primary w-full'}
+          aria-label="New channel"
+          title="New channel"
+        >
+          <Plus size={15} strokeWidth={1.75} />{chat.channels.length > 0 ? null : ' New channel'}
+        </button>
+      </div>
+      {newChannelOpen && <div className="mt-2 rounded-[8px] border border-line">{createForm}</div>}
+    </div>
+    <div className="flex h-[calc(100vh-210px)] min-h-[420px] gap-4">
+      {/* Channel list */}
+      <aside className="card hidden w-60 shrink-0 flex-col p-0 sm:flex">
+        <header className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="card-title">Channels</h2>
+          <button
+            onClick={() => setNewChannelOpen((v) => !v)}
+            className="icon-btn icon-btn-sm"
+            aria-label="New channel"
+            title="New channel"
+          >
+            <Plus size={15} strokeWidth={1.75} />
+          </button>
+        </header>
+
+        {newChannelOpen && createForm}
 
         <ul className="flex-1 overflow-y-auto p-2">
           {chat.loading || teamLoading
