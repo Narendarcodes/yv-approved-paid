@@ -8,7 +8,7 @@
  * AI checks facts, people own taste, the deal decides the money.
  */
 import { useState } from 'react'
-import { ChevronRight, Link2, Link2Off, Radio } from 'lucide-react'
+import { ChevronRight, Link2, Link2Off, Radio, RefreshCw } from 'lucide-react'
 import { useToast } from '../toast'
 import { ErrorBanner, Skeleton } from '../states'
 import * as api from '../../services/api'
@@ -95,6 +95,15 @@ export default function MoneyTimeline({
               title="Live: new ledger lines appear as they are written"
             >
               <Radio size={12} strokeWidth={2} /> LIVE
+            </span>
+          )}
+          {!ledger.live && ledger.autoRefresh && (
+            <span
+              className="inline-flex items-center gap-1 font-mono text-[11px] text-umber"
+              title="Live push is not connected; the ledger refreshes every 10 seconds"
+              data-testid="ledger-auto-refresh"
+            >
+              <RefreshCw size={12} strokeWidth={2} /> auto-refresh
             </span>
           )}
           {ledger.data &&

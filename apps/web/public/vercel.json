@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://yv-approved-paid-api.onrender.com/api/:path*" },
+    { "source": "/socket.io", "destination": "https://yv-approved-paid-api.onrender.com/socket.io/" },
+    { "source": "/socket.io/:path*", "destination": "https://yv-approved-paid-api.onrender.com/socket.io/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

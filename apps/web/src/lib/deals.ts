@@ -8,7 +8,7 @@
  * the policy engine. The ledger stays live over Socket.IO (`deal:join`, then
  * `deal:ledger` on every append).
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import * as api from '../services/api'
 import { primaryOrgId } from './data'
@@ -122,8 +122,26 @@ export function useDealLedger(orgId: string | null, dealId: string | undefined) 
     }
   }, [orgId, dealId, qc])
 
-  return { ...q, live }
+  // Fallback while the socket room is not joined (cold API, blocked transport): refetch the
+  // ledger every 10 s. A plain interval, so it fires whatever react-query's own scheduling does.
+  const refetchRef = useRef(q.refetch)
+  refetchRef.current = q.refetch
+  const enabled = !!orgId && !!dealId
+  useEffect(() => {
+    if (!enabled || live) return
+    const t = window.setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      void refetchRef.current()
+      void qc.invalidateQueries({ queryKey: ['deal', orgId, dealId] })
+    }, LEDGER_FALLBACK_MS)
+    return () => window.clearInterval(t)
+  }, [enabled, live, orgId, dealId, qc])
+
+  return { ...q, live, autoRefresh: enabled && !live }
 }
+
+/** How often the ledger is refetched while live pushes are not arriving. */
+export const LEDGER_FALLBACK_MS = 10_000
 
 /** Merge one pushed ledger line into the view. Totals are recomputed the way the API does (ledger.cts totals()). */
 export function appendEntry(view: DealLedgerView, entry: DealLedgerEntry): DealLedgerView {

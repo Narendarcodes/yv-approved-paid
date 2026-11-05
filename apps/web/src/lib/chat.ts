@@ -43,16 +43,31 @@ function getSocketOrigin(): string {
   return api.API_ORIGIN || window.location.origin
 }
 
+/** True on a same-origin deploy behind Vercel rewrites (*.vercel.app): socket.io must poll. */
+export function socketViaRewrite(): boolean {
+  return !api.API_ORIGIN && /\.vercel\.app$/i.test(window.location.hostname)
+}
+
 function getSocket(): Socket {
   if (socket) return socket
   // ADR-0017: the handshake authenticates with the httpOnly access cookie
   // (withCredentials); no token is readable from JS. If the access cookie has
   // expired the server answers 'unauthorized': refresh the session over REST
   // (which re-sets the cookie) and reconnect once.
-  socket = io(getSocketOrigin(), {
-    withCredentials: true,
-    transports: ['websocket', 'polling'],
-  })
+  socket = io(
+    getSocketOrigin(),
+    socketViaRewrite()
+      ? {
+          // Vercel rewrites /socket.io to the API but cannot proxy websockets, and its
+          // /socket.io/:path* rule misses the trailing-slash form "/socket.io/?EIO=4"
+          // (that one gets index.html). So: long-polling only, path without the slash.
+          withCredentials: true,
+          path: '/socket.io',
+          addTrailingSlash: false,
+          transports: ['polling'],
+        }
+      : { withCredentials: true, transports: ['websocket', 'polling'] },
+  )
   let retried = false
   socket.on('connect_error', async (err) => {
     if (err?.message !== 'unauthorized' || retried) return
