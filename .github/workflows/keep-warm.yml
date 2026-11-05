@@ -1,0 +1,21 @@
+name: Keep warm
+
+# Render free instances sleep after ~15 min idle; a judge's first click then waits
+# for a cold start. Ping the API and the deals agent every 10 minutes.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    name: Ping API + agent health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: API health
+        run: curl -fsS --max-time 90 -o /dev/null -w "api %{http_code} %{time_total}s\n" https://yv-approved-paid-api.onrender.com/api/v1/health || true
+      - name: Deals agent health
+        run: curl -fsS --max-time 90 -o /dev/null -w "agent %{http_code} %{time_total}s\n" https://yv-deals-agent.onrender.com/health || true
