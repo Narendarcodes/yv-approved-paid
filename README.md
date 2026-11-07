@@ -40,7 +40,7 @@ _The payables-board problem ("what do we owe each freelancer this month?") is al
 
 ![Review clock card: 2 business days left, 50% releases on silence](docs/img/clock-brand.png)
 
-Each milestone can carry a review clock in its signed terms. Once the delivery passes its machine checks, the brand has a set number of **business days** to approve, ask for changes or dispute.
+Each milestone can carry a review clock in its signed terms. Once the delivery passes its machine checks, the brand has a set number of **business days** (2 to 10, default 3) to approve, ask for changes or dispute.
 
 - **Business days** skip weekends and the **bank holidays of the brand's country** (the payer's, the way banks count). Each day ends at an **18:00 cut-off** in the brand's timezone. The window is never longer than 15 calendar days.
 - **Reminders** go out at **50%** and **80%** of the window (the 80% one also goes to the backup reviewer) and **24 hours** before the end. The final one states the exact amount that will move.
@@ -102,8 +102,8 @@ Everything runs in the **PayPal sandbox** (`api-m.sandbox.paypal.com`). No live 
 | Change-order invoices (Invoicing v2)                   | **Real**                       | `INV2-...` invoices are created **and sent**                                                                                                                                                                         |
 | Judge demo without a PayPal login                      | **Real ids**                   | Holds come from a pool of authorizations a sandbox buyer approved ahead of time                                                                                                                                      |
 | Demo when the pool is empty                            | Simulated, labelled            | `SIM-AUTH-` / `SIM-CAPTURE-` ids on an in-memory twin with PayPal's rules                                                                                                                                            |
-| Typed PayPal SDK path (`PAYPAL_CLIENT=sdk`)            | **Stub-verified**              | Tested against a stubbed PayPal only. **Not yet run against the sandbox.** The Nov 4 live checks used REST                                                                                                           |
-| Crew payouts (one Payouts batch)                       | Simulated by default, labelled | `PAYOUTS_MODE=simulated` records the batch and receipts with no Payouts call. The India sandbox merchant gets `PAYOUT_NOT_AVAILABLE`. The real path (`PAYOUTS_MODE=real`) is ready for a US Business sandbox account |
+| Typed PayPal SDK path (`PAYPAL_CLIENT=sdk`)            | **Real** (live-verified Nov 8) | The default on sandbox. On Nov 8, 2026 the deployed API (no `PAYPAL_CLIENT` set, so `sdk`) authorized 24 pool orders and captured reel 1 (`0X522920UA545992V`, $400 COMPLETED) and reel 3 (`82250670EG2217747`, $200 COMPLETED) through the SDK. The Nov 4 checks used REST |
+| Crew payouts (one Payouts batch)                       | **Real** on the demo (sandbox) | The demo API runs `PAYOUTS_MODE=real` on a US Business sandbox app since Nov 8, 2026: each release is one real `POST /v1/payments/payouts` batch (e.g. reel 1 `CY4K8FYX7WN68` $400 = $280 + $120, reel 3 `UZ6D4CNLJWKUE` $200, reel 4 partial `EN7Y2GCJBUQ2Y` $75, all batch status SUCCESS; items UNCLAIMED because the demo crew emails are not sandbox accounts). `PAYOUTS_MODE=simulated` (the code default) records the batch with no Payouts call; `PAYOUT_NOT_AVAILABLE` still falls back to a labelled simulation |
 | Fair Review Clock (in the API)                         | **Real**                       | Runs in the API's Money Agent tick and `POST /internal/clock/advance`                                                                                                                                                |
 | Render Workflow for the clock                          | **Code only**                  | `workflows/fair-clock` is typed and unit-tested, but not deployed. No workflow service or cron job exists yet                                                                                                        |
 | Deal copilot                                           | **Real** (labelled fallback)   | River AI (`Qwen/Qwen3.8-27B-FP8`), then NVIDIA NIM. Falls back to an **offline replay** with no model call                                                                                                           |
@@ -115,7 +115,9 @@ Everything runs in the **PayPal sandbox** (`api-m.sandbox.paypal.com`). No live 
 | Reel 1, approved      | `75944066TD8606012` | Capture `6CX25059D6955990M`, **$400.00 COMPLETED**                                                             |
 | Reel 2, dispute split | `7LJ85033A19963041` | Partial capture `8L3248257U421871X` (**$240**), then the authorization **VOIDED** (the remaining $60 released) |
 
-In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal sandbox · simulated`. Payouts show **Simulated payout** with the reason.
+**Verified live on Nov 8, 2026** (US sandbox app, deploy of `bd9320d`): reel 3 approved in the web app, capture `82250670EG2217747` **$200.00 COMPLETED**, Payouts batch `UZ6D4CNLJWKUE` **SUCCESS** ($200 to the editor, the signed 100% share). A demo reset then re-seeded all four holds from the pool with real ids and real payout batches.
+
+In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal sandbox · simulated`. A payout shows **Simulated payout** with the reason only when it was simulated.
 
 ---
 
@@ -167,7 +169,7 @@ In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal
          ├─ reject, nothing owed ────────────────► void                              = RELEASED
          └─ still open after the 3-day honor period ─► reauthorize                  = HOLD KEPT
  change order (priced from the signed rate card) ─► Invoicing v2 invoice, sent
- each release ─► one Payouts batch to the crew by the signed shares (simulated by default)
+ each release ─► one Payouts batch to the crew by the signed shares (real sandbox batches on the demo; `PAYOUTS_MODE` defaults to simulated)
 ```
 
 More: [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -241,7 +243,7 @@ Counts are from a local run on Nov 7, 2026. Typecheck: `npm run typecheck` at th
 
 ## Built with
 
-- **PayPal** (sandbox): Orders v2 (`intent: AUTHORIZE`), Payments v2 (authorize, capture, void, reauthorize, refund), Payouts (one batch per release; simulated by default), Invoicing v2
+- **PayPal** (sandbox): Orders v2 (`intent: AUTHORIZE`), Payments v2 (authorize, capture, void, reauthorize, refund), Payouts (one batch per release; real on the demo, simulated by default in code), Invoicing v2
 - **PayPal Server SDK** (`@paypal/paypal-server-sdk`, generated by **APIMatic**), with a REST fallback
 - **AG Grid Community**: the payables board and Where's my money
 - **Render**: the API and the deal agent (web services), and a Render **Workflow** for the review clock (code-only, not deployed)
@@ -293,7 +295,7 @@ yv. is my own project. I started its content-ops core (projects, tasks, briefs, 
 **November 2026: Approved = Paid (this repo)**
 
 - Deals engine: milestones, signed terms, payee splits and an append-only money ledger
-- PayPal: Orders v2 AUTHORIZE holds milestone funds, approving a video captures the hold (Payments v2 capture), a rejected or disputed milestone voids the rest, and Invoicing v2 sends change-order invoices on the sandbox. The judge demo draws its holds from a small pool of authorizations a sandbox buyer approved ahead of time, so judges need no PayPal login (filled and verified live on Nov 4, 2026 with a US sandbox buyer: real authorization, real capture on approve, real partial capture + void on a split; each demo reset uses one pair, and an empty pool falls back to a labelled simulation). Payouts are simulated and labelled, because sandbox payouts aren't available for India accounts.
+- PayPal: Orders v2 AUTHORIZE holds milestone funds, approving a video captures the hold (Payments v2 capture), a rejected or disputed milestone voids the rest, and Invoicing v2 sends change-order invoices on the sandbox. The judge demo draws its holds from a small pool of authorizations a sandbox buyer approved ahead of time, so judges need no PayPal login (filled and verified live on Nov 4, 2026 with a US sandbox buyer: real authorization, real capture on approve, real partial capture + void on a split; each demo reset uses one pair, and an empty pool falls back to a labelled simulation). Since Nov 8, 2026 the demo runs on a US sandbox app and crew payouts are real sandbox Payouts batches (the India app refused them with `PAYOUT_NOT_AVAILABLE`).
 - Policy engine: every money move gets a dry run first, and AI never sets amounts or verdicts
 - AI agents for video QA checks, review, money and disputes, plus a live deal copilot (River AI, NVIDIA NIM fallback)
 - Team assignment: Assign picker, real invites and a deal Team card that locks the split at signing
@@ -315,7 +317,7 @@ The detail behind the sections above: pages, cards, the copilot, team splits and
 - **PayPal modes** (`PAYPAL_MODE`, `apps/api/src/modules/deals/paypal.cts`):
   - `mock`: in-memory PayPal with the real rules (tests, offline demo). Ids end in `MOCK`; the UI tags them `mock`.
   - `sandbox`: the real PayPal sandbox (`api-m.sandbox.paypal.com`, needs `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`). Holds are real Orders v2 orders (intent `AUTHORIZE`) with return/cancel URLs; the web return page (`/deals/:id/fund/:key?paypal=approved`) calls `/v2/checkout/orders/{id}/authorize` and stores the real authorization id on the milestone. Approving the video calls `/v2/payments/authorizations/{id}/capture` (real capture id on the ledger); a kill fee or dispute split captures part and `/void`s the rest; a reject with nothing owed voids. After the 3-day honor period the Money Agent reauthorizes once (PayPal allows one). A change order creates a real Invoicing v2 invoice (`INV2-...`) and **sends** it.
-  - **Judge demo (`DEMO_MODE=1`): pre-approved pool.** Judges should not need a sandbox buyer login, so demo deals (`deal_demo_*`) take a real authorization from a pool a sandbox buyer approved ahead of time (`apps/api/src/modules/deals/pool.cts`, collection `paypalauthpools`): one $400 and one $300 per seed. A drawn authorization is re-checked with PayPal (status `CREATED`, valid 2+ more days) before use; capture and void on it are then real sandbox calls with real ids. A reboot keeps an untouched real-sandbox demo deal instead of burning two more; `POST /api/v1/demo/deal/reset` (judge only, once per 2 min) forces a rebuild with a fresh pair. Only when the pool is empty does the seed fall back to a simulated approval: `SIM-AUTH-<real order id>`, `SIM-CAPTURE-...` on an in-memory twin with PayPal's rules, every ledger line saying **"PayPal sandbox: buyer approval simulated (pre-approved pool empty)"**. Payouts are attempted for real; this sandbox account's country refuses them (`PAYOUT_NOT_AVAILABLE`), so the demo records a `SIM-PAYOUT-...` with that error. The UI tags ids `PayPal sandbox` (real) or `PayPal sandbox · simulated`, never `mock`, and the money timeline has a "PayPal ids" panel (authorization + capture ids per milestone).
+  - **Judge demo (`DEMO_MODE=1`): pre-approved pool.** Judges should not need a sandbox buyer login, so demo deals (`deal_demo_*`) take a real authorization from a pool a sandbox buyer approved ahead of time (`apps/api/src/modules/deals/pool.cts`, collection `paypalauthpools`): one $400 and one $300 per seed. A drawn authorization is re-checked with PayPal (status `CREATED`, valid 2+ more days) before use; capture and void on it are then real sandbox calls with real ids. A reboot keeps an untouched real-sandbox demo deal instead of burning two more; `POST /api/v1/demo/deal/reset` (judge only, once per 2 min) forces a rebuild with a fresh pair. Only when the pool is empty does the seed fall back to a simulated approval: `SIM-AUTH-<real order id>`, `SIM-CAPTURE-...` on an in-memory twin with PayPal's rules, every ledger line saying **"PayPal sandbox: buyer approval simulated (pre-approved pool empty)"**. Payouts go out for real (`PAYOUTS_MODE=real`, US Business sandbox app since Nov 8, 2026); only if PayPal answers `PAYOUT_NOT_AVAILABLE` (as the old India app did) does the demo record a labelled `SIM-` payout with that error. Each demo seed or reset takes **four** holds now ($400, $300, $200, $150). The UI tags ids `PayPal sandbox` (real) or `PayPal sandbox · simulated`, never `mock`, and the money timeline has a "PayPal ids" panel (authorization + capture ids per milestone).
   - **Refilling the pool** (sandbox only): `node apps/api/scripts/paypal-auth-pool.cjs create --pairs 3` (env `PAYPAL_CLIENT_ID` / `PAYPAL_CLIENT_SECRET`) prints approve links; open each, log in as a sandbox **Personal** account whose country is not India (an India buyer paying this India merchant gets PayPal's `UNSUPPORTED_PAYEE_CURRENCY`), press Continue. PayPal returns the buyer to `GET /api/v1/paypal/pool/return?token=<orderId>`, which checks the order with PayPal (ours: `custom_id` `yv-auth-pool:*`, intent `AUTHORIZE`, buyer-approved), authorizes it and adds it as ready. `claim <orderId>` does the same if a return page did not load; `status` (or `GET /api/v1/paypal/pool`) shows ready/used per amount. Authorizations last 29 days. `PAYPAL_SANDBOX_POOL=0` turns the pool off.
   - Live approve path: any non-demo deal still gets a fresh order and the real "Approve in PayPal sandbox" link (Fund button), for anyone with their own sandbox buyer.
   - `live`: PayPal REST against `api-m.paypal.com` (not used for the hackathon).
@@ -709,7 +711,7 @@ MVP backend + frontend are functional, and Approved = Paid runs on real PayPal s
 
 - Cloud storage adapter (S3/R2), real-time notifications UI polish, client portal
 - LLM-powered review summarization, video player annotations
-- PayPal Payouts on a US Business sandbox (`PAYOUTS_MODE=real`; today simulated, `PAYOUT_NOT_AVAILABLE` on the India merchant), the typed SDK path run against the sandbox, the Render Workflow deployed, PayPal live mode, e-sign integration
+- The Render Workflow deployed, PayPal live mode, e-sign integration
 
 ---
 

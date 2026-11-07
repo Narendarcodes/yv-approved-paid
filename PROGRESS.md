@@ -2,7 +2,7 @@
 
 Motto: **AI checks facts, people own taste, the deal decides the money.**
 
-## Status at a glance (Nov 7, 2026)
+## Status at a glance (Nov 8, 2026)
 
 | Piece                                                                    | Status                                                                                                                                                                                |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -11,10 +11,10 @@ Motto: **AI checks facts, people own taste, the deal decides the money.**
 | Reauthorize after the 3-day honor period (once per hold)                 | **Real** (sandbox)                                                                                                                                                                    |
 | Change-order invoices (Invoicing v2, sent)                               | **Real** (sandbox)                                                                                                                                                                    |
 | Demo with an empty pool                                                  | Simulated, labelled `SIM-` ("pre-approved pool empty")                                                                                                                                |
-| Payouts (one batch per release to the crew)                              | Simulated by default (`PAYOUTS_MODE=simulated`), labelled "Simulated payout". `PAYOUT_NOT_AVAILABLE` for the India sandbox merchant; the real path is ready for a US Business sandbox |
-| Typed PayPal Server SDK (APIMatic) path                                  | Stub-verified only; not yet run against the sandbox (the Nov 4 live checks used REST). `PAYPAL_CLIENT=rest` rolls back                                                                |
+| Payouts (one batch per release to the crew)                              | **Real** on the demo since Nov 8 (`PAYOUTS_MODE=real`, US sandbox app): batches `CY4K8FYX7WN68`, `UZ6D4CNLJWKUE`, `EN7Y2GCJBUQ2Y` SUCCESS. Code default stays `simulated` |
+| Typed PayPal Server SDK (APIMatic) path                                  | **Real**, live-verified Nov 8 (default `sdk`): pool authorizations + captures `0X522920UA545992V`, `82250670EG2217747` COMPLETED. `PAYPAL_CLIENT=rest` rolls back |
 | Fair Review Clock                                                        | Real in the API (Money Agent tick + `/internal/clock/advance`); the Render Workflow driver is code only, not deployed                                                                 |
-| Payables board, Where's my money                                         | Built (AG Grid Community); not yet deployed (branch `feat/fair-pay-suite`)                                                                                                            |
+| Payables board, Where's my money                                         | Deployed Nov 8 (Render `bd9320d`, Vercel `dpl_EVLa4EBGg37VXGvvfwxzt9AK5BS2`), smoke-tested live |
 | Deal copilot                                                             | Live AI (River `Qwen/Qwen3.8-27B-FP8` -> NVIDIA NIM fallback), offline replay as the labelled fallback                                                                                |
 | Hosting                                                                  | Render (API + deal agent), Vercel (web), MongoDB Atlas                                                                                                                                |
 
@@ -22,7 +22,21 @@ Verified live: reel 1 auth `75944066TD8606012` -> capture `6CX25059D6955990M` ($
 
 Sections below are in reverse date order; older sections describe the state on their own date (each one notes what later work superseded).
 
-## Fair pay suite (Nov 7, 2026): branch `feat/fair-pay-suite`, not merged or deployed yet
+## Go-live (Nov 8, 2026): fair pay suite on Render + Vercel, real sandbox payouts
+
+| Item | Result |
+| --- | --- |
+| `bd9320d` | fix(deals): the sandbox gateway scopes a payout batch's `sender_batch_id` to the milestone's funding authorization (new optional `scope` on `createPayoutBatch`, passed by the engine). Found live: a second demo reset in one process re-sent `payout:deal_demo_diwali:reel1:approve` and PayPal refused it ("Batch with given sender_batch_id already exists"). Stored `senderBatchId`, REST/SDK/mock unchanged. New test in `paypal-sandbox.test.js`. Re-verified live: a same-process reset now pays out for real. |
+| Render | `dep-dbnnda3m8hqs73cn1p3g` (8917483), then `dep-dbnnqgjrjlhs739cbfj0` (bd9320d, live 01:05 IST). Env: `PAYPAL_CREDENTIALS` (US app), `PAYOUTS_MODE=real`; `CLOCK_SHARED_SECRET` not set |
+| Pool | 24 US-app orders approved by the US sandbox buyer, all "ready"; India-app rows auto-marked invalid. Expire ~7 Dec 2026 |
+| Vercel | `dpl_EVLa4EBGg37VXGvvfwxzt9AK5BS2` |
+| Real release | reel 3 approved in the UI: capture `82250670EG2217747` ($200 COMPLETED), batch `UZ6D4CNLJWKUE` SUCCESS |
+| Smoke (live) | 14/14: reels 1-4, clock countdown, reel 4 in grace, change picker blocks without citation, receipts with real batch ids, copilot "Blocked, no money moved", approve reel 3, payables + "held over $50 and in grace" chips, bulk dry run, CSV export, Where's my money, no console errors. Not on live: editor-only receipt view (no editor password on live; covered by `a93b2db` tests) |
+| Tests | API jest 64 suites, 772 passed / 1 skipped (`--runInBand`); web `npm test` 8/8; web `vite build` OK; CI green |
+
+Open: Render Workflow + cron for the clock (code only); `CLOCK_SHARED_SECRET` unset; screenshots show browser-local time, and the payables CSV file name uses the browser's date.
+
+## Fair pay suite (Nov 7, 2026): branch `feat/fair-pay-suite` (merged to main and deployed Nov 8)
 
 | Commit    | What it did                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
