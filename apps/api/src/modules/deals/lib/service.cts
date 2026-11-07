@@ -20,6 +20,28 @@ const { TERMINAL } = require('./states.cts');
 const { hashOf } = require('./canonical.cts');
 const proposals = require('./proposals.cts');
 const { emitLedgerAppend } = require('../events.cts');
+const reviewClock = require('./review-clock.cts');
+
+const RETRY_BLOCKED_MS = 6 * 3600 * 1000;
+const OBJECT_ID = /^[0-9a-f]{24}$/i;
+
+/** In-app notifications for clock steps: best effort, after the step is saved, never breaks a money step. */
+async function sendNotices(notices: { userIds: string[]; type: string; title: string; body: string; payload: Record<string, unknown> }[]) {
+  if (!notices.length) return 0;
+  const { createNotification } = require('../../../services/notification.service');
+  let sent = 0;
+  for (const n of notices)
+    for (const userId of n.userIds) {
+      if (!OBJECT_ID.test(String(userId || ''))) continue;
+      try {
+        await createNotification({ userId, type: n.type, title: n.title, body: n.body, payload: n.payload });
+        sent += 1;
+      } catch {
+        /* notifications are best-effort */
+      }
+    }
+  return sent;
+}
 
 const LOCK_MS = 60_000;
 
@@ -67,6 +89,7 @@ class ServiceError extends Error {
 }
 
 export type DealService = ReturnType<typeof makeDealService>;
+export type ClockChangeOut = { changeOrderRequired: boolean; changeOrder: unknown; invoice: ExecOutcome | null; reason?: string };
 
 function makeDealService(opts: {
   gateway: PaymentGateway;
@@ -242,6 +265,12 @@ function makeDealService(opts: {
       }),
     /** Money Agent pass over every deal that may still need a move. Busy deals are skipped this round. */
     async tickAll(limit = 100) {
+      // the Fair Review Clock moves first (reminders, releases, hold upkeep), then the usual plan
+      try {
+        await this.advanceClocks(now());
+      } catch {
+        /* a clock failure never stops the Money Agent; the next tick retries */
+      }
       const rows = await Deal.find({ active: true }).select({ _id: 1 }).sort({ updatedAt: 1 }).limit(limit).lean();
       const out: { dealId: string; moves: number; error?: string }[] = [];
       for (const r of rows) {
@@ -254,6 +283,189 @@ function makeDealService(opts: {
       }
       return out;
     },
+    /* ---------------------------------------------------- Fair Review Clock */
+
+    /**
+     * Run one clock step, exactly once. The step id is claimed atomically in
+     * clock.doneSteps (findOneAndUpdate with doneSteps: {$ne: stepId}) under the
+     * deal lock, so a second run is a no-op even if the first one is retried.
+     * A money step that could not act (refused, waiting for a tap) is un-claimed
+     * so a later advance can retry it.
+     */
+    async runClockStep(dealId: string, key: string, stepId: string, opts: { silent?: boolean } = {}) {
+      if (!reviewClock.STEP_IDS.includes(stepId)) throw new ServiceError('unknown_step', `unknown clock step ${stepId}`, 422);
+      const r = await withDeal(dealId, undefined, async (d) => {
+        const m = d.milestones.find((x) => x.key === key);
+        if (!m) throw new ServiceError('milestone_not_found', `no milestone ${key}`, 404);
+        if (!m.clock) throw new ServiceError('clock_not_started', 'the review clock has not started on this milestone', 409);
+        const nothing = { ran: false, stepId, ok: true, results: [] as ExecOutcome[], notices: [] as any[] };
+        if (m.clock.doneSteps.includes(stepId)) return { deal: d, out: nothing };
+        const claimed = await Deal.findOneAndUpdate(
+          { _id: dealId, 'doc.milestones': { $elemMatch: { key, 'clock.doneSteps': { $ne: stepId } } } },
+          { $push: { 'doc.milestones.$.clock.doneSteps': stepId } },
+          { new: true, projection: { _id: 1 } },
+        ).lean();
+        const mark = (deal: DealDoc, on: boolean): DealDoc => ({
+          ...deal,
+          milestones: deal.milestones.map((x) =>
+            x.key === key && x.clock
+              ? { ...x, clock: { ...x.clock, doneSteps: on ? [...new Set([...x.clock.doneSteps, stepId])] : x.clock.doneSteps.filter((s) => s !== stepId) } }
+              : x,
+          ),
+        });
+        if (!claimed) return { deal: mark(d, true), out: nothing };
+        let o;
+        try {
+          o = await engine.applyClockStep(deps, mark(d, true), key, stepId, opts);
+        } catch (e) {
+          await Deal.updateOne({ _id: dealId, 'doc.milestones.key': key }, { $pull: { 'doc.milestones.$.clock.doneSteps': stepId } });
+          throw e;
+        }
+        // saving the doc without the id un-claims it (the claim lives in the same document)
+        return { deal: o.ok ? o.deal : mark(o.deal, false), out: { ran: o.ok, stepId, ok: o.ok, skipped: !!o.skipped, note: o.note, results: o.results as ExecOutcome[], notices: o.notices } };
+      });
+      const sent = await sendNotices(r.out.notices);
+      const { notices, ...out } = r.out;
+      return { deal: r.deal, out: { ...out, notified: sent, notices: notices.length } };
+    },
+
+    /** Hold upkeep for one clock milestone (reauthorize after day 3; warn once when the hold would lapse). */
+    async clockUpkeep(dealId: string, key: string) {
+      const r = await withDeal(dealId, undefined, async (d) => {
+        const o = await engine.clockHoldUpkeep(deps, d, key);
+        return { deal: o.deal, out: { results: o.results as ExecOutcome[], notices: o.notices } };
+      });
+      await sendNotices(r.out.notices);
+      return { deal: r.deal, out: r.out.results };
+    },
+
+    /**
+     * The clock driver: every running (or paused) clock gets hold upkeep, and
+     * every running clock runs the steps due at `nowIso`. Called from the Money
+     * Agent tick and from POST /api/v1/internal/clock/advance.
+     */
+    async advanceClocks(nowIso: string = now(), limit = 200) {
+      const rows = await Deal.find({ active: true, 'doc.milestones.clock.status': { $in: ['running', 'paused'] } })
+        .select({ _id: 1 })
+        .sort({ updatedAt: 1 })
+        .limit(limit)
+        .lean();
+      const out: { dealId: string; milestoneKey: string; steps: string[]; reauthorized: number; error?: string }[] = [];
+      for (const row of rows) {
+        let deal: DealDoc;
+        try {
+          deal = await load(row._id);
+        } catch {
+          continue;
+        }
+        for (const m0 of deal.milestones) {
+          if (!m0.clock || (m0.clock.status !== 'running' && m0.clock.status !== 'paused')) continue;
+          const rec = { dealId: deal.id, milestoneKey: m0.key, steps: [] as string[], reauthorized: 0 } as (typeof out)[number];
+          try {
+            const up = await this.clockUpkeep(deal.id, m0.key);
+            rec.reauthorized = up.out.filter((x: ExecOutcome) => x.outcome === 'done').length;
+            deal = up.deal;
+            const m = deal.milestones.find((x) => x.key === m0.key)!;
+            const due = reviewClock.dueFor(m.clock, nowIso) as string[];
+            const releaseDue = due.some((s) => s.startsWith('release_'));
+            for (const stepId of due) {
+              const k = `clock:${deal.id}:${m0.key}:${stepId}`;
+              const at = deal.lastBlocked?.[k];
+              if (at && Date.parse(nowIso) - Date.parse(at) < RETRY_BLOCKED_MS) break; // refused recently; retry later
+              // reminders that fall due together with a release are recorded but not sent
+              const r = await this.runClockStep(deal.id, m0.key, stepId, { silent: releaseDue && !stepId.startsWith('release_') });
+              deal = r.deal;
+              if (r.out.ran) rec.steps.push(stepId);
+              if (!r.out.ok) break; // a release that could not act holds the later steps back
+            }
+          } catch (e) {
+            rec.error = (e as { code?: string }).code || 'error';
+          }
+          out.push(rec);
+        }
+      }
+      return out;
+    },
+
+    /** The brand approves on a clock milestone: approval of the latest version, the full amount releases now. */
+    clockApprove: (dealId: string, orgId: string, userId: string, key: string) =>
+      withDeal(dealId, orgId, async (d) => {
+        const m = d.milestones.find((x) => x.key === key);
+        if (!m) throw new ServiceError('milestone_not_found', `no milestone ${key}`, 404);
+        const latest = m.versions[m.versions.length - 1];
+        if (!latest) throw new ServiceError('nothing_delivered', 'nothing has been delivered yet', 409);
+        // the approve tap is the human tap for the capture (release = true), so the full amount moves now
+        const approved = engine.approve(d, key, userId, latest.id, now(), true);
+        const r = await engine.tick(deps, approved);
+        return { deal: r.deal, out: r.results as ExecOutcome[] };
+      }),
+
+    /**
+     * The brand asks for changes on a clock milestone. The citation (a brief item
+     * id or a failed check id) is required. Within the included rounds this pauses
+     * the clock and counts a round; past them it drafts, accepts (the brand's own
+     * ask) and invoices a change order through the existing path instead.
+     */
+    clockRequestChanges: (dealId: string, orgId: string, userId: string, key: string, input: { citation?: unknown; text?: unknown; changeOrderId?: unknown }) =>
+      withDeal<ClockChangeOut>(dealId, orgId, async (d) => {
+        const citation = typeof input.citation === 'string' ? input.citation.trim() : '';
+        if (!citation || citation.length > 100)
+          throw new ServiceError('citation_required', 'a change request needs a citation: a brief item id or a failed check id', 422);
+        const t = d.terms.milestones.find((x) => x.key === key);
+        const m = d.milestones.find((x) => x.key === key);
+        if (!t || !m) throw new ServiceError('milestone_not_found', `no milestone ${key}`, 404);
+        const ct = reviewClock.clockTermsOf(d.terms, t);
+        if (!ct) throw new ServiceError('no_clock', 'this milestone has no review clock; use the plain change request', 409);
+        if (engine.actorRole(d, userId) !== 'client') throw new ServiceError('forbidden', 'only the client can do this', 403);
+        const latest = m.versions[m.versions.length - 1];
+        const failed = new Set([...(latest?.checks?.failed || []), ...(latest?.checks?.unmeasured || [])]);
+        const line = t.checklist.find((c) => c.id === citation);
+        if (!line && !failed.has(citation))
+          throw new ServiceError('citation_unknown', `"${citation}" is not a brief item or a failed check on this milestone`, 422);
+        const text = typeof input.text === 'string' && input.text.trim() ? input.text.trim().slice(0, 2000) : `Change requested (cites ${citation})`;
+        const changeOrderId = typeof input.changeOrderId === 'string' ? input.changeOrderId : undefined;
+        const used = m.clock?.revisionsUsed || 0;
+        if (used + 1 > ct.includedRevisionRounds && !changeOrderId) {
+          const item =
+            d.terms.rateCard.find((r) => r.id === 'revision_round') || d.terms.rateCard.find((r) => /revision/i.test(`${r.id} ${r.label}`));
+          if (!item)
+            return {
+              deal: d,
+              out: { changeOrderRequired: true, changeOrder: null, invoice: null, reason: 'the signed rate card has no revision-round item to price a change order from' },
+            };
+          const id = `co_${crypto.randomBytes(6).toString('base64url')}`;
+          const drafted = proposals.draftChangeOrder(
+            d,
+            { milestoneKey: key, rateCardItemId: item.id, quantity: 1, ask: `Extra revision round: ${text}`, by: 'client' },
+            id,
+            now(),
+          );
+          const accepted = proposals.decideChangeOrder(drafted.deal, id, userId, true, now());
+          const inv = await engine.invoiceChangeOrder(deps, accepted, id);
+          const deal = inv.result.outcome === 'failed' ? accepted : inv.deal;
+          return {
+            deal,
+            out: { changeOrderRequired: true, changeOrder: deal.changeOrders.find((c: { id: string }) => c.id === id), invoice: inv.result as ExecOutcome },
+          };
+        }
+        const tag: 'fix' | 'taste' = failed.has(citation) || line?.kind === 'check' ? 'fix' : 'taste';
+        const deal = engine.requestChanges(d, key, userId, [{ text, tag, checklistId: citation }], now(), { changeOrderId });
+        return { deal, out: { changeOrderRequired: false, changeOrder: null, invoice: null } };
+      }),
+
+    /** Either party disputes: the existing dispute flow freezes what is still held and the clock stops. */
+    clockDispute: (dealId: string, orgId: string, userId: string, key: string) =>
+      sync(dealId, orgId, (d) => engine.openDispute(d, key, userId, now())),
+
+    /** What GET .../clock returns. */
+    async clockView(dealId: string, orgId: string, key: string) {
+      const d = await load(dealId, orgId);
+      if (!d.milestones.some((x) => x.key === key)) throw new ServiceError('milestone_not_found', `no milestone ${key}`, 404);
+      const v = reviewClock.viewOf(d, key, now());
+      if (!v) throw new ServiceError('no_clock', 'this milestone has no review clock', 404);
+      return v;
+    },
+
     async ledgerOf(dealId: string, orgId: string) {
       await load(dealId, orgId);
       const entries = await mongoLedger.list(dealId);

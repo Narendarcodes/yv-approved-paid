@@ -1,4 +1,5 @@
 /** Shared types for the deals module (types only; erased at runtime). */
+import type { ClockSchedule } from './clock.cts';
 
 export type Role = 'client' | 'worker' | 'system' | 'reviewer';
 
@@ -26,6 +27,8 @@ export type Party = {
   country?: string;
   /** PayPal email for payouts (worker side). */
   paypalEmail?: string;
+  /** IANA timezone (client side): the Fair Review Clock counts business days here. Defaults from country. */
+  tz?: string;
 };
 
 export type Measure = {
@@ -62,6 +65,49 @@ export type MilestoneTerms = {
   styleSample: boolean;
   checklist: ChecklistItem[];
   payees: Payee[];
+  /**
+   * Fair Review Clock terms (optional). Signed and hashed with the rest of the
+   * terms, so they lock at signing like the payees. Country and timezone come
+   * from the client (brand) party. A milestone with these uses the clock
+   * instead of the plain reviewWindowHours auto-approve.
+   */
+  clock?: ClockTermsSpec;
+};
+
+export type ClockTermsSpec = {
+  reviewWindowBusinessDays?: number;
+  partialReleasePct?: number;
+  graceBusinessDays?: number;
+  includedRevisionRounds?: number;
+  backupReviewerId?: string;
+};
+
+export type ClockStepId = 'remind_50' | 'remind_80' | 'final_24h' | 'release_partial' | 'release_grace';
+
+/** One line on a clock's timeline: a step that ran, or something a person did. */
+export type ClockEvent = {
+  at: string;
+  kind: 'step' | 'action';
+  id: string;
+  by?: string;
+  amountMinor?: number;
+  note?: string;
+};
+
+/** Persisted Fair Review Clock state for one milestone. */
+export type ClockRuntime = {
+  startedAt: string;
+  /** buildSchedule() output, frozen at start (lib/clock.cts ClockSchedule). */
+  schedule: ClockSchedule;
+  doneSteps: string[];
+  paused: boolean;
+  pausedAt?: string;
+  pausedMs: number;
+  revisionsUsed: number;
+  status: 'running' | 'paused' | 'approved' | 'released' | 'disputed' | 'stopped';
+  /** Hold upkeep notices already sent (once each). */
+  notices?: string[];
+  timeline: ClockEvent[];
 };
 
 export type RateCardItem = { id: string; label: string; unit: string; unitPriceMinor: number };
@@ -140,7 +186,7 @@ export type ChangeOrder = {
 };
 
 export type Capture = { id: string; amountMinor: number; versionId?: string; reason: string; at: string };
-export type Payout = { batchId: string; amountMinor: number; email: string; at: string; status: string };
+export type Payout = { batchId: string; amountMinor: number; email: string; at: string; status: string; tranche?: 'clock_partial' };
 
 export type ChangeItem = {
   text: string;
@@ -168,6 +214,8 @@ export type MilestoneRuntime = {
   split?: { client?: number; worker?: number };
   firstSubmittedAt?: string;
   approvedAt?: string;
+  /** Fair Review Clock (only on milestones with clock terms, once checks first pass). */
+  clock?: ClockRuntime;
   /** The latest agent proposals for this milestone, each dry-run through policy before it was stored. */
   proposals?: { review?: ReviewProposal; dispute?: DisputeProposal };
   history: { at: string; from: MilestoneState; to: MilestoneState; event: string; actor: Role }[];
@@ -241,11 +289,11 @@ export type DisputeProposal = {
 export type MoneyAction =
   | { kind: 'authorize'; milestoneKey: string; amountMinor: number }
   | { kind: 'reauthorize'; milestoneKey: string }
-  | { kind: 'capture'; milestoneKey: string; amountMinor: number; versionId: string; final: boolean; reason: 'approval' | 'auto_approval' }
-  | { kind: 'partial_capture'; milestoneKey: string; amountMinor: number; reason: 'kill_fee' | 'dispute_split' }
+  | { kind: 'capture'; milestoneKey: string; amountMinor: number; versionId: string; final: boolean; reason: 'approval' | 'auto_approval' | 'clock_grace' }
+  | { kind: 'partial_capture'; milestoneKey: string; amountMinor: number; reason: 'kill_fee' | 'dispute_split' | 'clock_partial' }
   | { kind: 'void'; milestoneKey: string; reason: 'missed_deadline' | 'cancelled' | 'remainder_after_partial' | 'dispute_split' | 'mutual' }
   | { kind: 'refund'; milestoneKey: string; captureId: string; amountMinor: number }
-  | { kind: 'payout'; milestoneKey: string; amountMinor: number; email: string }
+  | { kind: 'payout'; milestoneKey: string; amountMinor: number; email: string; tranche?: 'clock_partial' }
   | { kind: 'invoice'; milestoneKey: string; rateCardItemId: string; quantity: number; amountMinor: number };
 
 export type PolicyDecision = {

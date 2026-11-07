@@ -29,7 +29,9 @@ const { evaluate, idempotencyKey } = require('./policy.cts');
 const { nextEntry } = require('./ledger.cts');
 const { explain, explainBlocked } = require('./explain.cts');
 const { validateTerms } = require('./validate.cts');
-const { percentOf } = require('./money.cts');
+const { percentOf, format } = require('./money.cts');
+const reviewClock = require('./review-clock.cts');
+const { fmtWhen, holdPlan } = require('./clock.cts');
 
 const DAY = 24 * 3600 * 1000;
 const HOUR = 3600 * 1000;
@@ -87,6 +89,12 @@ function newRuntime(key: string): MilestoneRuntime {
     changeRequests: [],
     history: [],
   };
+}
+
+function paidTo(m: MilestoneRuntime, email: string): number {
+  return m.payouts
+    .filter((p) => p.email.toLowerCase() === email.toLowerCase())
+    .reduce((a, p) => a + p.amountMinor, 0);
 }
 
 function ms(deal: DealDoc, key: string): MilestoneRuntime {
@@ -310,7 +318,9 @@ function recordChecks(
     ),
   });
   d = step(d, key, 'checks_done', 'system', at);
-  return put(d, { ...ms(d, key), reviewStartedAt: at });
+  // Fair Review Clock: starts (or resumes after a change request) only when every objective check passed
+  const m1 = reviewClock.onChecks(ms(d, key), termsOf(d, key), d.terms, report.passed === true, at);
+  return put(d, { ...m1, reviewStartedAt: at });
 }
 
 /**
@@ -348,6 +358,17 @@ function requestChanges(
     return it;
   });
   const tasteRound = normalised.some((i) => i.tag === 'taste');
+  const clockTerms = reviewClock.clockTermsOf(deal.terms, t);
+  if (clockTerms) {
+    // on a clock milestone every change cites a brief item (checklist line) or a failed check
+    const cite = new Set([...t.checklist.map((c) => c.id), ...failed, ...(latest?.checks?.unmeasured || [])]);
+    for (const it of items) {
+      if (!it.checklistId)
+        throw new DealError('citation_required', `"${it.text}" needs a citation: a brief item id or a failed check id`, 422);
+      if (!cite.has(it.checklistId))
+        throw new DealError('citation_unknown', `"${it.checklistId}" is not a brief item or a failed check on this milestone`, 422);
+    }
+  }
   if (opts.changeOrderId) {
     // a change order unlocks one extra round only once the client accepted it, and only once
     const co = deal.changeOrders.find((c) => c.id === opts.changeOrderId && c.milestoneKey === key);
@@ -364,7 +385,15 @@ function requestChanges(
         409,
       );
   }
-  if (tasteRound && m0.revisionRoundsUsed >= t.revisionRoundsIncluded && !opts.changeOrderId) {
+  if (clockTerms) {
+    // the clock counts every change request against its own included rounds
+    if ((m0.clock?.revisionsUsed || 0) >= clockTerms.includedRevisionRounds && !opts.changeOrderId)
+      throw new DealError(
+        'change_order_required',
+        `all ${clockTerms.includedRevisionRounds} included revision rounds are used; another round needs a change order`,
+        409,
+      );
+  } else if (tasteRound && m0.revisionRoundsUsed >= t.revisionRoundsIncluded && !opts.changeOrderId) {
     throw new DealError(
       'rounds_exhausted',
       `all ${t.revisionRoundsIncluded} included revision rounds are used; this Taste round needs a change order`,
@@ -388,6 +417,7 @@ function requestChanges(
       },
     ],
   });
+  if (clockTerms) d = put(d, reviewClock.pauseForChanges(ms(d, key), at, userId, items.map((i) => i.checklistId).join(', ')));
   return d;
 }
 
@@ -409,6 +439,7 @@ function approve(
     throw new DealError('checks_pending', 'checks have not finished for this version', 409);
   let d = step(deal, key, 'approve', 'client', at);
   d = put(d, { ...ms(d, key), approvedVersionId: versionId, approvedAt: at });
+  d = put(d, reviewClock.endClock(ms(d, key), 'approved', at, 'approved', userId));
   if (release)
     d = { ...d, humanApprovals: [...new Set([...d.humanApprovals, `capture:${d.id}:${key}`])] };
   return d;
@@ -416,13 +447,16 @@ function approve(
 
 function kill(deal: DealDoc, key: string, userId: string, at: string): DealDoc {
   need(deal, userId, 'client');
-  return step(deal, key, 'kill', 'client', at);
+  const d = step(deal, key, 'kill', 'client', at);
+  return put(d, reviewClock.endClock(ms(d, key), 'stopped', at, 'killed', userId));
 }
 
 function openDispute(deal: DealDoc, key: string, userId: string, at: string): DealDoc {
   const role = actorRole(deal, userId);
   if (!role) throw new DealError('forbidden', 'only a party can open a dispute', 403);
-  return step(deal, key, 'open_dispute', role, at);
+  // the dispute freezes whatever is still held; the review clock stops for good
+  const d = step(deal, key, 'open_dispute', role, at);
+  return put(d, reviewClock.endClock(ms(d, key), 'disputed', at, 'disputed', userId));
 }
 
 /** Each side accepts a split (minor units owed to the worker). Equal numbers = agreement. */
@@ -494,6 +528,7 @@ function plan(
     }
     if (
       m.state === 'IN_REVIEW' &&
+      !t.clock &&
       m.reviewStartedAt &&
       now >= Date.parse(m.reviewStartedAt) + t.reviewWindowHours * HOUR
     ) {
@@ -521,7 +556,12 @@ function plan(
           amountMinor: Math.min(t.amountMinor, f?.authorizedMinor || 0) - m.capturedMinor,
           versionId: v || '',
           final: true,
-          reason: m.state === 'APPROVED' ? 'approval' : 'auto_approval',
+          reason:
+            m.state === 'APPROVED'
+              ? 'approval'
+              : m.clock?.doneSteps?.includes('release_grace')
+                ? 'clock_grace'
+                : 'auto_approval',
         },
         why: 'approved',
       });
@@ -577,15 +617,38 @@ function plan(
         });
     }
     if (m.state === 'CAPTURED') {
+      // each payee is owed their signed share of everything captured, less what they were already paid
       for (const p of t.payees) {
-        if (m.payouts.some((x) => x.email.toLowerCase() === p.email.toLowerCase())) continue;
-        const amount = percentOf(m.capturedMinor, p.shareBp);
+        const amount = percentOf(m.capturedMinor, p.shareBp) - paidTo(m, p.email);
         if (amount > 0)
           out.push({
             action: { kind: 'payout', milestoneKey: m.key, amountMinor: amount, email: p.email },
             why: 'pay the editor',
           });
       }
+    } else if (m.state !== 'PAID_OUT') {
+      // a review-clock partial release is paid out right away, split by the locked team shares
+      const partial = m.captures
+        .filter((c) => c.reason === 'clock_partial')
+        .reduce((a, c) => a + c.amountMinor, 0);
+      if (partial > 0)
+        for (const p of t.payees) {
+          const done = m.payouts.some(
+            (x) => x.tranche === 'clock_partial' && x.email.toLowerCase() === p.email.toLowerCase(),
+          );
+          const amount = percentOf(partial, p.shareBp);
+          if (!done && amount > 0)
+            out.push({
+              action: {
+                kind: 'payout',
+                milestoneKey: m.key,
+                amountMinor: amount,
+                email: p.email,
+                tranche: 'clock_partial',
+              },
+              why: 'pay the team their share of the partial release',
+            });
+        }
     }
   }
   return out;
@@ -839,12 +902,14 @@ async function execute(
               email: action.email,
               at: now,
               status: r.status,
+              ...(action.tranche ? { tranche: action.tranche } : {}),
             },
           ],
         });
+        const m2 = ms(deal, action.milestoneKey);
         const sharesPaid =
-          ms(deal, action.milestoneKey).payouts.length ===
-          t.payees.filter((p) => percentOf(m.capturedMinor, p.shareBp) > 0).length;
+          m2.state === 'CAPTURED' &&
+          t.payees.every((p) => paidTo(m2, p.email) >= percentOf(m2.capturedMinor, p.shareBp));
         if (sharesPaid) deal = step(deal, action.milestoneKey, 'paid_out', 'system', now);
         ref = r.id;
         extraExplain = { payeeName: payee?.displayName || action.email };
@@ -936,6 +1001,7 @@ async function tick(
     const latest = m.versions[m.versions.length - 1];
     if (
       m.state === 'IN_REVIEW' &&
+      !t.clock && // clock milestones release through the Fair Review Clock instead (applyClockStep)
       m.reviewStartedAt &&
       Date.parse(now) >= Date.parse(m.reviewStartedAt) + t.reviewWindowHours * HOUR &&
       latest?.checks?.passed
@@ -1025,8 +1091,223 @@ async function confirmFunding(deps: EngineDeps, deal: DealDoc, key: string, user
   });
 }
 
+
+/* ------------------------------------------------------ Fair Review Clock */
+
+/** An in-app notification a clock step asks the service to send (after the step is saved). */
+export type ClockNotice = {
+  userIds: string[];
+  type: string;
+  title: string;
+  body: string;
+  payload: Record<string, unknown>;
+};
+
+export type ClockStepOutcome = {
+  deal: DealDoc;
+  /** False when the step could not act (wrong state, money refused): the caller un-claims it to retry later. */
+  ok: boolean;
+  /** True when the step only recorded that it was skipped (nothing to do any more). */
+  skipped?: boolean;
+  notices: ClockNotice[];
+  results: ExecOutcome[];
+  note?: string;
+};
+
+function clockEvent(deal: DealDoc, key: string, e: { at: string; kind: 'step' | 'action'; id: string; by?: string; amountMinor?: number; note?: string }): DealDoc {
+  const m = ms(deal, key);
+  if (!m.clock) return deal;
+  return put(deal, { ...m, clock: { ...m.clock, timeline: [...m.clock.timeline, e] } });
+}
+
+/**
+ * Run one clock step on a deal whose step id the caller has already claimed
+ * (recorded in clock.doneSteps). Reminders become notices; release_partial
+ * captures the signed partial share and pays the team their locked split;
+ * release_grace counts as approval and the Money Agent captures the rest.
+ * Money goes through execute() (policy, then PayPal with the policy key as
+ * PayPal-Request-Id: clock:<deal>:<milestone>:<step>), never around it.
+ */
+async function applyClockStep(
+  deps: EngineDeps,
+  deal0: DealDoc,
+  key: string,
+  stepId: string,
+  opts: { silent?: boolean } = {},
+): Promise<ClockStepOutcome> {
+  let deal = deal0;
+  const t = termsOf(deal, key);
+  const m = ms(deal, key);
+  const c = m.clock;
+  const now = deps.now();
+  if (!c) throw new DealError('clock_not_started', 'the review clock has not started on this milestone', 409);
+  const sched = c.schedule;
+  const cur = deal.terms.currency;
+  const shift = reviewClock.shiftOf(c, now);
+  const deadline = fmtWhen(Date.parse(sched.deadline) + shift, sched.terms.tz);
+  const grace = fmtWhen(Date.parse(sched.graceDeadline) + shift, sched.terms.tz);
+  const brand = deal.terms.client.userId;
+  const editor = deal.terms.worker.userId;
+  const payload = { dealId: deal.id, milestoneKey: key, stepId };
+  const notices: ClockNotice[] = [];
+  const results: ExecOutcome[] = [];
+
+  if (c.status !== 'running' || m.state !== 'IN_REVIEW') {
+    deal = clockEvent(deal, key, { at: now, kind: 'step', id: stepId, note: `skipped: clock ${c.status}, milestone ${m.state}` });
+    return { deal, ok: true, skipped: true, notices, results, note: 'skipped' };
+  }
+
+  if (stepId === 'remind_50' || stepId === 'remind_80' || stepId === 'final_24h') {
+    const to = [brand];
+    if (stepId === 'remind_80' && sched.terms.backupReviewerId) to.push(sched.terms.backupReviewerId);
+    const partial = `${format(sched.partialAmountCents, cur)} (${sched.terms.partialReleasePct}%)`;
+    const body =
+      stepId === 'final_24h'
+        ? sched.partialAmountCents > 0
+          ? `About 24 hours left to review "${t.title}". If there is no reply by ${deadline}, exactly ${partial} releases to the team, and the remaining ${format(sched.remainderCents, cur)} by ${grace}.`
+          : `About 24 hours left to review "${t.title}". If there is no reply by ${deadline}, the grace period starts and the full ${format(sched.amountCents, cur)} releases by ${grace}.`
+        : `"${t.title}" is waiting for your review (${stepId === 'remind_50' ? 'half' : '80%'} of the review window used). Approve or request changes by ${deadline}.`;
+    if (!opts.silent)
+      notices.push({
+        userIds: [...new Set(to)],
+        type: 'deal_clock_reminder',
+        title: stepId === 'final_24h' ? `24 hours left: ${t.title}` : `Review reminder: ${t.title}`,
+        body,
+        payload: { ...payload, amountMinor: stepId === 'final_24h' ? sched.partialAmountCents : undefined, currency: cur },
+      });
+    deal = clockEvent(deal, key, {
+      at: now,
+      kind: 'step',
+      id: stepId,
+      amountMinor: stepId === 'final_24h' ? sched.partialAmountCents : undefined,
+      note: opts.silent ? 'reminder skipped: a release was already due' : `reminded ${to.length === 1 ? 'the reviewer' : 'the reviewer and the backup reviewer'}`,
+    });
+    return { deal, ok: true, notices, results };
+  }
+
+  if (stepId === 'release_partial') {
+    const r = await execute(deps, deal, {
+      kind: 'partial_capture',
+      milestoneKey: key,
+      amountMinor: sched.partialAmountCents,
+      reason: 'clock_partial',
+    });
+    results.push(r.result);
+    if (r.result.outcome !== 'done') return { deal: r.deal, ok: false, notices, results, note: r.result.outcome };
+    deal = clockEvent(r.deal, key, { at: now, kind: 'step', id: stepId, amountMinor: sched.partialAmountCents, note: 'partial release captured' });
+    // pay the team their locked shares of what was just released
+    const tk = await tick(deps, deal);
+    deal = tk.deal;
+    results.push(...tk.results);
+    notices.push({
+      userIds: [brand, editor],
+      type: 'deal_clock_release',
+      title: `Partial release: ${t.title}`,
+      body: `No reply came by ${deadline}, so ${format(sched.partialAmountCents, cur)} (${sched.terms.partialReleasePct}%) was released to the team. If there is still no reply by ${grace}, the remaining ${format(sched.remainderCents, cur)} releases too.`,
+      payload: { ...payload, amountMinor: sched.partialAmountCents, currency: cur },
+    });
+    return { deal, ok: true, notices, results };
+  }
+
+  if (stepId === 'release_grace') {
+    const latest = m.versions[m.versions.length - 1];
+    if (!latest?.checks?.passed) return { deal, ok: false, notices, results, note: 'latest version has not passed every check' };
+    deal = step(deal, key, 'review_window_lapsed', 'system', now);
+    results.push({
+      outcome: 'done',
+      entry: await writeLedger(deps, deal, {
+        milestoneKey: key,
+        type: 'state',
+        amountMinor: 0,
+        moved: false,
+        actor: 'system',
+        explanation: `The review clock for "${t.title}" ran out, grace period included, with no reply, and version ${latest.id} passed every check, so it counts as approved.`,
+      }),
+    });
+    deal = put(deal, reviewClock.endClock(ms(deal, key), 'released', now, 'released', 'system'));
+    deal = clockEvent(deal, key, { at: now, kind: 'step', id: stepId, amountMinor: Math.max(0, Math.min(t.amountMinor, m.funding?.authorizedMinor || 0) - m.capturedMinor), note: 'grace ended; the rest releases' });
+    // the Money Agent captures the remainder (policy key clock:<deal>:<milestone>:release_grace) and pays out
+    const tk = await tick(deps, deal);
+    deal = tk.deal;
+    results.push(...tk.results);
+    notices.push({
+      userIds: [brand, editor],
+      type: 'deal_clock_release',
+      title: `Released: ${t.title}`,
+      body: `No reply came by ${grace}, so the rest of the hold for "${t.title}" was released to the team.`,
+      payload: { ...payload, currency: cur },
+    });
+    return { deal, ok: true, notices, results };
+  }
+
+  throw new DealError('unknown_step', `unknown clock step ${stepId}`, 422);
+}
+
+/**
+ * Keep the PayPal hold behind a live clock good: reauthorize once the 3-day
+ * honor period has passed (the same reauthorize path the Money Agent uses), and
+ * when the clock's projected end is past the hold's 29-day life, tell the brand
+ * to re-fund the hold and the editor that it is lapsing (once).
+ */
+async function clockHoldUpkeep(
+  deps: EngineDeps,
+  deal0: DealDoc,
+  key: string,
+): Promise<{ deal: DealDoc; notices: ClockNotice[]; results: ExecOutcome[] }> {
+  let deal = deal0;
+  const m = ms(deal, key);
+  const c = m.clock;
+  const f = m.funding;
+  const notices: ClockNotice[] = [];
+  const results: ExecOutcome[] = [];
+  const now = deps.now();
+  if (!c || (c.status !== 'running' && c.status !== 'paused')) return { deal, notices, results };
+  if (!f?.authorizationId || !f.authorizedAt || (f.status !== 'AUTHORIZED' && f.status !== 'PARTIALLY_CAPTURED'))
+    return { deal, notices, results };
+  const projectedEnd = new Date(Date.parse(c.schedule.graceDeadline) + reviewClock.shiftOf(c, now)).toISOString();
+  const hp = holdPlan(f.authorizedAt, projectedEnd);
+  const maxRe = (deps.gateway as { maxReauthorizations?: number }).maxReauthorizations;
+  const reauthLeft = maxRe === undefined || (f.reauthorizations || []).length < maxRe;
+  const t = Date.parse(now);
+  if (
+    t >= Date.parse(hp.reauthorizeAfterISO) &&
+    (!f.honorExpiresAt || t >= Date.parse(f.honorExpiresAt)) &&
+    t < Date.parse(hp.lapsesISO) &&
+    reauthLeft
+  ) {
+    const r = await execute(deps, deal, { kind: 'reauthorize', milestoneKey: key });
+    results.push(r.result);
+    deal = r.deal;
+    if (r.result.outcome === 'done') deal = clockEvent(deal, key, { at: now, kind: 'action', id: 'hold_reauthorized', by: 'system' });
+  }
+  const mm = ms(deal, key);
+  if (hp.needsRefund && mm.clock && !(mm.clock.notices || []).includes('hold_lapsing')) {
+    const title = termsOf(deal, key).title;
+    const lapses = fmtWhen(Date.parse(hp.lapsesISO), c.schedule.terms.tz);
+    const payload = { dealId: deal.id, milestoneKey: key, lapsesAt: hp.lapsesISO };
+    notices.push({
+      userIds: [deal.terms.client.userId],
+      type: 'deal_hold_refund',
+      title: `Re-fund hold: ${title}`,
+      body: `The PayPal hold for "${title}" lapses ${lapses}, before the review clock can finish. Re-fund the hold so the team's pay stays covered.`,
+      payload,
+    });
+    notices.push({
+      userIds: [deal.terms.worker.userId],
+      type: 'deal_hold_lapsing',
+      title: `Hold lapsing: ${title}`,
+      body: `The PayPal hold for "${title}" lapses ${lapses}, before the review clock can finish. We asked the brand to re-fund it.`,
+      payload,
+    });
+    deal = put(deal, { ...mm, clock: { ...mm.clock, notices: [...(mm.clock.notices || []), 'hold_lapsing'], timeline: [...mm.clock.timeline, { at: now, kind: 'action', id: 'hold_lapsing', by: 'system', note: `hold lapses ${hp.lapsesISO}` }] } });
+  }
+  return { deal, notices, results };
+}
+
 module.exports = {
   DealError,
+  applyClockStep,
+  clockHoldUpkeep,
   createDeal,
   editTerms,
   sign,

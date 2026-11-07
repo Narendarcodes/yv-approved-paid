@@ -47,15 +47,18 @@ function idempotencyKey(deal: DealDoc, a: MoneyAction, m?: MilestoneRuntime, ctx
     case 'reauthorize':
       return `reauthorize:${base}:${(m?.funding?.reauthorizations || []).length + 1}`;
     case 'capture':
+      // the Fair Review Clock's grace release carries its step id (PayPal-Request-Id clock:<deal>:<milestone>:<step>)
+      if (a.reason === 'clock_grace') return `clock:${base}:release_grace`;
       return `capture:${base}`; // one full capture per milestone, whatever the version
     case 'partial_capture':
+      if (a.reason === 'clock_partial') return `clock:${base}:release_partial`;
       return `partial_capture:${base}:${a.reason}`;
     case 'void':
       return `void:${base}:${m?.funding?.authorizationId || 'none'}`;
     case 'refund':
       return `refund:${base}:${a.captureId}`;
     case 'payout':
-      return `payout:${base}:${a.email.toLowerCase()}`;
+      return a.tranche ? `payout:${base}:${a.email.toLowerCase()}:${a.tranche}` : `payout:${base}:${a.email.toLowerCase()}`;
     case 'invoice':
       return `invoice:${base}:${ctx?.changeOrderId || 'none'}`;
     default:
@@ -68,6 +71,14 @@ function termsLocked(deal: DealDoc): boolean {
   if (hashOf(deal.terms) !== deal.termsHash) return false;
   const parties = new Set(deal.signatures.filter((s) => s.termsHash === deal.termsHash).map((s) => s.party));
   return parties.has('client') && parties.has('worker');
+}
+
+/** What the Fair Review Clock's partial release captured on this milestone. */
+function clockPartialCaptured(m: MilestoneRuntime): number {
+  return m.captures.filter((c) => c.reason === 'clock_partial').reduce((a, c) => a + c.amountMinor, 0);
+}
+function paidTo(m: MilestoneRuntime, email: string): number {
+  return m.payouts.filter((p) => p.email.toLowerCase() === email.toLowerCase()).reduce((a, p) => a + p.amountMinor, 0);
 }
 
 function remainingAuthorized(m: MilestoneRuntime): number {
@@ -153,10 +164,12 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
         if (action.versionId !== latest.id) v('P6_version', `capture names version ${action.versionId}, but the latest submitted version is ${latest.id}`);
         if (action.reason === 'approval' && m.approvedVersionId !== action.versionId)
           v('P6_version', `version ${action.versionId} is not the version the client approved (${m.approvedVersionId || 'none'})`);
-        if (action.reason === 'auto_approval') {
+        if (action.reason === 'auto_approval' || action.reason === 'clock_grace') {
           if (m.state !== 'AUTO_APPROVED') v('P6_version', 'auto-approval capture without the review window lapsing');
           if (!latest.checks?.passed) v('P6_version', 'auto-approval needs the version to have passed every check');
         }
+        if (action.reason === 'clock_grace' && !m.clock?.doneSteps?.includes('release_grace'))
+          v('P1_state', 'the review clock has not reached its grace release');
       }
       if (action.amountMinor > deal.terms.humanApprovalThresholdMinor) needsHumanApproval = true;
       break;
@@ -168,6 +181,16 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
         if (m.state !== 'KILLED') v('P1_state', `kill fee needs a KILLED milestone (it is ${m.state})`);
         const fee = percentOf(terms.amountMinor, deal.terms.killFeeBp);
         if (action.amountMinor !== fee) v('P3_amount', `kill fee must be ${deal.terms.killFeeBp / 100}% = ${fee}, got ${action.amountMinor}`);
+      } else if (action.reason === 'clock_partial') {
+        // the signed review clock ran out with no reply: release exactly the signed partial share, once
+        const c = m.clock;
+        if (!terms.clock || !c) v('P1_state', 'this milestone has no review clock');
+        else {
+          if (m.state !== 'IN_REVIEW' || c.status !== 'running') v('P1_state', `the review clock is not running in review (milestone ${m.state}, clock ${c.status})`);
+          if (!c.doneSteps.includes('release_partial')) v('P1_state', 'the review clock has not reached its partial release');
+          if (action.amountMinor !== c.schedule.partialAmountCents)
+            v('P3_amount', `partial release must be exactly ${c.schedule.partialAmountCents} from the signed clock terms, got ${action.amountMinor}`);
+        }
       } else {
         if (m.state !== 'DISPUTED') v('P1_state', `a dispute split needs a DISPUTED milestone (it is ${m.state})`);
         if (ctx.agreedSplitMinor === undefined) v('P3_amount', 'no split accepted by both sides');
@@ -204,7 +227,10 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
       break;
     }
     case 'payout': {
-      if (m.state !== 'CAPTURED') v('P1_state', `payouts go out after capture (milestone is ${m.state})`);
+      const partial = clockPartialCaptured(m);
+      if (action.tranche === 'clock_partial') {
+        if (partial <= 0) v('P1_state', 'no review-clock partial release was captured on this milestone');
+      } else if (m.state !== 'CAPTURED') v('P1_state', `payouts go out after capture (milestone is ${m.state})`);
       const payee = terms.payees.find((p) => p.email.toLowerCase() === action.email.toLowerCase());
       if (!payee) v('P10_payee', `${action.email} is not a payee in the signed deal`);
       if ((deal.alerts || []).some((x) => x.milestoneKey === m.key && /CAPTURE\.(DENIED|REVERSED)$/.test(x.eventType)))
@@ -214,6 +240,10 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
       if (payee) {
         const share = percentOf(m.capturedMinor, payee.shareBp);
         if (action.amountMinor > share) v('P10_payee', `payout ${action.amountMinor} exceeds this payee's share ${share}`);
+        else if (paidTo(m, payee.email) + action.amountMinor > share)
+          v('P10_payee', `payout ${action.amountMinor} plus ${paidTo(m, payee.email)} already paid exceeds this payee's share ${share}`);
+        if (action.tranche === 'clock_partial' && action.amountMinor > percentOf(partial, payee.shareBp))
+          v('P10_payee', `payout ${action.amountMinor} exceeds this payee's share of the partial release ${percentOf(partial, payee.shareBp)}`);
       }
       break;
     }

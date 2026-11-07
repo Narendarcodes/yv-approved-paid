@@ -347,6 +347,57 @@ router.post(
   }),
 );
 
+/* ------------------------------------------------------ Fair Review Clock */
+
+/** The clock on a milestone: its state, amounts, rounds and a timeline of steps and actions. Brand and editor (and managers) can read it. */
+router.get(
+  `${M}/clock`,
+  wrap(async (req, res) => {
+    await readable(req, req.params.dealId);
+    res.json({ data: await dealService().clockView(req.params.dealId, org(req), req.params.key) });
+  }),
+);
+const clockReply = async (req: Req, res: Res, deal: DealDoc, extra: Record<string, unknown>) =>
+  res.json({
+    data: {
+      ...extra,
+      deal: view(deal, uid(req)),
+      clock: await dealService().clockView(req.params.dealId, org(req), req.params.key).catch(() => null),
+    },
+  });
+/** Brand approves: the full amount releases now and the clock ends. */
+router.post(
+  `${M}/clock/approve`,
+  wrap(async (req, res) => {
+    const r = await dealService().clockApprove(req.params.dealId, org(req), uid(req), req.params.key);
+    await clockReply(req, res, r.deal, { results: r.out });
+  }),
+);
+/** Brand asks for changes: { citation: brief item id | failed check id, text?, changeOrderId? }. 422 without a citation. */
+router.post(
+  `${M}/clock/changes`,
+  wrap(async (req, res) => {
+    const b = req.body || {};
+    if (typeof b.citation !== 'string' || !b.citation.trim())
+      throw bad('citation_required', 'a change request needs a citation: a brief item id or a failed check id');
+    if (b.text !== undefined && (typeof b.text !== 'string' || b.text.length > 2000)) throw bad('invalid_input', 'text must be a string');
+    const r = await dealService().clockRequestChanges(req.params.dealId, org(req), uid(req), req.params.key, {
+      citation: b.citation,
+      text: b.text,
+      changeOrderId: typeof b.changeOrderId === 'string' ? b.changeOrderId : undefined,
+    });
+    await clockReply(req, res, r.deal, r.out);
+  }),
+);
+/** Either party disputes: the remainder stays frozen in the hold and the clock stops. */
+router.post(
+  `${M}/clock/dispute`,
+  wrap(async (req, res) => {
+    const d = await dealService().clockDispute(req.params.dealId, org(req), uid(req), req.params.key);
+    await clockReply(req, res, d, {});
+  }),
+);
+
 /* -------------------------------------------------------------- deal team */
 
 /**
@@ -500,6 +551,31 @@ webhookRouter.post(
   }),
 );
 
+/* ------------------------------------------- internal: clock driver */
+
+/**
+ * POST /api/v1/internal/clock/advance: runs every due Fair Review Clock step
+ * (for an external scheduler such as a Render Workflow; the Money Agent tick
+ * runs the same thing in-process). Guarded by X-Clock-Secret matching
+ * CLOCK_SHARED_SECRET; when that env var is unset the route does not exist (404).
+ */
+const clockInternalRouter = express.Router();
+clockInternalRouter.post(
+  '/advance',
+  wrap(async (req, res) => {
+    const secret = process.env.CLOCK_SHARED_SECRET;
+    if (!secret) return res.status(404).json({ error: { code: 'not_found', message: 'Not found' } });
+    const given = String(req.get('x-clock-secret') || '');
+    const crypto = require('node:crypto');
+    const a = crypto.createHash('sha256').update(given).digest();
+    const b = crypto.createHash('sha256').update(secret).digest();
+    if (!given || !crypto.timingSafeEqual(a, b))
+      return res.status(401).json({ error: { code: 'bad_secret', message: 'X-Clock-Secret did not match' } });
+    const advanced = await dealService().advanceClocks();
+    return res.json({ data: { advanced, steps: advanced.reduce((n: number, x: { steps: string[] }) => n + x.steps.length, 0) } });
+  }),
+);
+
 /* --------------------------------------------- demo pool + demo reset (sandbox) */
 
 /** /api/v1/paypal/pool: pre-approved sandbox authorizations for the judge demo (pool.cts). */
@@ -560,4 +636,4 @@ demoRouter.post(
   }),
 );
 
-module.exports = { router, webhookRouter, poolRouter, demoRouter };
+module.exports = { router, webhookRouter, poolRouter, demoRouter, clockInternalRouter };

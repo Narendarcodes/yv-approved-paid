@@ -1,6 +1,8 @@
 /** Validation of deal terms before anyone can sign them. Returns a list of problems (empty = valid). */
 import type { DealTerms } from './types.cts';
 
+const { clockProblems } = require('./review-clock.cts');
+
 const KEY = /^[a-z0-9][a-z0-9_-]{0,47}$/;
 
 function validateTerms(t: DealTerms): string[] {
@@ -46,6 +48,8 @@ function validateTerms(t: DealTerms): string[] {
   }
   if (!Number.isInteger(t.killFeeBp) || t.killFeeBp < 0 || t.killFeeBp > 10000) p.push('kill fee must be 0-100%');
   if (!Number.isSafeInteger(t.humanApprovalThresholdMinor) || t.humanApprovalThresholdMinor < 0) p.push('human approval threshold must be >= 0');
+  // Fair Review Clock terms: same rules as the clock itself (country + timezone from the client)
+  p.push(...clockProblems(t));
   return p;
 }
 

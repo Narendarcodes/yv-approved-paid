@@ -26,10 +26,14 @@ function explain(deal: DealDoc, action: MoneyAction, extra: Record<string, unkno
     case 'reauthorize':
       return `Refreshed the PayPal hold for ${title} because the 3-day honor period ended. Same amount, still not charged; valid until ${fmtDate(extra.expiresAt as string)}.`;
     case 'capture':
+      if (action.reason === 'clock_grace')
+        return `${client} did not reply before the review clock's grace period ended, and version ${action.versionId} passed every check, so the rest of the hold was released as the signed deal says. Charged ${amt(action.amountMinor)} for ${title}.`;
       return action.reason === 'auto_approval'
         ? `${client} did not respond within the review window, and version ${action.versionId} passed every check, so it counts as approved. Charged ${amt(action.amountMinor)} for ${title}.`
         : `${client} approved version ${action.versionId} of ${title}. Charged exactly the agreed ${amt(action.amountMinor)} from the hold, for that version only.`;
     case 'partial_capture':
+      if (action.reason === 'clock_partial')
+        return `${client} did not reply within the signed review window for ${title}, and the delivery passed every check, so the agreed partial amount of ${amt(action.amountMinor)} was released to the team. The rest stays held through the grace period.`;
       return action.reason === 'kill_fee'
         ? `${client} stopped ${title}. The signed deal gives ${worker} a ${deal.terms.killFeeBp / 100}% kill fee, so I charged ${amt(action.amountMinor)} and release the rest of the hold.`
         : `Both sides accepted a split for ${title}: ${worker} receives ${amt(action.amountMinor)}; the rest of the hold is released to ${client}.`;
@@ -46,7 +50,7 @@ function explain(deal: DealDoc, action: MoneyAction, extra: Record<string, unkno
     case 'refund':
       return `Refunded ${amt(action.amountMinor)} of capture ${action.captureId} on ${title} to ${client}, after a person approved it.`;
     case 'payout':
-      return `Paid ${amt(action.amountMinor)} to ${String(extra.payeeName || action.email)} through PayPal Payouts for ${title}.`;
+      return `Paid ${amt(action.amountMinor)} to ${String(extra.payeeName || action.email)} through PayPal Payouts for ${title}${action.tranche === 'clock_partial' ? ' (their signed share of the review-clock partial release)' : ''}.`;
     case 'invoice': {
       const sent = !!extra.invoiceStatus && extra.invoiceStatus !== 'DRAFT';
       return `${sent ? 'Created and sent' : 'Drafted'} a PayPal invoice for a change order on ${title}: ${action.quantity} × ${String(extra.itemLabel || action.rateCardItemId)} at the signed rate-card price, ${amt(action.amountMinor)} in total. ${client} accepted the change order; ${sent ? 'it is charged only when the invoice is paid.' : 'the invoice waits in PayPal as a draft until it is sent.'}`;
