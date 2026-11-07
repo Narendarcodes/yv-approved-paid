@@ -1,5 +1,7 @@
 const dotenv = require('dotenv');
 dotenv.config();
+// PAYPAL_CREDENTIALS=id:secret -> PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET (before any gateway is built)
+require('./config/paypal-credentials').applyPaypalCredentials(process.env);
 
 const { connect } = require('./db/mongo');
 const app = require('./app');
@@ -46,7 +48,9 @@ async function start() {
     // the buyer's approval is simulated and labelled so).
     if (process.env.DEMO_MODE === '1') {
       if (!['mock', 'sandbox'].includes(process.env.PAYPAL_MODE || 'mock')) {
-        logger.warn('DEMO_MODE=1 ignored for seeding: the deal demo needs PAYPAL_MODE=mock or sandbox');
+        logger.warn(
+          'DEMO_MODE=1 ignored for seeding: the deal demo needs PAYPAL_MODE=mock or sandbox',
+        );
       } else {
         require('./modules/deals/demo.cts')
           .seedDealDemo({ judgePassword: process.env.DEMO_JUDGE_PASSWORD })
