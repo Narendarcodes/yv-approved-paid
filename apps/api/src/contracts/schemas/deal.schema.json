@@ -80,15 +80,8 @@
       }
     },
     "me": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "enum": [
-        "client",
-        "worker",
-        null
-      ],
+      "type": ["string", "null"],
+      "enum": ["client", "worker", null],
       "description": "Caller's party role, null for a deal manager who is not a party."
     },
     "termsHashNow": {
@@ -99,6 +92,11 @@
       "items": {
         "type": "string"
       }
+    },
+    "payoutScope": {
+      "type": "string",
+      "enum": ["all", "own"],
+      "description": "all: the brand, or a deal manager not on the crew, sees every member's payout lines. own: a crew member (payee) sees only their own payouts; other members' lines and payout batches are left out and paidOutMinor is their own total."
     }
   },
   "definitions": {
@@ -126,19 +124,12 @@
     "DealRole": {
       "title": "DealRole",
       "type": "string",
-      "enum": [
-        "client",
-        "worker"
-      ]
+      "enum": ["client", "worker"]
     },
     "DealParty": {
       "title": "DealParty",
       "type": "object",
-      "required": [
-        "role",
-        "userId",
-        "displayName"
-      ],
+      "required": ["role", "userId", "displayName"],
       "properties": {
         "role": {
           "$ref": "#/definitions/DealRole"
@@ -160,30 +151,17 @@
     "DealMeasure": {
       "title": "DealMeasure",
       "type": "object",
-      "required": [
-        "metric",
-        "op"
-      ],
+      "required": ["metric", "op"],
       "properties": {
         "metric": {
           "type": "string"
         },
         "op": {
           "type": "string",
-          "enum": [
-            "<=",
-            ">=",
-            "==",
-            "between",
-            "present",
-            "absent"
-          ]
+          "enum": ["<=", ">=", "==", "between", "present", "absent"]
         },
         "value": {
-          "type": [
-            "number",
-            "string"
-          ]
+          "type": ["number", "string"]
         },
         "max": {
           "type": "number"
@@ -202,11 +180,7 @@
     "DealChecklistItem": {
       "title": "DealChecklistItem",
       "type": "object",
-      "required": [
-        "id",
-        "text",
-        "kind"
-      ],
+      "required": ["id", "text", "kind"],
       "properties": {
         "id": {
           "type": "string"
@@ -216,10 +190,7 @@
         },
         "kind": {
           "type": "string",
-          "enum": [
-            "check",
-            "taste"
-          ],
+          "enum": ["check", "taste"],
           "description": "check = machine-verifiable; taste = people decide (never blocks pay on its own)"
         },
         "measure": {
@@ -233,11 +204,7 @@
     "DealPayee": {
       "title": "DealPayee",
       "type": "object",
-      "required": [
-        "userId",
-        "email",
-        "shareBp"
-      ],
+      "required": ["userId", "email", "shareBp"],
       "properties": {
         "userId": {
           "type": "string"
@@ -310,12 +277,7 @@
     "DealRateCardItem": {
       "title": "DealRateCardItem",
       "type": "object",
-      "required": [
-        "id",
-        "label",
-        "unit",
-        "unitPriceMinor"
-      ],
+      "required": ["id", "label", "unit", "unitPriceMinor"],
       "properties": {
         "id": {
           "type": "string"
@@ -392,12 +354,7 @@
     "DealSignature": {
       "title": "DealSignature",
       "type": "object",
-      "required": [
-        "party",
-        "userId",
-        "termsHash",
-        "at"
-      ],
+      "required": ["party", "userId", "termsHash", "at"],
       "properties": {
         "party": {
           "$ref": "#/definitions/DealRole"
@@ -416,10 +373,7 @@
     "DealReauthorization": {
       "title": "DealReauthorization",
       "type": "object",
-      "required": [
-        "authorizationId",
-        "at"
-      ],
+      "required": ["authorizationId", "at"],
       "properties": {
         "authorizationId": {
           "type": "string"
@@ -432,9 +386,7 @@
     "DealFunding": {
       "title": "DealFunding",
       "type": "object",
-      "required": [
-        "status"
-      ],
+      "required": ["status"],
       "properties": {
         "orderId": {
           "type": "string"
@@ -480,11 +432,7 @@
     "DealCheckEvidence": {
       "title": "DealCheckEvidence",
       "type": "object",
-      "required": [
-        "tStart",
-        "tEnd",
-        "note"
-      ],
+      "required": ["tStart", "tEnd", "note"],
       "properties": {
         "tStart": {
           "type": "number"
@@ -503,14 +451,7 @@
     "DealCheckResult": {
       "title": "DealCheckResult",
       "type": "object",
-      "required": [
-        "checklistId",
-        "metric",
-        "measured",
-        "passed",
-        "status",
-        "evidence"
-      ],
+      "required": ["checklistId", "metric", "measured", "passed", "status", "evidence"],
       "properties": {
         "checklistId": {
           "type": "string"
@@ -519,22 +460,14 @@
           "type": "string"
         },
         "measured": {
-          "type": [
-            "number",
-            "string",
-            "boolean",
-            "null"
-          ]
+          "type": ["number", "string", "boolean", "null"]
         },
         "passed": {
           "type": "boolean"
         },
         "status": {
           "type": "string",
-          "enum": [
-            "ok",
-            "not_measurable"
-          ]
+          "enum": ["ok", "not_measurable"]
         },
         "evidence": {
           "type": "array",
@@ -547,12 +480,7 @@
     "DealVersionChecks": {
       "title": "DealVersionChecks",
       "type": "object",
-      "required": [
-        "reportId",
-        "passed",
-        "failed",
-        "at"
-      ],
+      "required": ["reportId", "passed", "failed", "at"],
       "properties": {
         "reportId": {
           "type": "string"
@@ -592,11 +520,7 @@
     "DealVersion": {
       "title": "DealVersion",
       "type": "object",
-      "required": [
-        "id",
-        "sha256",
-        "submittedAt"
-      ],
+      "required": ["id", "sha256", "submittedAt"],
       "properties": {
         "id": {
           "type": "string"
@@ -646,23 +570,14 @@
         },
         "status": {
           "type": "string",
-          "enum": [
-            "draft",
-            "invoiced",
-            "accepted",
-            "declined"
-          ]
+          "enum": ["draft", "invoiced", "accepted", "declined"]
         },
         "invoiceId": {
           "type": "string"
         },
         "by": {
           "type": "string",
-          "enum": [
-            "agent",
-            "client",
-            "worker"
-          ]
+          "enum": ["agent", "client", "worker"]
         },
         "decidedAt": {
           "type": "string"
@@ -679,12 +594,7 @@
     "DealCapture": {
       "title": "DealCapture",
       "type": "object",
-      "required": [
-        "id",
-        "amountMinor",
-        "reason",
-        "at"
-      ],
+      "required": ["id", "amountMinor", "reason", "at"],
       "properties": {
         "id": {
           "type": "string"
@@ -706,13 +616,7 @@
     "DealPayout": {
       "title": "DealPayout",
       "type": "object",
-      "required": [
-        "batchId",
-        "amountMinor",
-        "email",
-        "at",
-        "status"
-      ],
+      "required": ["batchId", "amountMinor", "email", "at", "status"],
       "properties": {
         "batchId": {
           "type": "string"
@@ -734,20 +638,14 @@
     "DealChangeItem": {
       "title": "DealChangeItem",
       "type": "object",
-      "required": [
-        "text",
-        "tag"
-      ],
+      "required": ["text", "tag"],
       "properties": {
         "text": {
           "type": "string"
         },
         "tag": {
           "type": "string",
-          "enum": [
-            "fix",
-            "taste"
-          ]
+          "enum": ["fix", "taste"]
         },
         "checklistId": {
           "type": "string"
@@ -760,11 +658,7 @@
     "DealChangeRequest": {
       "title": "DealChangeRequest",
       "type": "object",
-      "required": [
-        "at",
-        "items",
-        "tasteRound"
-      ],
+      "required": ["at", "items", "tasteRound"],
       "properties": {
         "at": {
           "type": "string"
@@ -789,10 +683,7 @@
     "DealPolicyViolation": {
       "title": "DealPolicyViolation",
       "type": "object",
-      "required": [
-        "rule",
-        "message"
-      ],
+      "required": ["rule", "message"],
       "properties": {
         "rule": {
           "type": "string"
@@ -805,10 +696,7 @@
     "DealStoredDecision": {
       "title": "DealStoredDecision",
       "type": "object",
-      "required": [
-        "allowed",
-        "violations"
-      ],
+      "required": ["allowed", "violations"],
       "properties": {
         "allowed": {
           "type": "boolean"
@@ -833,11 +721,7 @@
     "DealContradiction": {
       "title": "DealContradiction",
       "type": "object",
-      "required": [
-        "a",
-        "b",
-        "why"
-      ],
+      "required": ["a", "b", "why"],
       "properties": {
         "a": {
           "type": "integer"
@@ -869,9 +753,7 @@
         },
         "agent": {
           "type": "string",
-          "enum": [
-            "review"
-          ]
+          "enum": ["review"]
         },
         "at": {
           "type": "string"
@@ -914,13 +796,7 @@
     "DealDisputeBasis": {
       "title": "DealDisputeBasis",
       "type": "object",
-      "required": [
-        "passedChecks",
-        "totalChecks",
-        "shareBp",
-        "amountMinor",
-        "remainingMinor"
-      ],
+      "required": ["passedChecks", "totalChecks", "shareBp", "amountMinor", "remainingMinor"],
       "properties": {
         "passedChecks": {
           "type": "integer"
@@ -942,12 +818,7 @@
     "DealDisputeCheck": {
       "title": "DealDisputeCheck",
       "type": "object",
-      "required": [
-        "id",
-        "text",
-        "passed",
-        "evidence"
-      ],
+      "required": ["id", "text", "passed", "evidence"],
       "properties": {
         "id": {
           "type": "string"
@@ -956,18 +827,10 @@
           "type": "string"
         },
         "passed": {
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "measured": {
-          "type": [
-            "number",
-            "string",
-            "boolean",
-            "null"
-          ]
+          "type": ["number", "string", "boolean", "null"]
         },
         "evidence": {
           "type": "array",
@@ -980,11 +843,7 @@
     "DealRounds": {
       "title": "DealRounds",
       "type": "object",
-      "required": [
-        "included",
-        "used",
-        "tasteRounds"
-      ],
+      "required": ["included", "used", "tasteRounds"],
       "properties": {
         "included": {
           "type": "integer"
@@ -1000,14 +859,7 @@
     "DealDisputeEvidence": {
       "title": "DealDisputeEvidence",
       "type": "object",
-      "required": [
-        "checks",
-        "unmeasured",
-        "tasteLines",
-        "rounds",
-        "changeRequests",
-        "versions"
-      ],
+      "required": ["checks", "unmeasured", "tasteLines", "rounds", "changeRequests", "versions"],
       "properties": {
         "checks": {
           "type": "array",
@@ -1060,9 +912,7 @@
         },
         "agent": {
           "type": "string",
-          "enum": [
-            "scope_dispute"
-          ]
+          "enum": ["scope_dispute"]
         },
         "at": {
           "type": "string"
@@ -1121,13 +971,7 @@
     "DealHistoryEntry": {
       "title": "DealHistoryEntry",
       "type": "object",
-      "required": [
-        "at",
-        "from",
-        "to",
-        "event",
-        "actor"
-      ],
+      "required": ["at", "from", "to", "event", "actor"],
       "properties": {
         "at": {
           "type": "string"
@@ -1143,12 +987,7 @@
         },
         "actor": {
           "type": "string",
-          "enum": [
-            "client",
-            "worker",
-            "system",
-            "reviewer"
-          ]
+          "enum": ["client", "worker", "system", "reviewer"]
         }
       }
     },
@@ -1247,12 +1086,7 @@
     "DealPendingApproval": {
       "title": "DealPendingApproval",
       "type": "object",
-      "required": [
-        "key",
-        "action",
-        "at",
-        "reason"
-      ],
+      "required": ["key", "action", "at", "reason"],
       "properties": {
         "key": {
           "type": "string"
@@ -1272,12 +1106,7 @@
     "DealAlert": {
       "title": "DealAlert",
       "type": "object",
-      "required": [
-        "at",
-        "milestoneKey",
-        "eventType",
-        "message"
-      ],
+      "required": ["at", "milestoneKey", "eventType", "message"],
       "properties": {
         "at": {
           "type": "string"
@@ -1314,10 +1143,7 @@
     "DealLedgerPolicy": {
       "title": "DealLedgerPolicy",
       "type": "object",
-      "required": [
-        "allowed",
-        "violations"
-      ],
+      "required": ["allowed", "violations"],
       "properties": {
         "allowed": {
           "type": "boolean"
@@ -1403,9 +1229,7 @@
     "DealChain": {
       "title": "DealChain",
       "type": "object",
-      "required": [
-        "ok"
-      ],
+      "required": ["ok"],
       "properties": {
         "ok": {
           "type": "boolean"
@@ -1453,11 +1277,7 @@
     "DealLedgerView": {
       "title": "DealLedgerView",
       "type": "object",
-      "required": [
-        "entries",
-        "chain",
-        "totals"
-      ],
+      "required": ["entries", "chain", "totals"],
       "properties": {
         "entries": {
           "type": "array",
@@ -1470,6 +1290,11 @@
         },
         "totals": {
           "$ref": "#/definitions/DealLedgerTotals"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["all", "own"],
+          "description": "own: a crew member's ledger, with only their own payout lines (no other member's, no batch-level payout lines); totals are recomputed from those entries. The chain is verified on the full ledger."
         }
       },
       "description": "GET /organizations/:org/deals/:dealId/ledger"
@@ -1477,10 +1302,7 @@
     "DealLedgerPush": {
       "title": "DealLedgerPush",
       "type": "object",
-      "required": [
-        "dealId",
-        "entry"
-      ],
+      "required": ["dealId", "entry"],
       "properties": {
         "dealId": {
           "type": "string"

@@ -15,6 +15,11 @@ class Me(Enum):
     NoneType_None = None
 
 
+class PayoutScope(StrEnum):
+    all = 'all'
+    own = 'own'
+
+
 class DealMilestoneState(StrEnum):
     DRAFT = 'DRAFT'
     SIGNED = 'SIGNED'
@@ -460,10 +465,19 @@ class DealLedgerTotals(BaseModel):
     blockedCount: int
 
 
+class Scope(StrEnum):
+    all = 'all'
+    own = 'own'
+
+
 class DealLedgerView(BaseModel):
     entries: list[DealLedgerEntry]
     chain: DealChain
     totals: DealLedgerTotals
+    scope: Scope | None = Field(
+        None,
+        description="own: a crew member's ledger, with only their own payout lines (no other member's, no batch-level payout lines); totals are recomputed from those entries. The chain is verified on the full ledger.",
+    )
 
 
 class DealLedgerPush(BaseModel):
@@ -491,3 +505,7 @@ class DealView(BaseModel):
     )
     termsHashNow: str
     problems: list[str] | None = None
+    payoutScope: PayoutScope | None = Field(
+        None,
+        description="all: the brand, or a deal manager not on the crew, sees every member's payout lines. own: a crew member (payee) sees only their own payouts; other members' lines and payout batches are left out and paidOutMinor is their own total.",
+    )

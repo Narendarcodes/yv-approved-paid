@@ -135,7 +135,11 @@ export default function MoneyTimeline({
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Stat label="Held" value={money(t.heldMinor, cur)} />
               <Stat label="Captured" value={money(t.capturedMinor, cur)} tone="teal" />
-              <Stat label="Paid out" value={money(t.paidOutMinor, cur)} />
+              {/* a crew member's ledger holds only their own payout lines (scope 'own'), so this is what reached them */}
+              <Stat
+                label={ledger.data?.scope === 'own' ? 'Paid to you' : 'Paid out'}
+                value={money(t.paidOutMinor, cur)}
+              />
               <Stat
                 label="Blocked"
                 value={t.blockedCount}
@@ -336,7 +340,10 @@ function PaypalHolds({ deal, milestoneKey }: { deal: DealView; milestoneKey?: st
               <span className="truncate font-medium text-ink">{title}</span>
               {typeof f.authorizedMinor === 'number' && f.authorizedMinor > 0 && (
                 <span className="shrink-0 text-[12px]" data-testid={`held-${m.key}`}>
-                  Held <span className="t-num !text-[12px]">{money(f.authorizedMinor, deal.terms.currency)}</span>
+                  Held{' '}
+                  <span className="t-num !text-[12px]">
+                    {money(f.authorizedMinor, deal.terms.currency)}
+                  </span>
                 </span>
               )}
             </p>

@@ -15,7 +15,9 @@
  * Deals: `deal:join { dealId }` joins room `deal:<id>` only when the user is an
  * active member of the deal's org AND a party to the deal or holds deal.manage
  * there (the same rule as GET /deals/:dealId). Every ledger line appended for
- * that deal is pushed as `deal:ledger { dealId, entry }`. Anything else answers
+ * that deal is pushed as `deal:ledger { dealId, entry }`, except that a crew
+ * member (a payee who is not the brand) gets only their own payout lines, never
+ * a teammate's or a batch total (lib/visibility.cts). Anything else answers
  * `not_found`, whether the deal is missing or belongs to another org.
  */
 const { Server } = require('socket.io');
@@ -33,7 +35,7 @@ let stopLedgerFeed = null;
 async function canWatchDeal(userId, dealId) {
   if (typeof dealId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(dealId)) return false;
   const { dealService } = require('../modules/deals/service.cts');
-  const { engine } = require('../modules/deals/engine.cts');
+  const { engine, visibility } = require('../modules/deals/engine.cts');
   let deal;
   try {
     deal = await dealService().get(dealId);
@@ -42,8 +44,14 @@ async function canWatchDeal(userId, dealId) {
   }
   const perms = await access.permissionsIn(userId, deal.orgId);
   if (!perms) return false;
-  return !!engine.actorRole(deal, userId) || access.allows(perms, 'deal.manage');
+  const manage = access.allows(perms, 'deal.manage');
+  if (!engine.actorRole(deal, userId) && !manage) return false;
+  return { crew: !visibility.seesAllPayouts(deal, String(userId), manage) };
 }
+
+/** Crew sockets of a deal also sit in these rooms, so payout lines reach only their owner. */
+const crewRoom = (dealId) => `deal:${dealId}:crew`;
+const userRoom = (dealId, userId) => `deal:${dealId}:u:${userId}`;
 
 function readCookie(header, name) {
   for (const part of String(header || '').split(';')) {
@@ -130,10 +138,15 @@ function initSocketServer(httpServer) {
     /** Join a deal room (live MoneyTimeline) after the org-access + party check. */
     socket.on('deal:join', async ({ dealId } = {}, ack) => {
       try {
-        if (!(await canWatchDeal(socket.data.userId, dealId))) {
+        const watch = await canWatchDeal(socket.data.userId, dealId);
+        if (!watch) {
           return ack?.({ ok: false, error: 'not_found' });
         }
         await socket.join(`deal:${dealId}`);
+        if (watch.crew) {
+          await socket.join(crewRoom(dealId));
+          await socket.join(userRoom(dealId, socket.data.userId));
+        }
         ack?.({ ok: true });
       } catch (err) {
         logger.warn({ err }, 'deal:join failed');
@@ -142,7 +155,10 @@ function initSocketServer(httpServer) {
     });
 
     socket.on('deal:leave', ({ dealId } = {}) => {
-      if (typeof dealId === 'string') socket.leave(`deal:${dealId}`);
+      if (typeof dealId !== 'string') return;
+      socket.leave(`deal:${dealId}`);
+      socket.leave(crewRoom(dealId));
+      socket.leave(userRoom(dealId, socket.data.userId));
     });
 
     socket.on('channel:leave', ({ channelId } = {}) => {
@@ -156,11 +172,28 @@ function initSocketServer(httpServer) {
 
   // every ledger line goes to its deal's room (only sockets that passed deal:join are in it)
   if (stopLedgerFeed) stopLedgerFeed();
-  stopLedgerFeed = onLedgerAppend((entry) =>
-    emitToDeal(entry.dealId, 'deal:ledger', { dealId: entry.dealId, entry }),
-  );
+  stopLedgerFeed = onLedgerAppend((entry) => emitLedgerLine(entry));
 
   return io;
+}
+
+/**
+ * Push one ledger line to its deal room. A payout line (one per member, key
+ * `<batch key>:<userId>`) or a batch-level payout line (blocked/pending, the
+ * whole batch total) skips crew sockets; a member's own payout line then goes
+ * to that member's crew sockets only. Same rule as GET /deals/:dealId/ledger.
+ */
+function emitLedgerLine(entry) {
+  if (!io || !entry?.dealId) return;
+  const data = { dealId: entry.dealId, entry };
+  const key = String(entry.idempotencyKey || '');
+  const crewScoped = entry.type === 'payout' || key.startsWith('payout:');
+  if (!crewScoped) return emitToDeal(entry.dealId, 'deal:ledger', data);
+  io.to(`deal:${entry.dealId}`).except(crewRoom(entry.dealId)).emit('deal:ledger', data);
+  if (entry.type === 'payout' && key.includes(':')) {
+    const owner = key.slice(key.lastIndexOf(':') + 1);
+    if (owner) io.to(userRoom(entry.dealId, owner)).emit('deal:ledger', data);
+  }
 }
 
 /** Emit to the sockets watching one deal. */

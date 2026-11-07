@@ -8,6 +8,7 @@
  *   money      minor-unit helpers
  *   clock      Fair Review Clock: business days, schedule, due steps, hold plan
  *   split      splitCents: a release split into crew shares (integer cents, leftover to the lead)
+ *   visibility who sees whose payout lines (a crew member: only their own)
  */
 const states = require('./lib/states.cts');
 const policy = require('./lib/policy.cts');
@@ -21,6 +22,7 @@ const proposals = require('./lib/proposals.cts');
 const split = require('./lib/split.cts');
 const receipts = require('./lib/receipts.cts');
 const clock = require('./lib/clock.cts');
+const visibility = require('./lib/visibility.cts');
 
 export type * from './lib/types.cts';
 export type { LedgerEntry } from './lib/ledger.cts';
@@ -38,6 +40,7 @@ module.exports = {
   split,
   receipts,
   clock,
+  visibility,
   hashOf,
   canonicalize,
   validateTerms,

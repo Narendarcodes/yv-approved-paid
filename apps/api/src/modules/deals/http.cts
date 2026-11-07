@@ -23,6 +23,7 @@ const { resolveEvidence } = require('./lib/evidence.cts');
 const { askCopilot } = require('./copilot.cts');
 const { planTeam, applyTeam, statusOf } = require('./team.cts');
 const { receiptsOf } = require('./lib/receipts.cts');
+const { seesAllPayouts, redactDeal, redactLedger, visibleTo } = require('./lib/visibility.cts');
 const config = require('../../config');
 const rateLimit = require('express-rate-limit');
 
@@ -41,14 +42,39 @@ function canManage(req: Req) {
   return access.allows(req.ctx.permissions || [], 'deal.manage');
 }
 
-/** The deal as one party sees it: plus their role, the live terms hash (what they sign) and open problems. */
-function view(deal: DealDoc, userId: string) {
+/** Does this request see every crew member's payout lines on this deal (brand, or a deal manager not on the crew)? */
+function seesAll(req: Req, deal: DealDoc) {
+  return seesAllPayouts(deal, uid(req), canManage(req));
+}
+
+/**
+ * The deal as one party sees it: plus their role, the live terms hash (what they sign) and open problems.
+ * A crew member (payee) gets only their own payout lines and batch items (lib/visibility.cts).
+ */
+function view(deal: DealDoc, req: Req) {
+  const userId = uid(req);
+  const all = seesAll(req, deal);
   return {
-    ...deal,
+    ...(all ? deal : redactDeal(deal, userId)),
     me: actorRole(deal, userId),
+    payoutScope: all ? ('all' as const) : ('own' as const),
     termsHashNow: hashOf(deal.terms),
     problems: deal.termsHash ? [] : validateTerms(deal.terms),
   };
+}
+
+/** Money Agent results as this viewer may see them: a crew member loses other members' payout lines. */
+function resultsFor(req: Req, deal: DealDoc, out: any[]) {
+  if (!Array.isArray(out) || seesAll(req, deal)) return out;
+  const me = uid(req);
+  return out.flatMap((r) => {
+    const entries = Array.isArray(r?.entries)
+      ? r.entries.filter((e: any) => visibleTo(deal, e, me))
+      : undefined;
+    const entry = entries ? entries[entries.length - 1] : r?.entry;
+    if (!entry || !visibleTo(deal, entry, me)) return [];
+    return [{ ...r, entry, ...(entries ? { entries } : {}) }];
+  });
 }
 
 function bad(code: string, message: string, status = 422) {
@@ -89,7 +115,7 @@ router.get(
       uid(req),
       canManage(req) && req.query.all === '1',
     );
-    res.json({ data: deals.map((d: DealDoc) => view(d, uid(req))) });
+    res.json({ data: deals.map((d: DealDoc) => view(d, req)) });
   }),
 );
 
@@ -108,7 +134,9 @@ async function namesFor(deals: DealDoc[]): Promise<Record<string, string>> {
   }
   const valid = [...ids].filter((x) => /^[a-f0-9]{24}$/i.test(x));
   if (!valid.length) return {};
-  const rows = await User.find({ _id: { $in: valid } }).select('name').lean();
+  const rows = await User.find({ _id: { $in: valid } })
+    .select('name')
+    .lean();
   return Object.fromEntries(rows.map((u: any) => [String(u._id), u.name]));
 }
 const nowIso = () => dealService().deps.now();
@@ -121,7 +149,10 @@ router.get(
   '/payables',
   wrap(async (req, res) => {
     const all = await dealService().list(org(req), uid(req), canManage(req));
-    const deals = canManage(req) ? all : all.filter((d: DealDoc) => actorRole(d, uid(req)) === 'client');
+    // a manager who is on a deal's crew sees only their own payout lines there, so that deal is not on their board
+    const deals = all.filter((d: DealDoc) =>
+      canManage(req) ? seesAll(req, d) : actorRole(d, uid(req)) === 'client',
+    );
     const rows = payables.payableRows(deals, nowIso(), await namesFor(deals), uid(req));
     res.json({ data: { rows, asOf: nowIso(), scope: canManage(req) ? 'org' : 'brand' } });
   }),
@@ -149,7 +180,8 @@ router.post(
   wrap(async (req, res) => {
     const items = payables.cleanItems(req.body?.items);
     if (!items) throw bad('invalid_input', 'items must be a list of 1-50 { dealId, milestoneKey }');
-    if (typeof req.body?.dryRun !== 'boolean') throw bad('invalid_input', 'dryRun must be true or false');
+    if (typeof req.body?.dryRun !== 'boolean')
+      throw bad('invalid_input', 'dryRun must be true or false');
     const out = await payables.bulkApprove(dealService(), org(req), uid(req), items, {
       dryRun: req.body.dryRun,
       now: nowIso,
@@ -169,14 +201,14 @@ router.post(
         throw bad('party_not_member', `the ${side} must be a member of this organization`);
     }
     const d = await dealService().create(org(req), uid(req), terms);
-    res.status(201).json({ data: view(d, uid(req)) });
+    res.status(201).json({ data: view(d, req) });
   }),
 );
 
 router.get(
   '/:dealId',
   wrap(async (req, res) => {
-    res.json({ data: view(await readable(req, req.params.dealId), uid(req)) });
+    res.json({ data: view(await readable(req, req.params.dealId), req) });
   }),
 );
 
@@ -187,7 +219,7 @@ router.put(
     res.json({
       data: view(
         await dealService().editTerms(req.params.dealId, org(req), uid(req), req.body.terms),
-        uid(req),
+        req,
       ),
     });
   }),
@@ -198,7 +230,7 @@ router.post(
   wrap(async (req, res) => {
     const h = str(req.body?.termsHash, 'termsHash', 64);
     res.json({
-      data: view(await dealService().sign(req.params.dealId, org(req), uid(req), h), uid(req)),
+      data: view(await dealService().sign(req.params.dealId, org(req), uid(req), h), req),
     });
   }),
 );
@@ -206,9 +238,12 @@ router.post(
 router.get(
   '/:dealId/ledger',
   wrap(async (req, res) => {
-    await readable(req, req.params.dealId);
+    const d = await readable(req, req.params.dealId);
     const l = await dealService().ledgerOf(req.params.dealId, org(req));
-    res.json({ data: { ...l, chain: verifyChain(l.entries) } });
+    // the chain is verified on the whole ledger; a crew member then sees only their own payout lines
+    const chain = verifyChain(l.entries);
+    if (seesAll(req, d)) return res.json({ data: { ...l, chain, scope: 'all' } });
+    return res.json({ data: { ...redactLedger(d, l.entries, uid(req)), chain, scope: 'own' } });
   }),
 );
 
@@ -255,7 +290,7 @@ router.post(
   wrap(async (req, res) => {
     await readable(req, req.params.dealId);
     const r = await dealService().tick(req.params.dealId, org(req));
-    res.json({ data: { deal: view(r.deal, uid(req)), results: r.out } });
+    res.json({ data: { deal: view(r.deal, req), results: resultsFor(req, r.deal, r.out) } });
   }),
 );
 
@@ -271,8 +306,8 @@ router.post(
     const r = await dealService().tick(req.params.dealId, org(req));
     res.json({
       data: {
-        deal: view(r.deal, uid(req)),
-        results: r.out,
+        deal: view(r.deal, req),
+        results: resultsFor(req, r.deal, r.out),
         approvedBefore: d.humanApprovals.length,
       },
     });
@@ -282,7 +317,7 @@ router.post(
 const M = '/:dealId/milestones/:key';
 const svcCall = (fn: (req: Req) => Promise<DealDoc>) =>
   wrap(async (req, res) => {
-    res.json({ data: view(await fn(req), uid(req)) });
+    res.json({ data: view(await fn(req), req) });
   });
 const version = (req: Req) => ({
   id: str(req.body?.versionId, 'versionId', 100),
@@ -306,7 +341,7 @@ router.post(
     );
     res
       .status(r.out.outcome === 'done' ? 200 : 409)
-      .json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+      .json({ data: { deal: view(r.deal, req), result: r.out } });
   }),
 );
 router.post(
@@ -410,7 +445,7 @@ router.post(
     );
     res
       .status(r.out.outcome === 'done' ? 200 : 409)
-      .json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+      .json({ data: { deal: view(r.deal, req), result: r.out } });
   }),
 );
 
@@ -428,16 +463,23 @@ const clockReply = async (req: Req, res: Res, deal: DealDoc, extra: Record<strin
   res.json({
     data: {
       ...extra,
-      deal: view(deal, uid(req)),
-      clock: await dealService().clockView(req.params.dealId, org(req), req.params.key).catch(() => null),
+      deal: view(deal, req),
+      clock: await dealService()
+        .clockView(req.params.dealId, org(req), req.params.key)
+        .catch(() => null),
     },
   });
 /** Brand approves: the full amount releases now and the clock ends. */
 router.post(
   `${M}/clock/approve`,
   wrap(async (req, res) => {
-    const r = await dealService().clockApprove(req.params.dealId, org(req), uid(req), req.params.key);
-    await clockReply(req, res, r.deal, { results: r.out });
+    const r = await dealService().clockApprove(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+    );
+    await clockReply(req, res, r.deal, { results: resultsFor(req, r.deal, r.out) });
   }),
 );
 /** Brand asks for changes: { citation: brief item id | failed check id, text?, changeOrderId? }. 422 without a citation. */
@@ -446,13 +488,23 @@ router.post(
   wrap(async (req, res) => {
     const b = req.body || {};
     if (typeof b.citation !== 'string' || !b.citation.trim())
-      throw bad('citation_required', 'a change request needs a citation: a brief item id or a failed check id');
-    if (b.text !== undefined && (typeof b.text !== 'string' || b.text.length > 2000)) throw bad('invalid_input', 'text must be a string');
-    const r = await dealService().clockRequestChanges(req.params.dealId, org(req), uid(req), req.params.key, {
-      citation: b.citation,
-      text: b.text,
-      changeOrderId: typeof b.changeOrderId === 'string' ? b.changeOrderId : undefined,
-    });
+      throw bad(
+        'citation_required',
+        'a change request needs a citation: a brief item id or a failed check id',
+      );
+    if (b.text !== undefined && (typeof b.text !== 'string' || b.text.length > 2000))
+      throw bad('invalid_input', 'text must be a string');
+    const r = await dealService().clockRequestChanges(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+      {
+        citation: b.citation,
+        text: b.text,
+        changeOrderId: typeof b.changeOrderId === 'string' ? b.changeOrderId : undefined,
+      },
+    );
     await clockReply(req, res, r.deal, r.out);
   }),
 );
@@ -460,7 +512,12 @@ router.post(
 router.post(
   `${M}/clock/dispute`,
   wrap(async (req, res) => {
-    const d = await dealService().clockDispute(req.params.dealId, org(req), uid(req), req.params.key);
+    const d = await dealService().clockDispute(
+      req.params.dealId,
+      org(req),
+      uid(req),
+      req.params.key,
+    );
     await clockReply(req, res, d, {});
   }),
 );
@@ -474,7 +531,14 @@ async function clockTermsPlan(req: Req, d: DealDoc) {
   const plan = planClockTerms(d, req.params.key, req.body || {}, new Date().toISOString());
   const backup = plan.clock?.backupReviewerId;
   if (plan.allowed && backup && !(await access.memberOf(backup, org(req))))
-    return { ...plan, allowed: false, problems: ['the backup reviewer must be a member of this organization'], terms: null, clock: null, preview: null };
+    return {
+      ...plan,
+      allowed: false,
+      problems: ['the backup reviewer must be a member of this organization'],
+      terms: null,
+      clock: null,
+      preview: null,
+    };
   return plan;
 }
 /** Read-only: what these clock terms would mean (problems + "if you deliver today, review ends ..."). */
@@ -491,16 +555,24 @@ router.put(
   `${M}/clock-terms`,
   wrap(async (req, res) => {
     const d = await readable(req, req.params.dealId);
-    if (d.termsHash) throw bad('deal_locked', 'signed deals are locked; the review clock terms cannot change', 409);
+    if (d.termsHash)
+      throw bad(
+        'deal_locked',
+        'signed deals are locked; the review clock terms cannot change',
+        409,
+      );
     const plan = await clockTermsPlan(req, d);
     if (!plan.allowed || !plan.terms) {
-      const err = bad('invalid_terms', plan.problems[0] || 'invalid review clock terms') as InstanceType<typeof ServiceError> & { details?: unknown };
+      const err = bad(
+        'invalid_terms',
+        plan.problems[0] || 'invalid review clock terms',
+      ) as InstanceType<typeof ServiceError> & { details?: unknown };
       err.details = plan.problems;
       throw err;
     }
     const next = await dealService().editTerms(req.params.dealId, org(req), uid(req), plan.terms);
     const { terms: _t, ...rest } = plan;
-    res.json({ data: { deal: view(next, uid(req)), ...rest } });
+    res.json({ data: { deal: view(next, req), ...rest } });
   }),
 );
 
@@ -570,7 +642,7 @@ router.put(
       uid(req),
       applyTeam(d, plan),
     );
-    res.json({ data: view(next, uid(req)), plan });
+    res.json({ data: view(next, req), plan });
   }),
 );
 
@@ -592,9 +664,7 @@ router.post(
       ask: b.ask,
       by: role,
     });
-    res
-      .status(201)
-      .json({ data: { deal: view(r.deal, uid(req)), changeOrder: r.out.changeOrder } });
+    res.status(201).json({ data: { deal: view(r.deal, req), changeOrder: r.out.changeOrder } });
   }),
 );
 for (const verb of ['accept', 'decline'] as const) {
@@ -609,7 +679,7 @@ for (const verb of ['accept', 'decline'] as const) {
         req.params.coId,
         verb === 'accept',
       );
-      res.json({ data: { deal: view(r.deal, uid(req)), result: r.out } });
+      res.json({ data: { deal: view(r.deal, req), result: r.out } });
     }),
   );
 }
@@ -664,11 +734,9 @@ webhookRouter.post(
   wrap(async (req, res) => {
     const gw = gateway();
     if (gw.name !== 'mock' && !process.env.PAYPAL_WEBHOOK_ID) {
-      return res
-        .status(503)
-        .json({
-          error: { code: 'webhook_not_configured', message: 'PAYPAL_WEBHOOK_ID is not set' },
-        });
+      return res.status(503).json({
+        error: { code: 'webhook_not_configured', message: 'PAYPAL_WEBHOOK_ID is not set' },
+      });
     }
     const raw = req.rawBody ? req.rawBody.toString('utf8') : '';
     if (!raw || !(await gw.verifyWebhook(req.headers, raw))) {
@@ -694,15 +762,23 @@ clockInternalRouter.post(
   '/advance',
   wrap(async (req, res) => {
     const secret = process.env.CLOCK_SHARED_SECRET;
-    if (!secret) return res.status(404).json({ error: { code: 'not_found', message: 'Not found' } });
+    if (!secret)
+      return res.status(404).json({ error: { code: 'not_found', message: 'Not found' } });
     const given = String(req.get('x-clock-secret') || '');
     const crypto = require('node:crypto');
     const a = crypto.createHash('sha256').update(given).digest();
     const b = crypto.createHash('sha256').update(secret).digest();
     if (!given || !crypto.timingSafeEqual(a, b))
-      return res.status(401).json({ error: { code: 'bad_secret', message: 'X-Clock-Secret did not match' } });
+      return res
+        .status(401)
+        .json({ error: { code: 'bad_secret', message: 'X-Clock-Secret did not match' } });
     const advanced = await dealService().advanceClocks();
-    return res.json({ data: { advanced, steps: advanced.reduce((n: number, x: { steps: string[] }) => n + x.steps.length, 0) } });
+    return res.json({
+      data: {
+        advanced,
+        steps: advanced.reduce((n: number, x: { steps: string[] }) => n + x.steps.length, 0),
+      },
+    });
   }),
 );
 
@@ -727,11 +803,9 @@ const resetLimit = rateLimit({
   legacyHeaders: false,
   keyGenerator: () => 'demo-reset',
   handler: (_req: Req, res: Res) =>
-    res
-      .status(429)
-      .json({
-        error: { code: 'rate_limited', message: 'the demo was just reset; try again in 2 minutes' },
-      }),
+    res.status(429).json({
+      error: { code: 'rate_limited', message: 'the demo was just reset; try again in 2 minutes' },
+    }),
 });
 demoRouter.post(
   '/deal/reset',

@@ -196,6 +196,10 @@ export interface DealView {
   me?: "client" | "worker" | null;
   termsHashNow: string;
   problems?: string[];
+  /**
+   * all: the brand, or a deal manager not on the crew, sees every member's payout lines. own: a crew member (payee) sees only their own payouts; other members' lines and payout batches are left out and paidOutMinor is their own total.
+   */
+  payoutScope?: "all" | "own";
 }
 export interface DealTerms {
   title: string;
@@ -545,5 +549,9 @@ export interface DealLedgerView {
   entries: DealLedgerEntry[];
   chain: DealChain;
   totals: DealLedgerTotals;
+  /**
+   * own: a crew member's ledger, with only their own payout lines (no other member's, no batch-level payout lines); totals are recomputed from those entries. The chain is verified on the full ledger.
+   */
+  scope?: "all" | "own";
 }
 
