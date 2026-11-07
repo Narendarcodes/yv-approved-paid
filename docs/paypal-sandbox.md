@@ -18,7 +18,7 @@ Code: `apps/api/src/modules/deals/paypal.cts` (mode switch), `lib/paypal-sandbox
 | Reject with nothing owed | `.../void` | **Real** |
 | Keep a hold alive after the 3-day honor period | `POST /v2/payments/authorizations/{id}/reauthorize`, once per hold | **Real** |
 | Change order | Invoicing v2: create, then **send** (`INV2-...`) | **Real** |
-| Pay the editor and designer | Payouts `POST /v1/payments/payouts` | **Simulated, labelled.** Tried for real every time; PayPal refuses Payouts for this India sandbox merchant (`PAYOUT_NOT_AVAILABLE`), so the ledger records `SIM-PAYOUT-...` with that error |
+| Pay the editor and designer | Payouts `POST /v1/payments/payouts`, ONE batch per release (approve, partial, grace), `sender_batch_id` = `payout:<deal>:<milestone>:<step>` | **Simulated, labelled.** Default `PAYOUTS_MODE=simulated` records the batch (`SIM-BATCH-...`) and one "Simulated payout" ledger line + receipt per member without calling PayPal. `PAYOUTS_MODE=real` sends the batch; this India sandbox merchant answers `PAYOUT_NOT_AVAILABLE`, which is recorded as a simulated batch with that error |
 | Demo holds when the pool is empty | none | **Simulated, labelled.** `SIM-AUTH-<real order id>`, `SIM-CAPTURE-...` on an in-memory twin with PayPal's rules; every line says "PayPal sandbox: buyer approval simulated (pre-approved pool empty)" |
 
 In the web app every id carries a tag, `PayPal sandbox` or `PayPal sandbox · simulated`, and the money timeline has a **PayPal ids** panel (authorization and capture ids per milestone).
@@ -90,7 +90,7 @@ Sandbox only; the script refuses any other API base. Credentials come from the e
 ## Known limits
 
 - **India buyer → India merchant fails.** A sandbox buyer registered in India gets `UNSUPPORTED_PAYEE_CURRENCY` ("This seller doesn't accept payments in your currency") on every order from this India merchant. A browser that still holds that buyer's PayPal session shows the same error before any login form. Approve with a buyer from another country (the pool was filled with a United States buyer).
-- **Payouts are simulated.** PayPal returns `PAYOUT_NOT_AVAILABLE` for this India sandbox merchant; the demo records `SIM-PAYOUT-...` with that error.
+- **Payouts are simulated.** Each release is one Payouts batch split by `splitCents` (floor per member, leftover cents to the lead). With `PAYOUTS_MODE=simulated` (default) no Payouts call is made; with `PAYOUTS_MODE=real` PayPal returns `PAYOUT_NOT_AVAILABLE` for this India sandbox merchant and the batch is recorded as `SIM-BATCH-...` with that error. A US sandbox Business account with `PAYOUTS_MODE=real` would send real sandbox batches.
 - **Each reset uses a pair**, and so can some reboots. When `ready` reaches 0 the demo falls back to labelled `SIM-` ids until the pool is refilled.
 - **Authorizations expire.** A PayPal authorization lasts 29 days: the first 3 are the honor period, and it can be reauthorized once after that. The pool skips rows with less than 2 days left.
 - **Orphaned holds.** Holds from the runs before `c47b0a8`/`ff71cbd` stay AUTHORIZED in the sandbox until they expire. They move no money.
@@ -105,6 +105,7 @@ Sandbox only; the script refuses any other API base. Credentials come from the e
 | `PAYPAL_WEBHOOK_ID` | Optional: verifies PayPal webhooks |
 | `DEMO_MODE=1` | Judge demo: seeds the deal on boot, opens `POST /auth/demo-login` and `POST /demo/deal/reset`, and draws holds from the pool on sandbox |
 | `PAYPAL_SANDBOX_POOL=0` | Turn the pool off (the demo then uses the labelled simulation) |
+| `PAYOUTS_MODE=simulated\|real` | Crew payout batches: `simulated` (default) records them without calling PayPal; `real` sends them (PAYOUT_NOT_AVAILABLE still falls back to simulated) |
 | `PAYPAL_SANDBOX_SIMULATE=1` | Sandbox outside `DEMO_MODE`: allow the pool and the labelled fallback (and simulated payouts) |
 
 Tests never call real PayPal: `apps/api/src/modules/deals/tests/sandbox-pool.test.js` and `.../tests/sandbox-request-id.test.js` use a stateful fake.

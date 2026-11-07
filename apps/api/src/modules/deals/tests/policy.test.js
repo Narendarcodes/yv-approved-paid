@@ -17,6 +17,10 @@ async function approvedDeal(over) {
 
 const capture = (over = {}) => ({ kind: 'capture', milestoneKey: 'reel1', amountMinor: 40000, versionId: 'v1', final: true, reason: 'approval', ...over });
 const rules = (r) => r.result.violations.map((v) => v.rule);
+// one batch per release: the signed 70/30 split of $400
+const RAVI = { userId: 'u_worker', email: 'ravi@example.com', amountMinor: 28000 };
+const SANA = { userId: 'u_motion', email: 'sana@example.com', amountMinor: 12000 };
+const batch = (items, over = {}) => ({ kind: 'payout', milestoneKey: 'reel1', step: 'approve', amountMinor: items.reduce((a, i) => a + i.amountMinor, 0), items, ...over });
 
 describe('red team: the Money Agent tries to break the deal', () => {
   test('capture more than the deal -> P3_amount', async () => {
@@ -90,29 +94,45 @@ describe('red team: the Money Agent tries to break the deal', () => {
   test('pay out to an address that is not in the deal -> P10_payee', async () => {
     const h = await approvedDeal();
     const cap = await engine.execute(h.deps, h.deal, capture());
-    const r = await engine.execute(h.deps, cap.deal, { kind: 'payout', milestoneKey: 'reel1', amountMinor: 1000, email: 'attacker@evil.test' });
+    const r = await engine.execute(h.deps, cap.deal, batch([RAVI, SANA, { userId: 'u_x', email: 'attacker@evil.test', amountMinor: 1000 }]));
     expect(rules(r)).toContain('P10_payee');
+    // swapping a payee's address for the attacker's is refused too
+    const swap = await engine.execute(h.deps, cap.deal, batch([RAVI, { ...SANA, email: 'attacker@evil.test' }]));
+    expect(rules(swap)).toContain('P10_payee');
+    expect(h.gateway.calls.filter((c) => c.op === 'payout_batch')).toHaveLength(0);
   });
 
   test('pay out while PayPal reports a reversed capture -> P13_flagged', async () => {
     const h = await approvedDeal();
     const cap = await engine.execute(h.deps, h.deal, capture());
     const flagged = { ...cap.deal, alerts: [{ at: h.clock.now(), milestoneKey: 'reel1', eventType: 'PAYMENT.CAPTURE.REVERSED', message: 'reversed' }] };
-    const r = await engine.execute(h.deps, flagged, { kind: 'payout', milestoneKey: 'reel1', amountMinor: 28000, email: 'ravi@example.com' });
+    const r = await engine.execute(h.deps, flagged, batch([RAVI, SANA]));
     expect(rules(r)).toEqual(['P13_flagged']);
-    expect(h.gateway.calls.filter((c) => c.op === 'payout')).toHaveLength(0);
+    expect(h.gateway.calls.filter((c) => c.op === 'payout_batch')).toHaveLength(0);
   });
 
   test('pay a payee more than their share -> P10_payee', async () => {
     const h = await approvedDeal();
     const cap = await engine.execute(h.deps, h.deal, capture());
-    const r = await engine.execute(h.deps, cap.deal, { kind: 'payout', milestoneKey: 'reel1', amountMinor: 40000, email: 'sana@example.com' });
+    const r = await engine.execute(h.deps, cap.deal, batch([{ ...SANA, amountMinor: 40000 }]));
     expect(rules(r)).toContain('P10_payee');
+    // shifting cents between members keeps the total but breaks the signed split
+    const shifted = await engine.execute(h.deps, cap.deal, batch([{ ...RAVI, amountMinor: 27999 }, { ...SANA, amountMinor: 12001 }]));
+    expect(rules(shifted)).toContain('P10_payee');
+    expect(rules(shifted)).toContain('P3_amount');
+    // leaving a member out (paying only the lead their share) is refused
+    const short = await engine.execute(h.deps, cap.deal, batch([RAVI]));
+    expect(rules(short)).toEqual(expect.arrayContaining(['P10_payee', 'P3_amount']));
+    expect(h.gateway.calls.filter((c) => c.op === 'payout_batch')).toHaveLength(0);
+    // the exact signed split goes through, as one batch
+    const ok = await engine.execute(h.deps, cap.deal, batch([RAVI, SANA]));
+    expect(ok.result.outcome).toBe('done');
+    expect(h.gateway.calls.filter((c) => c.op === 'payout_batch')).toHaveLength(1);
   });
 
   test('pay out before capture -> P1_state', async () => {
     const h = await approvedDeal();
-    const r = await engine.execute(h.deps, h.deal, { kind: 'payout', milestoneKey: 'reel1', amountMinor: 28000, email: 'ravi@example.com' });
+    const r = await engine.execute(h.deps, h.deal, batch([RAVI, SANA]));
     expect(rules(r)).toContain('P1_state');
   });
 

@@ -166,8 +166,12 @@ function moneyActionShape(a: any): MoneyAction {
   if (!a || typeof a !== 'object' || !KINDS.includes(a.kind) || !isStr(a.milestoneKey, 100)) throw bad('invalid_action', 'action needs a known kind and a milestoneKey');
   for (const k of ['amountMinor', 'quantity']) if (a[k] !== undefined && typeof a[k] !== 'number') throw bad('invalid_action', `${k} must be a number`);
   const out: Record<string, unknown> = {};
-  for (const k of ['kind', 'milestoneKey', 'amountMinor', 'versionId', 'final', 'reason', 'captureId', 'email', 'rateCardItemId', 'quantity', 'currency'])
+  for (const k of ['kind', 'milestoneKey', 'amountMinor', 'versionId', 'final', 'reason', 'captureId', 'email', 'rateCardItemId', 'quantity', 'currency', 'step'])
     if (a[k] !== undefined) out[k] = a[k];
+  if (a.items !== undefined) {
+    if (!Array.isArray(a.items) || a.items.length > 20) throw bad('invalid_action', 'items must be a list of at most 20 payees');
+    out.items = a.items.map((i: any) => ({ userId: String(i?.userId || ''), email: String(i?.email || ''), amountMinor: typeof i?.amountMinor === 'number' ? i.amountMinor : NaN }));
+  }
   return out as MoneyAction;
 }
 

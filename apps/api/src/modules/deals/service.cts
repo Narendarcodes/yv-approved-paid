@@ -19,9 +19,21 @@ let svc: DealService | null = null;
 let gatewayRef: PaymentGateway | null = null;
 let timer: NodeJS.Timeout | null = null;
 
-function configureDeals(opts: { gateway?: PaymentGateway; now?: () => string; publicBaseUrl?: string } = {}): DealService {
+/** PAYOUTS_MODE=real sends payout batches to PayPal; anything else (default) records them as simulated. */
+function payoutsModeFromEnv(env: Record<string, string | undefined> = process.env): 'real' | 'simulated' {
+  return env.PAYOUTS_MODE === 'real' ? 'real' : 'simulated';
+}
+
+function configureDeals(
+  opts: { gateway?: PaymentGateway; now?: () => string; publicBaseUrl?: string; payoutsMode?: 'real' | 'simulated' } = {},
+): DealService {
   gatewayRef = opts.gateway || gatewayFromEnv(process.env);
-  svc = makeDealService({ gateway: gatewayRef as PaymentGateway, now: opts.now, publicBaseUrl: opts.publicBaseUrl || process.env.PUBLIC_WEB_URL });
+  svc = makeDealService({
+    gateway: gatewayRef as PaymentGateway,
+    now: opts.now,
+    publicBaseUrl: opts.publicBaseUrl || process.env.PUBLIC_WEB_URL,
+    payoutsMode: opts.payoutsMode || payoutsModeFromEnv(process.env),
+  });
   return svc as DealService;
 }
 
@@ -57,4 +69,4 @@ function stopMoneyAgent() {
   timer = null;
 }
 
-module.exports = { dealService, configureDeals, gateway, handlePaypalEvent, startMoneyAgent, stopMoneyAgent, ServiceError };
+module.exports = { dealService, configureDeals, payoutsModeFromEnv, gateway, handlePaypalEvent, startMoneyAgent, stopMoneyAgent, ServiceError };

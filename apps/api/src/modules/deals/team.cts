@@ -26,6 +26,7 @@ import type { DealDoc, DealTerms, Payee } from './lib/types.cts';
 const User = require('../../models/user.model');
 const access = require('../access/index.cts');
 const { percentOf } = require('./lib/money.cts');
+const { splitCents, payeeSplits } = require('./lib/split.cts');
 const { actorRole } = require('./lib/engine.cts');
 
 const MAX_PAYEES = 10;
@@ -107,6 +108,11 @@ async function planTeam(deal: DealDoc, key: string, input: TeamInput, ctx: { org
     });
   }
   if (rows && rows.length && totalBp !== 10000) v('T4_total_100', `shares must add up to 100% (they add up to ${totalBp / 100}%)`);
+  else if (payees.length && payees.reduce((a, p) => a + p.shareBp, 0) === 10000 && new Set(payees.map((p) => p.userId)).size === payees.length) {
+    // the same split the payout batches use: floor each share, leftover cents to the lead
+    const shares = splitCents(t.amountMinor, payeeSplits(deal, payees));
+    payees.forEach((p, i) => (p.amountMinor = shares[i].amountCents));
+  }
   return { ...base, allowed: violations.length === 0, violations, totalBp, payees };
 }
 

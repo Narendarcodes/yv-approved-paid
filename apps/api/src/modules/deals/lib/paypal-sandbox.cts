@@ -243,6 +243,8 @@ function makeSandboxGateway(
         } as any;
       }
     },
+    // a batch is always sent for real; PAYOUT_NOT_AVAILABLE is passed through and the engine records it as simulated
+    createPayoutBatch: (input) => rest.createPayoutBatch({ ...input, senderBatchId: rid(input.senderBatchId) }),
     async createInvoiceDraft(input) {
       const d = await rest.createInvoiceDraft({ ...input, requestId: rid(input.requestId) });
       try {

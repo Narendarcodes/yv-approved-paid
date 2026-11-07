@@ -251,7 +251,7 @@ describe('seed-deal-demo', () => {
       }
       expect(ms(d, 'reel1').state).toBe('PAID_OUT');
       expect(ms(d, 'reel1').captures[0].id).toMatch(/^SIM-CAPTURE-/);
-      expect(ms(d, 'reel1').payouts.every((p) => /^SIM-PAYOUT-/.test(p.batchId))).toBe(true);
+      expect(ms(d, 'reel1').payouts.every((p) => /^SIM-BATCH-/.test(p.batchId) && p.simulated === true)).toBe(true);
       const accepted = await dealService().decideChangeOrder(DEMO.dealId, r.orgId, r.judge.userId, d.changeOrders[0].id, true);
       expect(accepted.out).toMatchObject({ outcome: 'done' });
       const after = await dealService().get(DEMO.dealId, r.orgId);

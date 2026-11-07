@@ -22,6 +22,7 @@ const path = require('node:path');
 const { resolveEvidence } = require('./lib/evidence.cts');
 const { askCopilot } = require('./copilot.cts');
 const { planTeam, applyTeam, statusOf } = require('./team.cts');
+const { receiptsOf } = require('./lib/receipts.cts');
 const config = require('../../config');
 const rateLimit = require('express-rate-limit');
 
@@ -438,6 +439,30 @@ router.put(
 );
 
 /* -------------------------------------------------------------- deal team */
+
+/**
+ * Team payout receipts for a milestone: each member's line of every payout batch
+ * (amount, share, release step, batch id, simulated or not). The brand (client)
+ * and deal managers see every line; a crew member (a payee of the milestone)
+ * sees only their own line, even when their org role can manage deals. Anyone
+ * else in the org gets a plain 404, like any deal they cannot read.
+ */
+router.get(
+  `${M}/payout-receipts`,
+  wrap(async (req, res) => {
+    const d: DealDoc = await dealService().get(req.params.dealId, org(req));
+    const me = uid(req);
+    const t = d.terms.milestones.find((x) => x.key === req.params.key);
+    const member =
+      !!t?.payees.some((p) => p.userId === me) ||
+      !!d.milestones.find((x) => x.key === req.params.key)?.payouts.some((p) => p.userId === me);
+    const all = actorRole(d, me) === 'client' || (canManage(req) && !member);
+    if (!all && !member && !actorRole(d, me)) throw bad('deal_not_found', 'deal not found', 404);
+    const r = receiptsOf(d, req.params.key, { userId: me, all });
+    if (!r) throw bad('milestone_not_found', `no milestone ${req.params.key}`, 404);
+    res.json({ data: r });
+  }),
+);
 
 /**
  * The milestone's team (payees + split). Dry run first, always: the same rules

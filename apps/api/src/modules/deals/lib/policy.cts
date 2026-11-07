@@ -13,7 +13,8 @@
  *   P7_human_tap     big captures and every refund wait for one human tap
  *   P8_currency      the action's currency (if given) is the deal's currency
  *   P9_auth_window   the PayPal authorization is live (honor period / 29-day validity)
- *   P10_payee        payouts go only to payees named in the signed deal, within what was captured
+ *   P10_payee        payouts go only to payees named in the signed deal, within what was captured:
+ *                    one batch per release, each payee exactly their splitCents share of it
  *   P11_rate_card    change orders are priced from the signed rate card, never invented
  *   P12_milestone    the milestone exists in the signed deal
  *   P13_flagged      no payout while PayPal reports a denied or reversed capture on the milestone
@@ -22,6 +23,7 @@ import type { DealDoc, MoneyAction, PolicyDecision, MilestoneRuntime, MilestoneT
 
 const { hashOf } = require('./canonical.cts');
 const { percentOf } = require('./money.cts');
+const { splitCents, payeeSplits } = require('./split.cts');
 
 const DAY = 24 * 3600 * 1000;
 const HONOR_DAYS = 3;
@@ -58,7 +60,8 @@ function idempotencyKey(deal: DealDoc, a: MoneyAction, m?: MilestoneRuntime, ctx
     case 'refund':
       return `refund:${base}:${a.captureId}`;
     case 'payout':
-      return a.tranche ? `payout:${base}:${a.email.toLowerCase()}:${a.tranche}` : `payout:${base}:${a.email.toLowerCase()}`;
+      // one batch per release step; this is also the PayPal sender_batch_id, so a retry can never pay twice
+      return `payout:${base}:${a.step}`;
     case 'invoice':
       return `invoice:${base}:${ctx?.changeOrderId || 'none'}`;
     default:
@@ -77,9 +80,23 @@ function termsLocked(deal: DealDoc): boolean {
 function clockPartialCaptured(m: MilestoneRuntime): number {
   return m.captures.filter((c) => c.reason === 'clock_partial').reduce((a, c) => a + c.amountMinor, 0);
 }
-function paidTo(m: MilestoneRuntime, email: string): number {
-  return m.payouts.filter((p) => p.email.toLowerCase() === email.toLowerCase()).reduce((a, p) => a + p.amountMinor, 0);
+
+/**
+ * What one release pays the team: the step's total and each signed payee's
+ * splitCents share of it (zero shares are left out of the batch). The partial
+ * release pays what the review clock released; every other step pays all that
+ * was captured and not yet paid out.
+ */
+function payoutTranche(deal: DealDoc, m: MilestoneRuntime, terms: MilestoneTerms, step: string) {
+  const totalMinor = step === 'release_partial' ? clockPartialCaptured(m) : m.capturedMinor - m.paidOutMinor;
+  if (!(totalMinor > 0) || !terms.payees.length) return { totalMinor: Math.max(0, totalMinor), items: [] as { userId: string; email: string; shareBp: number; amountMinor: number }[] };
+  const shares = splitCents(totalMinor, payeeSplits(deal, terms.payees));
+  const items = terms.payees
+    .map((p, i) => ({ userId: p.userId, email: p.email, shareBp: p.shareBp, amountMinor: shares[i].amountCents as number }))
+    .filter((x) => x.amountMinor > 0);
+  return { totalMinor, items };
 }
+const STEPS = ['release_partial', 'release_grace', 'approve', 'auto_approve', 'kill_fee', 'dispute_split', 'final'];
 
 function remainingAuthorized(m: MilestoneRuntime): number {
   return Math.max(0, (m.funding?.authorizedMinor || 0) - m.capturedMinor);
@@ -227,24 +244,38 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
       break;
     }
     case 'payout': {
-      const partial = clockPartialCaptured(m);
-      if (action.tranche === 'clock_partial') {
-        if (partial <= 0) v('P1_state', 'no review-clock partial release was captured on this milestone');
+      const step = (action as { step?: string }).step || '';
+      const items = Array.isArray((action as { items?: unknown }).items) ? action.items : [];
+      if (!STEPS.includes(step)) v('P1_state', `unknown payout step ${step || '(none)'}`);
+      else if (step === 'release_partial') {
+        if (clockPartialCaptured(m) <= 0) v('P1_state', 'no review-clock partial release was captured on this milestone');
       } else if (m.state !== 'CAPTURED') v('P1_state', `payouts go out after capture (milestone is ${m.state})`);
-      const payee = terms.payees.find((p) => p.email.toLowerCase() === action.email.toLowerCase());
-      if (!payee) v('P10_payee', `${action.email} is not a payee in the signed deal`);
       if ((deal.alerts || []).some((x) => x.milestoneKey === m.key && /CAPTURE\.(DENIED|REVERSED)$/.test(x.eventType)))
         v('P13_flagged', 'PayPal reported a denied or reversed capture on this milestone; a person has to clear it first');
+      if (!items.length) v('P10_payee', 'a payout batch names at least one signed payee');
       const available = m.capturedMinor - m.paidOutMinor;
+      const sum = items.reduce((a, i) => a + (Number.isSafeInteger(i?.amountMinor) ? i.amountMinor : 0), 0);
+      if (sum !== action.amountMinor) v('P3_amount', `batch total ${action.amountMinor} is not the sum of its items ${sum}`);
       if (action.amountMinor > available) v('P10_payee', `payout ${action.amountMinor} exceeds captured-but-unpaid ${available}`);
-      if (payee) {
-        const share = percentOf(m.capturedMinor, payee.shareBp);
-        if (action.amountMinor > share) v('P10_payee', `payout ${action.amountMinor} exceeds this payee's share ${share}`);
-        else if (paidTo(m, payee.email) + action.amountMinor > share)
-          v('P10_payee', `payout ${action.amountMinor} plus ${paidTo(m, payee.email)} already paid exceeds this payee's share ${share}`);
-        if (action.tranche === 'clock_partial' && action.amountMinor > percentOf(partial, payee.shareBp))
-          v('P10_payee', `payout ${action.amountMinor} exceeds this payee's share of the partial release ${percentOf(partial, payee.shareBp)}`);
+      const tranche = STEPS.includes(step) ? payoutTranche(deal, m, terms, step) : { totalMinor: 0, items: [] };
+      const seenPayee = new Set<string>();
+      for (const i of items) {
+        const email = String(i?.email || '').toLowerCase();
+        const payee = terms.payees.find((p) => p.email.toLowerCase() === email && (!i.userId || p.userId === i.userId));
+        if (!payee) {
+          v('P10_payee', `${i?.email} is not a payee in the signed deal`);
+          continue;
+        }
+        if (seenPayee.has(payee.userId)) v('P10_payee', `${i.email} appears twice in one batch`);
+        seenPayee.add(payee.userId);
+        const due = tranche.items.find((x) => x.userId === payee.userId)?.amountMinor || 0;
+        if (i.amountMinor > due) v('P10_payee', `payout ${i.amountMinor} to ${i.email} exceeds this payee's share ${due} of the release`);
+        else if (i.amountMinor !== due) v('P3_amount', `payout to ${i.email} must be exactly their signed share ${due}, got ${i.amountMinor}`);
       }
+      for (const x of tranche.items)
+        if (!seenPayee.has(x.userId)) v('P10_payee', `the batch leaves out ${x.email}, who is owed ${x.amountMinor} of this release`);
+      if (STEPS.includes(step) && action.amountMinor !== tranche.totalMinor)
+        v('P3_amount', `this release pays exactly ${tranche.totalMinor} to the team, got ${action.amountMinor}`);
       break;
     }
     case 'invoice': {
@@ -265,4 +296,4 @@ function evaluate(deal: DealDoc, action: MoneyAction, ctx: PolicyContext): Polic
   return { allowed: violations.length === 0 && !needsHumanApproval, violations, needsHumanApproval: violations.length === 0 && needsHumanApproval, idempotencyKey: key };
 }
 
-module.exports = { evaluate, idempotencyKey, termsLocked, HONOR_DAYS, AUTH_VALID_DAYS };
+module.exports = { evaluate, idempotencyKey, termsLocked, payoutTranche, clockPartialCaptured, HONOR_DAYS, AUTH_VALID_DAYS };

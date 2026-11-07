@@ -52,7 +52,8 @@ export type ChecklistItem = {
   source?: string;
 };
 
-export type Payee = { userId: string; email: string; shareBp: number; displayName?: string };
+/** role 'lead' takes the cents left over when a release is split (splitCents); unset = the deal's worker leads. */
+export type Payee = { userId: string; email: string; shareBp: number; displayName?: string; role?: 'lead' | 'member' };
 
 export type MilestoneTerms = {
   key: string;
@@ -186,7 +187,37 @@ export type ChangeOrder = {
 };
 
 export type Capture = { id: string; amountMinor: number; versionId?: string; reason: string; at: string };
-export type Payout = { batchId: string; amountMinor: number; email: string; at: string; status: string; tranche?: 'clock_partial' };
+/** Which release a payout batch pays: the review clock's partial or grace release, or the full release after a capture. */
+export type PayoutStep = 'release_partial' | 'release_grace' | 'approve' | 'auto_approve' | 'kill_fee' | 'dispute_split' | 'final';
+/** One member's line of a payout batch: their receipt. */
+export type Payout = {
+  batchId: string;
+  amountMinor: number;
+  email: string;
+  at: string;
+  status: string;
+  tranche?: 'clock_partial';
+  userId?: string;
+  displayName?: string;
+  shareBp?: number;
+  step?: PayoutStep;
+  /** True when no money left PayPal for this line (mock, PAYOUTS_MODE=simulated, or PAYOUT_NOT_AVAILABLE). */
+  simulated?: boolean;
+};
+/** One PayPal Payouts batch per release: every member's share in one call, sender_batch_id = the release's idempotency key. */
+export type PayoutBatch = {
+  batchId: string;
+  senderBatchId: string;
+  step: PayoutStep;
+  amountMinor: number;
+  currency: string;
+  at: string;
+  status: string;
+  simulated: boolean;
+  /** Why it was simulated (PayPal's error, or the mode). */
+  reason?: string;
+  items: { userId: string; email: string; displayName?: string; shareBp: number; amountMinor: number; senderItemId: string }[];
+};
 
 export type ChangeItem = {
   text: string;
@@ -209,6 +240,8 @@ export type MilestoneRuntime = {
   captures: Capture[];
   paidOutMinor: number;
   payouts: Payout[];
+  /** Every payout batch sent (or simulated) for this milestone. */
+  payoutBatches?: PayoutBatch[];
   changeRequests: { at: string; versionId?: string; items: ChangeItem[]; tasteRound: boolean; changeOrderId?: string }[];
   /** Dispute split proposals in minor units owed to the worker, per side. */
   split?: { client?: number; worker?: number };
@@ -285,6 +318,9 @@ export type DisputeProposal = {
   decision: StoredDecision;
 };
 
+/** One member in a payout batch action: amounts come from splitCents over the signed shares, never from a request. */
+export type PayoutItem = { userId: string; email: string; amountMinor: number };
+
 /** A money action an agent (or a human) asks to run. */
 export type MoneyAction =
   | { kind: 'authorize'; milestoneKey: string; amountMinor: number }
@@ -293,7 +329,7 @@ export type MoneyAction =
   | { kind: 'partial_capture'; milestoneKey: string; amountMinor: number; reason: 'kill_fee' | 'dispute_split' | 'clock_partial' }
   | { kind: 'void'; milestoneKey: string; reason: 'missed_deadline' | 'cancelled' | 'remainder_after_partial' | 'dispute_split' | 'mutual' }
   | { kind: 'refund'; milestoneKey: string; captureId: string; amountMinor: number }
-  | { kind: 'payout'; milestoneKey: string; amountMinor: number; email: string; tranche?: 'clock_partial' }
+  | { kind: 'payout'; milestoneKey: string; amountMinor: number; step: PayoutStep; items: PayoutItem[] }
   | { kind: 'invoice'; milestoneKey: string; rateCardItemId: string; quantity: number; amountMinor: number };
 
 export type PolicyDecision = {

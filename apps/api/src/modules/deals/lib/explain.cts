@@ -49,8 +49,18 @@ function explain(deal: DealDoc, action: MoneyAction, extra: Record<string, unkno
     }
     case 'refund':
       return `Refunded ${amt(action.amountMinor)} of capture ${action.captureId} on ${title} to ${client}, after a person approved it.`;
-    case 'payout':
-      return `Paid ${amt(action.amountMinor)} to ${String(extra.payeeName || action.email)} through PayPal Payouts for ${title}${action.tranche === 'clock_partial' ? ' (their signed share of the review-clock partial release)' : ''}.`;
+    case 'payout': {
+      const batch = extra.batch as { batchId: string; simulated: boolean; reason?: string; items: unknown[] } | undefined;
+      const item = extra.item as { email: string; displayName?: string; shareBp: number; amountMinor: number } | undefined;
+      const who = item ? item.displayName || item.email : `${action.items.length} payee(s)`;
+      const share = item ? ` (${item.shareBp / 100}% share)` : '';
+      const money = amt(item ? item.amountMinor : action.amountMinor);
+      const step = String(extra.stepLabel || action.step);
+      const n = batch?.items.length || action.items.length;
+      if (batch?.simulated)
+        return `Simulated payout: ${money} to ${who}${share} for ${title}, ${step}, in batch ${batch.batchId} (one batch for ${n} ${n === 1 ? 'person' : 'people'}). No money left PayPal: ${batch.reason || 'payouts are simulated'}.`;
+      return `Paid ${money} to ${who}${share} for ${title}, ${step}, in one PayPal Payouts batch ${batch?.batchId || ''} for ${n} ${n === 1 ? 'person' : 'people'}.`;
+    }
     case 'invoice': {
       const sent = !!extra.invoiceStatus && extra.invoiceStatus !== 'DRAFT';
       return `${sent ? 'Created and sent' : 'Drafted'} a PayPal invoice for a change order on ${title}: ${action.quantity} × ${String(extra.itemLabel || action.rateCardItemId)} at the signed rate-card price, ${amt(action.amountMinor)} in total. ${client} accepted the change order; ${sent ? 'it is charged only when the invoice is paid.' : 'the invoice waits in PayPal as a draft until it is sent.'}`;

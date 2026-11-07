@@ -157,6 +157,11 @@ function makeMockGateway(opts: { now?: () => number; webhookSecret?: string } = 
       calls.push({ op: 'payout', args: input });
       return once(input.senderBatchId, 'payout', () => ({ id: id('PAYOUT'), status: 'SUCCESS' }));
     },
+    async createPayoutBatch(input) {
+      calls.push({ op: 'payout_batch', args: input });
+      // the mock never moves money: its batch ids say so (SIM-BATCH-...)
+      return once(input.senderBatchId, 'payout_batch', () => ({ batchId: `SIM-BATCH-${(++n).toString().padStart(6, '0')}`, status: 'SUCCESS' }));
+    },
     async createInvoiceDraft(input) {
       calls.push({ op: 'invoice', args: input });
       return once(input.requestId, 'invoice', () => {

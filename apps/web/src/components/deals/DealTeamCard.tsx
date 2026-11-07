@@ -21,7 +21,16 @@ import { initialsOf } from '../../lib/initials'
 
 type Row = { userId: string; pct: string; label: string }
 
-const shareOf = (minor: number, bp: number) => Math.floor((minor * bp + 5000) / 10000)
+// the API's splitCents: floor each share; the cents left over go to the lead (the deal's worker, else the first payee)
+const floorShare = (minor: number, bp: number) => Math.floor((minor * bp) / 10000)
+function splitPreview(minor: number, payees: { userId: string; shareBp: number }[], leadId: string): number[] {
+  const out = payees.map((p) => floorShare(minor, p.shareBp))
+  const total = payees.reduce((a, p) => a + p.shareBp, 0)
+  if (total !== 10000 || !payees.length) return out
+  const lead = Math.max(0, payees.findIndex((p) => p.userId === leadId))
+  out[lead] += minor - out.reduce((a, n) => a + n, 0)
+  return out
+}
 const pctText = (bp: number) => `${(bp / 100).toFixed(bp % 100 ? 2 : 0)}%`
 const toBp = (pct: string) => Math.round(Number(pct) * 100)
 
@@ -180,7 +189,7 @@ export default function DealTeamCard({
                     </div>
                     <span className="t-num w-20 text-right text-[12.5px] text-umber">
                       {Number.isFinite(toBp(r.pct)) && toBp(r.pct) > 0
-                        ? money(shareOf(t.amountMinor, toBp(r.pct)), cur)
+                        ? money(floorShare(t.amountMinor, toBp(r.pct)), cur)
                         : '-'}
                     </span>
                     <button
@@ -237,8 +246,9 @@ export default function DealTeamCard({
               </div>
             ) : (
               <ul className="divide-y divide-line rounded-xl border border-line">
-                {t.payees.map((p) => {
+                {t.payees.map((p, i) => {
                   const m = memberOf(p.userId)
+                  const amounts = splitPreview(t.amountMinor, t.payees, deal.terms.worker.userId)
                   return (
                     <li key={p.userId} className="flex items-center gap-3 px-3 py-2.5">
                       <Avatar
@@ -257,7 +267,7 @@ export default function DealTeamCard({
                       <div className="text-right">
                         <p className="t-num text-[14px]">{pctText(p.shareBp)}</p>
                         <p className="t-num text-[11.5px] text-umber">
-                          {money(shareOf(t.amountMinor, p.shareBp), cur)}
+                          {money(amounts[i], cur)}
                         </p>
                       </div>
                     </li>

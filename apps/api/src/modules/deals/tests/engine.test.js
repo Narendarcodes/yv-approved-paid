@@ -71,6 +71,9 @@ describe('happy path: fund -> style sample -> logo missing -> fix -> approve -> 
       ['ravi@example.com', 28000],
       ['sana@example.com', 12000],
     ]);
+    // the whole crew is paid in one PayPal Payouts batch, keyed by the release
+    expect(h.gateway.calls.filter((c) => c.op === 'payout_batch').map((c) => c.args.senderBatchId)).toEqual(['payout:deal_1:reel1:approve']);
+    expect(m.payoutBatches.map((b) => [b.step, b.amountMinor, b.items.length])).toEqual([['approve', 40000, 2]]);
     const rows = await h.ledger.list('deal_1');
     expect(ledger.verifyChain(rows).ok).toBe(true);
     expect(ledger.totals(rows)).toMatchObject({ heldMinor: 40000, capturedMinor: 40000, paidOutMinor: 40000, blockedCount: 0 });
@@ -148,7 +151,9 @@ describe('fairness rules', () => {
     expect(m.state).toBe('PAID_OUT');
     expect(m.paidOutMinor).toBe(10000);
     const ops = h.gateway.calls.map((c) => c.op);
-    expect(ops).toEqual(expect.arrayContaining(['capture', 'void', 'payout']));
+    expect(ops).toEqual(expect.arrayContaining(['capture', 'void', 'payout_batch']));
+    expect(ops.filter((o) => o === 'payout_batch')).toHaveLength(1); // one batch for the whole kill fee
+    expect(m.payoutBatches.map((b) => [b.step, b.amountMinor])).toEqual([['kill_fee', 10000]]);
   });
 
   test('kill with a 0% kill fee voids everything and pays nothing', async () => {

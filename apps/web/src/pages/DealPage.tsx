@@ -24,6 +24,7 @@ import DealTeamCard from '../components/deals/DealTeamCard'
 import JudgeTour from '../components/deals/JudgeTour'
 import ReviewClockCard from '../components/deals/ReviewClockCard'
 import ClockTermsCard from '../components/deals/ClockTermsCard'
+import TeamPayoutCard from '../components/deals/TeamPayoutCard'
 import { clockTermsOf } from '../lib/clock'
 import * as api from '../services/api'
 import { DEMO_DEAL_PATH, invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
@@ -177,6 +178,9 @@ export default function DealPage() {
                     ))}
                     {(r.proposals?.dispute || r.state === 'DISPUTED') && (
                       <DisputeSplitCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />
+                    )}
+                    {!!deal.termsHash && t.payees.length > 0 && (r.payouts.length > 0 || deal.me === 'worker') && (
+                      <TeamPayoutCard deal={deal} orgId={orgId} milestoneKey={t.key} />
                     )}
                   </section>
                 )

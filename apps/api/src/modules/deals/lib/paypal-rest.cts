@@ -260,6 +260,27 @@ function makeRestGateway(opts: {
       });
       return { id: r?.batch_header?.payout_batch_id, status: r?.batch_header?.batch_status };
     },
+    async createPayoutBatch(input) {
+      const r = await call(
+        'POST',
+        '/v1/payments/payouts',
+        {
+          sender_batch_header: {
+            sender_batch_id: input.senderBatchId.slice(0, 256),
+            email_subject: input.emailSubject || 'You have a payout',
+          },
+          items: input.items.map((i) => ({
+            recipient_type: 'EMAIL',
+            receiver: i.receiver,
+            note: i.note.slice(0, 4000),
+            sender_item_id: i.senderItemId.slice(0, 63),
+            amount: { currency: i.currency, value: toMajor(i.amountCents, i.currency) },
+          })),
+        },
+        input.senderBatchId,
+      );
+      return { batchId: r?.batch_header?.payout_batch_id, status: r?.batch_header?.batch_status };
+    },
     async createInvoiceDraft(input) {
       const r = await call(
         'POST',

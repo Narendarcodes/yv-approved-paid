@@ -14,6 +14,7 @@ export type AuthorizationResult = {
 };
 export type CaptureResult = { captureId: string; status: string; amountMinor: number; finalCapture: boolean };
 export type SimpleResult = { id: string; status: string };
+export type PayoutBatchResult = { batchId: string; status: string };
 
 export type PaymentGateway = {
   name: 'mock' | 'paypal-sandbox' | 'paypal-live';
@@ -42,6 +43,16 @@ export type PaymentGateway = {
     items: { email: string; amountMinor: number; currency: string; note: string; senderItemId: string }[];
     emailSubject: string;
   }): Promise<SimpleResult>;
+  /**
+   * One PayPal Payouts batch (POST /v1/payments/payouts). senderBatchId is the
+   * release's idempotency key; PayPal refuses a second batch with the same
+   * sender_batch_id, and the same key is sent as PayPal-Request-Id.
+   */
+  createPayoutBatch(input: {
+    senderBatchId: string;
+    emailSubject?: string;
+    items: { receiver: string; amountCents: number; currency: string; note: string; senderItemId: string }[];
+  }): Promise<PayoutBatchResult>;
   createInvoiceDraft(input: {
     currency: string;
     invoiceNumber?: string;

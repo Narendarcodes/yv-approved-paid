@@ -71,6 +71,7 @@ function paypalIdsOf(d: DealDoc): string[] {
     for (const r of m.funding?.reauthorizations || []) ids.push(r.authorizationId);
     for (const c of m.captures) ids.push(c.id);
     for (const p of m.payouts) ids.push(p.batchId);
+    for (const b of m.payoutBatches || []) ids.push(b.batchId);
   }
   return [...new Set(ids)];
 }
@@ -96,6 +97,7 @@ function makeDealService(opts: {
   now?: () => string;
   publicBaseUrl?: string;
   trace?: EngineDeps['trace'];
+  payoutsMode?: EngineDeps['payoutsMode'];
 }) {
   const now = opts.now || (() => new Date().toISOString());
   const base = (opts.publicBaseUrl || 'http://localhost:5173').replace(/\/$/, '');
@@ -104,6 +106,7 @@ function makeDealService(opts: {
     ledger: mongoLedger,
     now,
     trace: opts.trace,
+    payoutsMode: opts.payoutsMode === 'real' ? 'real' : 'simulated',
     returnUrl: (deal, key) => ({
       returnUrl: `${base}/deals/${encodeURIComponent(deal.id)}/fund/${encodeURIComponent(key)}?paypal=approved`,
       cancelUrl: `${base}/deals/${encodeURIComponent(deal.id)}/fund/${encodeURIComponent(key)}?paypal=cancelled`,

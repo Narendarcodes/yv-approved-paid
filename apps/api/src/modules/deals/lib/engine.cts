@@ -18,6 +18,8 @@ import type {
   ChangeItem,
   MilestoneTerms,
   Version,
+  PayoutStep,
+  PayoutBatch,
 } from './types.cts';
 import type { PaymentGateway } from './gateway.cts';
 import type { LedgerEntry, LedgerType } from './ledger.cts';
@@ -25,7 +27,7 @@ import type { PolicyContext } from './policy.cts';
 
 const { hashOf } = require('./canonical.cts');
 const { transition, TransitionError } = require('./states.cts');
-const { evaluate, idempotencyKey } = require('./policy.cts');
+const { evaluate, idempotencyKey, payoutTranche } = require('./policy.cts');
 const { nextEntry } = require('./ledger.cts');
 const { explain, explainBlocked } = require('./explain.cts');
 const { validateTerms } = require('./validate.cts');
@@ -49,6 +51,13 @@ export type EngineDeps = {
   now: () => string;
   /** Where PayPal sends the buyer back after approving a hold. */
   returnUrl: (deal: DealDoc, milestoneKey: string) => { returnUrl: string; cancelUrl: string };
+  /**
+   * PayPal Payouts: 'real' sends each batch to PayPal (for a US sandbox Business
+   * account); 'simulated' (the default) records the batch and every member's
+   * receipt without calling PayPal. A real call that answers PAYOUT_NOT_AVAILABLE
+   * is recorded as simulated too, with PayPal's reason.
+   */
+  payoutsMode?: 'real' | 'simulated';
   /** Optional span hook (OpenTelemetry) around every tool call. */
   trace?: <T>(name: string, attrs: Record<string, unknown>, fn: () => Promise<T>) => Promise<T>;
 };
@@ -58,6 +67,8 @@ export type ExecOutcome = {
   entry: LedgerEntry;
   violations?: { rule: string; message: string }[];
   error?: { code: string; message: string };
+  /** A payout batch writes one ledger line per member; entry is the last of them. */
+  entries?: LedgerEntry[];
 };
 
 class DealError extends Error {
@@ -91,11 +102,6 @@ function newRuntime(key: string): MilestoneRuntime {
   };
 }
 
-function paidTo(m: MilestoneRuntime, email: string): number {
-  return m.payouts
-    .filter((p) => p.email.toLowerCase() === email.toLowerCase())
-    .reduce((a, p) => a + p.amountMinor, 0);
-}
 
 function ms(deal: DealDoc, key: string): MilestoneRuntime {
   const m = deal.milestones.find((x) => x.key === key);
@@ -118,6 +124,9 @@ function step(deal: DealDoc, key: string, event: string, actor: Role, at: string
       throw new DealError('invalid_transition', (e as Error).message, 409);
     throw e;
   }
+}
+function step_(deal: DealDoc, key: string, at: string): DealDoc {
+  return step(deal, key, 'paid_out', 'system', at);
 }
 function clone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x));
@@ -617,41 +626,88 @@ function plan(
         });
     }
     if (m.state === 'CAPTURED') {
-      // each payee is owed their signed share of everything captured, less what they were already paid
-      for (const p of t.payees) {
-        const amount = percentOf(m.capturedMinor, p.shareBp) - paidTo(m, p.email);
-        if (amount > 0)
-          out.push({
-            action: { kind: 'payout', milestoneKey: m.key, amountMinor: amount, email: p.email },
-            why: 'pay the editor',
-          });
-      }
+      // one batch pays the team their signed shares of everything captured and not yet paid out
+      const step = finalPayoutStep(m);
+      const tr = payoutTranche(deal, m, t, step);
+      if (tr.totalMinor > 0 && tr.items.length)
+        out.push({ action: payoutAction(m.key, step, tr), why: 'pay the team their shares in one PayPal Payouts batch' });
     } else if (m.state !== 'PAID_OUT') {
       // a review-clock partial release is paid out right away, split by the locked team shares
-      const partial = m.captures
-        .filter((c) => c.reason === 'clock_partial')
-        .reduce((a, c) => a + c.amountMinor, 0);
-      if (partial > 0)
-        for (const p of t.payees) {
-          const done = m.payouts.some(
-            (x) => x.tranche === 'clock_partial' && x.email.toLowerCase() === p.email.toLowerCase(),
-          );
-          const amount = percentOf(partial, p.shareBp);
-          if (!done && amount > 0)
-            out.push({
-              action: {
-                kind: 'payout',
-                milestoneKey: m.key,
-                amountMinor: amount,
-                email: p.email,
-                tranche: 'clock_partial',
-              },
-              why: 'pay the team their share of the partial release',
-            });
-        }
+      const tr = payoutTranche(deal, m, t, 'release_partial');
+      const done = (m.payoutBatches || []).some((x) => x.step === 'release_partial') || m.payouts.some((x) => x.tranche === 'clock_partial');
+      if (!done && tr.totalMinor > 0 && tr.items.length)
+        out.push({ action: payoutAction(m.key, 'release_partial', tr), why: 'pay the team their share of the partial release' });
     }
   }
   return out;
+}
+
+/** The release a post-capture batch pays, from how the milestone was captured. */
+function finalPayoutStep(m: MilestoneRuntime): PayoutStep {
+  const last = [...m.captures].reverse().find((c) => c.reason !== 'clock_partial') || m.captures[m.captures.length - 1];
+  const map: Record<string, PayoutStep> = {
+    approval: 'approve',
+    auto_approval: 'auto_approve',
+    clock_grace: 'release_grace',
+    kill_fee: 'kill_fee',
+    dispute_split: 'dispute_split',
+  };
+  return (last && map[last.reason]) || 'final';
+}
+function payoutAction(milestoneKey: string, step: PayoutStep, tr: { totalMinor: number; items: { userId: string; email: string; amountMinor: number }[] }): MoneyAction {
+  return {
+    kind: 'payout',
+    milestoneKey,
+    step,
+    amountMinor: tr.totalMinor,
+    items: tr.items.map((i) => ({ userId: i.userId, email: i.email, amountMinor: i.amountMinor })),
+  };
+}
+const STEP_LABEL: Record<string, string> = {
+  release_partial: 'review-clock partial release',
+  release_grace: 'grace release',
+  approve: 'approval',
+  auto_approve: 'auto-approval',
+  kill_fee: 'kill fee',
+  dispute_split: 'dispute split',
+  final: 'final release',
+};
+
+/**
+ * Send one payout batch, or record it as simulated: always with the mock
+ * gateway, with PAYOUTS_MODE=simulated (the default), and when PayPal answers
+ * PAYOUT_NOT_AVAILABLE (the India sandbox). Any other PayPal error is thrown.
+ */
+async function sendPayoutBatch(
+  deps: EngineDeps,
+  input: Parameters<PaymentGateway['createPayoutBatch']>[0],
+): Promise<{ batchId: string; status: string; simulated: boolean; reason?: string }> {
+  const sandbox = deps.gateway.name === 'paypal-sandbox' ? 'PayPal sandbox: ' : '';
+  const simId = () => `SIM-BATCH-${hashOf({ k: input.senderBatchId }).slice(0, 12).toUpperCase()}`;
+  if (deps.gateway.name === 'mock') {
+    const r = await deps.gateway.createPayoutBatch(input);
+    return { ...r, simulated: true, reason: 'PAYPAL_MODE=mock, so the batch went to the mock PayPal gateway only' };
+  }
+  if ((deps.payoutsMode || 'simulated') !== 'real')
+    return {
+      batchId: simId(),
+      status: 'SUCCESS',
+      simulated: true,
+      reason: `${sandbox}PAYOUTS_MODE=simulated, so the batch was recorded and not sent to PayPal Payouts`,
+    };
+  try {
+    const r = await deps.gateway.createPayoutBatch(input);
+    return { ...r, simulated: false };
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (err.code !== 'PAYOUT_NOT_AVAILABLE') throw e;
+    return {
+      batchId: simId(),
+      status: 'SUCCESS',
+      simulated: true,
+      reason: `${sandbox}Payouts are not available to this PayPal account (PAYOUT_NOT_AVAILABLE: ${err.message || 'no reason given'})`,
+    };
+  }
 }
 
 function ctxFor(
@@ -872,47 +928,68 @@ async function execute(
         break;
       }
       case 'payout': {
-        const payee = t.payees.find((p) => p.email.toLowerCase() === action.email.toLowerCase());
-        const r = sim(
-          await traced(deps, 'paypal.payout', { key, amount: action.amountMinor }, () =>
-            deps.gateway.payout({
-              senderBatchId: key,
-              emailSubject: `Payment for ${t.title}`,
-              items: [
-                {
-                  email: action.email,
-                  amountMinor: action.amountMinor,
-                  currency: cur,
-                  note: `${deal.terms.title} - ${t.title}`,
-                  senderItemId: `${action.milestoneKey}-${(payee?.userId || 'payee').slice(0, 30)}`,
-                },
-              ],
-            }),
-          ),
+        const step = action.step;
+        const items = action.items.map((i) => {
+          const p = t.payees.find((x) => x.userId === i.userId) || t.payees.find((x) => x.email.toLowerCase() === i.email.toLowerCase())!;
+          return {
+            userId: p.userId,
+            email: p.email,
+            displayName: p.displayName,
+            shareBp: p.shareBp,
+            amountMinor: i.amountMinor,
+            senderItemId: `${action.milestoneKey}-${step}-${p.userId}`.slice(0, 63),
+          };
+        });
+        const b = await traced(deps, 'paypal.payout_batch', { key, amount: action.amountMinor, items: items.length }, () =>
+          sendPayoutBatch(deps, {
+            senderBatchId: key,
+            emailSubject: `Payment for ${t.title}`,
+            items: items.map((i) => ({
+              receiver: i.email,
+              amountCents: i.amountMinor,
+              currency: cur,
+              note: `${deal.terms.title} - ${t.title} (${STEP_LABEL[step] || step}, your ${i.shareBp / 100}% share)`,
+              senderItemId: i.senderItemId,
+            })),
+          }),
         );
-        const paidOutMinor = m.paidOutMinor + action.amountMinor;
+        const batch: PayoutBatch = {
+          batchId: b.batchId,
+          senderBatchId: key,
+          step,
+          amountMinor: action.amountMinor,
+          currency: cur,
+          at: now,
+          status: b.status,
+          simulated: b.simulated,
+          ...(b.reason ? { reason: b.reason } : {}),
+          items,
+        };
         deal = put(deal, {
           ...m,
-          paidOutMinor,
+          paidOutMinor: m.paidOutMinor + action.amountMinor,
           payouts: [
             ...m.payouts,
-            {
-              batchId: r.id,
-              amountMinor: action.amountMinor,
-              email: action.email,
+            ...items.map((i) => ({
+              batchId: b.batchId,
+              amountMinor: i.amountMinor,
+              email: i.email,
+              userId: i.userId,
+              displayName: i.displayName,
+              shareBp: i.shareBp,
+              step,
+              simulated: b.simulated,
               at: now,
-              status: r.status,
-              ...(action.tranche ? { tranche: action.tranche } : {}),
-            },
+              status: b.status,
+              ...(step === 'release_partial' ? { tranche: 'clock_partial' as const } : {}),
+            })),
           ],
+          payoutBatches: [...(m.payoutBatches || []), batch],
         });
         const m2 = ms(deal, action.milestoneKey);
-        const sharesPaid =
-          m2.state === 'CAPTURED' &&
-          t.payees.every((p) => paidTo(m2, p.email) >= percentOf(m2.capturedMinor, p.shareBp));
-        if (sharesPaid) deal = step(deal, action.milestoneKey, 'paid_out', 'system', now);
-        ref = r.id;
-        extraExplain = { payeeName: payee?.displayName || action.email };
+        if (m2.state === 'CAPTURED' && m2.paidOutMinor >= m2.capturedMinor) deal = step_(deal, action.milestoneKey, now);
+        ref = b.batchId;
+        extraExplain = { batch };
         break;
       }
       case 'invoice': {
@@ -972,6 +1049,26 @@ async function execute(
     };
   }
   deal = { ...deal, executedKeys: [...deal.executedKeys, key] };
+  if (action.kind === 'payout') {
+    // one ledger line per member, each naming the batch; a simulated batch says so on every line
+    const batch = extraExplain.batch as PayoutBatch;
+    const entries: LedgerEntry[] = [];
+    for (const i of batch.items)
+      entries.push(
+        await writeLedger(deps, deal, {
+          milestoneKey: action.milestoneKey,
+          type: 'payout',
+          amountMinor: i.amountMinor,
+          moved: true,
+          actor: 'system',
+          paypalRef: batch.batchId,
+          idempotencyKey: `${key}:${i.userId}`,
+          explanation: explain(deal, action, { batch, item: i, stepLabel: STEP_LABEL[batch.step] || batch.step }),
+          policy: { allowed: true, violations: [] },
+        }),
+      );
+    return { deal, result: { outcome: 'done', entry: entries[entries.length - 1], entries } };
+  }
   const moved = action.kind !== 'invoice';
   const entry = await writeLedger(deps, deal, {
     milestoneKey: action.milestoneKey,

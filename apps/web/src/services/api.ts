@@ -1950,3 +1950,58 @@ export function setClockTerms(
 ): Promise<ClockTermsPlan & { deal: DealView }> {
   return sendJson('PUT', msPath(orgId, dealId, key, '/clock-terms'), { clock })
 }
+
+/* Team payout receipts: one PayPal Payouts batch per release (approve, partial,
+ * grace), one receipt line per crew member. The brand and deal managers get
+ * every line; a crew member gets only their own (scope 'own'). */
+export type PayoutReceiptLine = {
+  userId: string
+  displayName: string
+  amountMinor: number
+  shareBp: number
+  step: string
+  stepLabel: string
+  batchId: string
+  simulated: boolean
+  reason?: string
+  status: string
+  at: string
+}
+export type PayoutTeamMember = {
+  userId: string
+  displayName: string
+  shareBp: number
+  role: 'lead' | 'member'
+  /** This member's splitCents share of the whole signed milestone amount. */
+  shareOfMilestoneMinor: number
+  paidMinor: number
+}
+export type PayoutReceipts = {
+  milestoneKey: string
+  title: string
+  currency: string
+  scope: 'all' | 'own'
+  milestoneAmountMinor: number
+  paidOutMinor: number
+  team: PayoutTeamMember[]
+  me: PayoutTeamMember | null
+  batches: {
+    batchId: string
+    step: string
+    stepLabel: string
+    amountMinor: number
+    simulated: boolean
+    reason?: string
+    status: string
+    at: string
+    members: number
+  }[]
+  lines: PayoutReceiptLine[]
+}
+
+export async function getPayoutReceipts(orgId: string, dealId: string, key: string): Promise<PayoutReceipts> {
+  const res = await authFetch(`${API_BASE}${msPath(orgId, dealId, key, '/payout-receipts')}`, { credentials: 'include' })
+  const body = await res.json().catch(() => null)
+  if (!res.ok) throw new ApiError(readableError(res, body, `Request failed (${res.status})`), body?.error?.code)
+  return body?.data as PayoutReceipts
+}
