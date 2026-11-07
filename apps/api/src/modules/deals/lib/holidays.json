@@ -1,0 +1,73 @@
+{
+  "_source": {
+    "IN": "Nationally observed holidays: the 17 compulsory gazetted holidays for Central Government offices (DoPT O.M. F.No.12/2/2023-JCA dated 03.07.2025 for 2026, https://dopt.gov.in/sites/default/files/Holidays%20to%20be%20observed%20in%20Central%20Government%20Offices%20during%20the%20year%202026.pdf ; dated 16.07.2026 for 2027, https://dopt.gov.in/sites/default/files/Holiday%20list%202027.PDF , table as published at https://www.staffnews.in/2026/07/list-of-holidays-for-the-year-2027-gazetted.html). RBI notifies bank holidays state by state under the Negotiable Instruments Act (https://www.rbi.org.in/Scripts/HolidayMatrixDisplay.aspx), so there is no single all-India RBI list; the DoPT gazetted list is used as the national proxy. Weekend dates are kept as published (they change nothing). Moon-dependent dates (Id, Muharram, Milad-un-Nabi) can shift by a day.",
+    "US": "Federal Reserve System holidays, Board K.8 (https://www.federalreserve.gov/aboutthefed/k8.htm) and https://www.chicagofed.org/utilities/about-us/federal-reserve-calendars . Rule: a holiday on Saturday does not close Reserve Banks on the Friday before; a holiday on Sunday closes them the following Monday (so 2027-07-05 is listed for July 4, 2027). Saturday dates are kept as published."
+  },
+  "IN": {
+    "2026": [
+      "2026-01-26",
+      "2026-03-04",
+      "2026-03-21",
+      "2026-03-26",
+      "2026-03-31",
+      "2026-04-03",
+      "2026-05-01",
+      "2026-05-27",
+      "2026-06-26",
+      "2026-08-15",
+      "2026-08-26",
+      "2026-09-04",
+      "2026-10-02",
+      "2026-10-20",
+      "2026-11-08",
+      "2026-11-24",
+      "2026-12-25"
+    ],
+    "2027": [
+      "2027-01-26",
+      "2027-03-10",
+      "2027-03-23",
+      "2027-03-26",
+      "2027-04-15",
+      "2027-04-19",
+      "2027-05-17",
+      "2027-05-20",
+      "2027-06-16",
+      "2027-08-15",
+      "2027-08-25",
+      "2027-10-02",
+      "2027-10-09",
+      "2027-10-29",
+      "2027-11-14",
+      "2027-12-25"
+    ]
+  },
+  "US": {
+    "2026": [
+      "2026-01-01",
+      "2026-01-19",
+      "2026-02-16",
+      "2026-05-25",
+      "2026-06-19",
+      "2026-07-04",
+      "2026-09-07",
+      "2026-10-12",
+      "2026-11-11",
+      "2026-11-26",
+      "2026-12-25"
+    ],
+    "2027": [
+      "2027-01-01",
+      "2027-01-18",
+      "2027-02-15",
+      "2027-05-31",
+      "2027-06-19",
+      "2027-07-05",
+      "2027-09-06",
+      "2027-10-11",
+      "2027-11-11",
+      "2027-11-25",
+      "2027-12-25"
+    ]
+  }
+}
