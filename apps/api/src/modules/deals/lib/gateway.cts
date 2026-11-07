@@ -12,7 +12,12 @@ export type AuthorizationResult = {
   createdAt: string;
   expiresAt?: string;
 };
-export type CaptureResult = { captureId: string; status: string; amountMinor: number; finalCapture: boolean };
+export type CaptureResult = {
+  captureId: string;
+  status: string;
+  amountMinor: number;
+  finalCapture: boolean;
+};
 export type SimpleResult = { id: string; status: string };
 export type PayoutBatchResult = { batchId: string; status: string };
 
@@ -34,13 +39,29 @@ export type PaymentGateway = {
   reauthorize(authorizationId: string, requestId: string): Promise<AuthorizationResult>;
   capture(
     authorizationId: string,
-    input: { amountMinor: number; currency: string; finalCapture: boolean; invoiceId?: string; note?: string; requestId: string },
+    input: {
+      amountMinor: number;
+      currency: string;
+      finalCapture: boolean;
+      invoiceId?: string;
+      note?: string;
+      requestId: string;
+    },
   ): Promise<CaptureResult>;
   voidAuthorization(authorizationId: string, requestId: string): Promise<SimpleResult>;
-  refund(captureId: string, input: { amountMinor: number; currency: string; note?: string; requestId: string }): Promise<SimpleResult>;
+  refund(
+    captureId: string,
+    input: { amountMinor: number; currency: string; note?: string; requestId: string },
+  ): Promise<SimpleResult>;
   payout(input: {
     senderBatchId: string;
-    items: { email: string; amountMinor: number; currency: string; note: string; senderItemId: string }[];
+    items: {
+      email: string;
+      amountMinor: number;
+      currency: string;
+      note: string;
+      senderItemId: string;
+    }[];
     emailSubject: string;
   }): Promise<SimpleResult>;
   /**
@@ -50,8 +71,20 @@ export type PaymentGateway = {
    */
   createPayoutBatch(input: {
     senderBatchId: string;
+    /**
+     * The PayPal object the money came from (the milestone's authorization id). Only the
+     * sandbox demo gateway uses it: a demo reset rebuilds the deal with the same release keys,
+     * so it scopes sender_batch_id to the fresh authorization (PayPal refuses a reused one).
+     */
+    scope?: string;
     emailSubject?: string;
-    items: { receiver: string; amountCents: number; currency: string; note: string; senderItemId: string }[];
+    items: {
+      receiver: string;
+      amountCents: number;
+      currency: string;
+      note: string;
+      senderItemId: string;
+    }[];
   }): Promise<PayoutBatchResult>;
   createInvoiceDraft(input: {
     currency: string;

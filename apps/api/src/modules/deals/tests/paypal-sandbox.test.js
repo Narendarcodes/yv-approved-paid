@@ -191,6 +191,51 @@ describe('PayPal sandbox gateway', () => {
     expect(p.simulated).toMatch(/PAYOUT_NOT_AVAILABLE/);
   });
 
+  test('demo reset: a payout batch is scoped to the funding authorization, so the same release key never reuses a sender_batch_id', async () => {
+    const f = fakeFetch([
+      ROUTES[0],
+      {
+        match: 'POST /v1/payments/payouts',
+        reply: {
+          status: 201,
+          body: { batch_header: { payout_batch_id: 'PB1', batch_status: 'PENDING' } },
+        },
+      },
+    ]);
+    const gw = makeSandboxGateway({
+      clientId: 'id',
+      clientSecret: 's',
+      fetchImpl: f.impl,
+      simulate: true,
+    });
+    const batch = (scope) =>
+      gw.createPayoutBatch({
+        senderBatchId: 'payout:deal_demo_diwali:reel3:approve',
+        ...(scope ? { scope } : {}),
+        items: [
+          {
+            receiver: 'a@example.com',
+            amountCents: 100,
+            currency: 'USD',
+            note: 'n',
+            senderItemId: 'i',
+          },
+        ],
+      });
+    await batch('AUTH1111111111111');
+    await batch('AUTH2222222222222'); // the same release after a reset, on a fresh pooled hold
+    await batch();
+    const ids = f.calls
+      .filter((c) => c.key === 'POST /v1/payments/payouts')
+      .map((c) => JSON.parse(c.body).sender_batch_header.sender_batch_id);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    expect(ids[0]).toMatch(/AUTH1111111111111:payout:deal_demo_diwali:reel3:approve$/);
+    expect(ids[1]).toMatch(/AUTH2222222222222:payout:deal_demo_diwali:reel3:approve$/);
+    expect(ids[2]).toMatch(/^[0-9a-f]{8}:payout:deal_demo_diwali:reel3:approve$/);
+    for (const id of ids) expect(id.length).toBeLessThanOrEqual(108);
+  });
+
   test('gatewayFromEnv: sandbox picks it; simulate only with DEMO_MODE=1', () => {
     const base = { PAYPAL_MODE: 'sandbox', PAYPAL_CLIENT_ID: 'id', PAYPAL_CLIENT_SECRET: 's' };
     expect(gatewayFromEnv(base)).toMatchObject({ name: 'paypal-sandbox', simulate: false });

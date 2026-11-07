@@ -249,8 +249,13 @@ function makeSandboxGateway(
       }
     },
     // a batch is always sent for real; PAYOUT_NOT_AVAILABLE is passed through and the engine records it as simulated
-    createPayoutBatch: (input) =>
-      rest.createPayoutBatch({ ...input, senderBatchId: rid(input.senderBatchId) }),
+    // scoped to the funding authorization like the money calls above: after a demo reset the
+    // same release key would otherwise reuse last run's sender_batch_id ("Batch ... already exists")
+    createPayoutBatch: ({ scope, ...input }) =>
+      rest.createPayoutBatch({
+        ...input,
+        senderBatchId: scope ? ridOn(scope, input.senderBatchId) : rid(input.senderBatchId),
+      }),
     async createInvoiceDraft(input) {
       const d = await rest.createInvoiceDraft({ ...input, requestId: rid(input.requestId) });
       try {

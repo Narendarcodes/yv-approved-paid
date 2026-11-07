@@ -102,7 +102,6 @@ function newRuntime(key: string): MilestoneRuntime {
   };
 }
 
-
 function ms(deal: DealDoc, key: string): MilestoneRuntime {
   const m = deal.milestones.find((x) => x.key === key);
   if (!m) throw new DealError('milestone_not_found', `no milestone ${key}`, 404);
@@ -370,12 +369,24 @@ function requestChanges(
   const clockTerms = reviewClock.clockTermsOf(deal.terms, t);
   if (clockTerms) {
     // on a clock milestone every change cites a brief item (checklist line) or a failed check
-    const cite = new Set([...t.checklist.map((c) => c.id), ...failed, ...(latest?.checks?.unmeasured || [])]);
+    const cite = new Set([
+      ...t.checklist.map((c) => c.id),
+      ...failed,
+      ...(latest?.checks?.unmeasured || []),
+    ]);
     for (const it of items) {
       if (!it.checklistId)
-        throw new DealError('citation_required', `"${it.text}" needs a citation: a brief item id or a failed check id`, 422);
+        throw new DealError(
+          'citation_required',
+          `"${it.text}" needs a citation: a brief item id or a failed check id`,
+          422,
+        );
       if (!cite.has(it.checklistId))
-        throw new DealError('citation_unknown', `"${it.checklistId}" is not a brief item or a failed check on this milestone`, 422);
+        throw new DealError(
+          'citation_unknown',
+          `"${it.checklistId}" is not a brief item or a failed check on this milestone`,
+          422,
+        );
     }
   }
   if (opts.changeOrderId) {
@@ -402,7 +413,11 @@ function requestChanges(
         `all ${clockTerms.includedRevisionRounds} included revision rounds are used; another round needs a change order`,
         409,
       );
-  } else if (tasteRound && m0.revisionRoundsUsed >= t.revisionRoundsIncluded && !opts.changeOrderId) {
+  } else if (
+    tasteRound &&
+    m0.revisionRoundsUsed >= t.revisionRoundsIncluded &&
+    !opts.changeOrderId
+  ) {
     throw new DealError(
       'rounds_exhausted',
       `all ${t.revisionRoundsIncluded} included revision rounds are used; this Taste round needs a change order`,
@@ -426,7 +441,16 @@ function requestChanges(
       },
     ],
   });
-  if (clockTerms) d = put(d, reviewClock.pauseForChanges(ms(d, key), at, userId, items.map((i) => i.checklistId).join(', ')));
+  if (clockTerms)
+    d = put(
+      d,
+      reviewClock.pauseForChanges(
+        ms(d, key),
+        at,
+        userId,
+        items.map((i) => i.checklistId).join(', '),
+      ),
+    );
   return d;
 }
 
@@ -630,13 +654,21 @@ function plan(
       const step = finalPayoutStep(m);
       const tr = payoutTranche(deal, m, t, step);
       if (tr.totalMinor > 0 && tr.items.length)
-        out.push({ action: payoutAction(m.key, step, tr), why: 'pay the team their shares in one PayPal Payouts batch' });
+        out.push({
+          action: payoutAction(m.key, step, tr),
+          why: 'pay the team their shares in one PayPal Payouts batch',
+        });
     } else if (m.state !== 'PAID_OUT') {
       // a review-clock partial release is paid out right away, split by the locked team shares
       const tr = payoutTranche(deal, m, t, 'release_partial');
-      const done = (m.payoutBatches || []).some((x) => x.step === 'release_partial') || m.payouts.some((x) => x.tranche === 'clock_partial');
+      const done =
+        (m.payoutBatches || []).some((x) => x.step === 'release_partial') ||
+        m.payouts.some((x) => x.tranche === 'clock_partial');
       if (!done && tr.totalMinor > 0 && tr.items.length)
-        out.push({ action: payoutAction(m.key, 'release_partial', tr), why: 'pay the team their share of the partial release' });
+        out.push({
+          action: payoutAction(m.key, 'release_partial', tr),
+          why: 'pay the team their share of the partial release',
+        });
     }
   }
   return out;
@@ -644,7 +676,9 @@ function plan(
 
 /** The release a post-capture batch pays, from how the milestone was captured. */
 function finalPayoutStep(m: MilestoneRuntime): PayoutStep {
-  const last = [...m.captures].reverse().find((c) => c.reason !== 'clock_partial') || m.captures[m.captures.length - 1];
+  const last =
+    [...m.captures].reverse().find((c) => c.reason !== 'clock_partial') ||
+    m.captures[m.captures.length - 1];
   const map: Record<string, PayoutStep> = {
     approval: 'approve',
     auto_approval: 'auto_approve',
@@ -654,7 +688,11 @@ function finalPayoutStep(m: MilestoneRuntime): PayoutStep {
   };
   return (last && map[last.reason]) || 'final';
 }
-function payoutAction(milestoneKey: string, step: PayoutStep, tr: { totalMinor: number; items: { userId: string; email: string; amountMinor: number }[] }): MoneyAction {
+function payoutAction(
+  milestoneKey: string,
+  step: PayoutStep,
+  tr: { totalMinor: number; items: { userId: string; email: string; amountMinor: number }[] },
+): MoneyAction {
   return {
     kind: 'payout',
     milestoneKey,
@@ -686,7 +724,11 @@ async function sendPayoutBatch(
   const simId = () => `SIM-BATCH-${hashOf({ k: input.senderBatchId }).slice(0, 12).toUpperCase()}`;
   if (deps.gateway.name === 'mock') {
     const r = await deps.gateway.createPayoutBatch(input);
-    return { ...r, simulated: true, reason: 'PAYPAL_MODE=mock, so the batch went to the mock PayPal gateway only' };
+    return {
+      ...r,
+      simulated: true,
+      reason: 'PAYPAL_MODE=mock, so the batch went to the mock PayPal gateway only',
+    };
   }
   if ((deps.payoutsMode || 'simulated') !== 'real')
     return {
@@ -930,7 +972,9 @@ async function execute(
       case 'payout': {
         const step = action.step;
         const items = action.items.map((i) => {
-          const p = t.payees.find((x) => x.userId === i.userId) || t.payees.find((x) => x.email.toLowerCase() === i.email.toLowerCase())!;
+          const p =
+            t.payees.find((x) => x.userId === i.userId) ||
+            t.payees.find((x) => x.email.toLowerCase() === i.email.toLowerCase())!;
           return {
             userId: p.userId,
             email: p.email,
@@ -940,18 +984,23 @@ async function execute(
             senderItemId: `${action.milestoneKey}-${step}-${p.userId}`.slice(0, 63),
           };
         });
-        const b = await traced(deps, 'paypal.payout_batch', { key, amount: action.amountMinor, items: items.length }, () =>
-          sendPayoutBatch(deps, {
-            senderBatchId: key,
-            emailSubject: `Payment for ${t.title}`,
-            items: items.map((i) => ({
-              receiver: i.email,
-              amountCents: i.amountMinor,
-              currency: cur,
-              note: `${deal.terms.title} - ${t.title} (${STEP_LABEL[step] || step}, your ${i.shareBp / 100}% share)`,
-              senderItemId: i.senderItemId,
-            })),
-          }),
+        const b = await traced(
+          deps,
+          'paypal.payout_batch',
+          { key, amount: action.amountMinor, items: items.length },
+          () =>
+            sendPayoutBatch(deps, {
+              senderBatchId: key,
+              ...(m.funding?.authorizationId ? { scope: m.funding.authorizationId } : {}),
+              emailSubject: `Payment for ${t.title}`,
+              items: items.map((i) => ({
+                receiver: i.email,
+                amountCents: i.amountMinor,
+                currency: cur,
+                note: `${deal.terms.title} - ${t.title} (${STEP_LABEL[step] || step}, your ${i.shareBp / 100}% share)`,
+                senderItemId: i.senderItemId,
+              })),
+            }),
         );
         const batch: PayoutBatch = {
           batchId: b.batchId,
@@ -987,7 +1036,8 @@ async function execute(
           payoutBatches: [...(m.payoutBatches || []), batch],
         });
         const m2 = ms(deal, action.milestoneKey);
-        if (m2.state === 'CAPTURED' && m2.paidOutMinor >= m2.capturedMinor) deal = step_(deal, action.milestoneKey, now);
+        if (m2.state === 'CAPTURED' && m2.paidOutMinor >= m2.capturedMinor)
+          deal = step_(deal, action.milestoneKey, now);
         ref = b.batchId;
         extraExplain = { batch };
         break;
@@ -1063,7 +1113,11 @@ async function execute(
           actor: 'system',
           paypalRef: batch.batchId,
           idempotencyKey: `${key}:${i.userId}`,
-          explanation: explain(deal, action, { batch, item: i, stepLabel: STEP_LABEL[batch.step] || batch.step }),
+          explanation: explain(deal, action, {
+            batch,
+            item: i,
+            stepLabel: STEP_LABEL[batch.step] || batch.step,
+          }),
           policy: { allowed: true, violations: [] },
         }),
       );
@@ -1188,7 +1242,6 @@ async function confirmFunding(deps: EngineDeps, deal: DealDoc, key: string, user
   });
 }
 
-
 /* ------------------------------------------------------ Fair Review Clock */
 
 /** An in-app notification a clock step asks the service to send (after the step is saved). */
@@ -1211,7 +1264,18 @@ export type ClockStepOutcome = {
   note?: string;
 };
 
-function clockEvent(deal: DealDoc, key: string, e: { at: string; kind: 'step' | 'action'; id: string; by?: string; amountMinor?: number; note?: string }): DealDoc {
+function clockEvent(
+  deal: DealDoc,
+  key: string,
+  e: {
+    at: string;
+    kind: 'step' | 'action';
+    id: string;
+    by?: string;
+    amountMinor?: number;
+    note?: string;
+  },
+): DealDoc {
   const m = ms(deal, key);
   if (!m.clock) return deal;
   return put(deal, { ...m, clock: { ...m.clock, timeline: [...m.clock.timeline, e] } });
@@ -1237,7 +1301,12 @@ async function applyClockStep(
   const m = ms(deal, key);
   const c = m.clock;
   const now = deps.now();
-  if (!c) throw new DealError('clock_not_started', 'the review clock has not started on this milestone', 409);
+  if (!c)
+    throw new DealError(
+      'clock_not_started',
+      'the review clock has not started on this milestone',
+      409,
+    );
   const sched = c.schedule;
   const cur = deal.terms.currency;
   const shift = reviewClock.shiftOf(c, now);
@@ -1250,13 +1319,19 @@ async function applyClockStep(
   const results: ExecOutcome[] = [];
 
   if (c.status !== 'running' || m.state !== 'IN_REVIEW') {
-    deal = clockEvent(deal, key, { at: now, kind: 'step', id: stepId, note: `skipped: clock ${c.status}, milestone ${m.state}` });
+    deal = clockEvent(deal, key, {
+      at: now,
+      kind: 'step',
+      id: stepId,
+      note: `skipped: clock ${c.status}, milestone ${m.state}`,
+    });
     return { deal, ok: true, skipped: true, notices, results, note: 'skipped' };
   }
 
   if (stepId === 'remind_50' || stepId === 'remind_80' || stepId === 'final_24h') {
     const to = [brand];
-    if (stepId === 'remind_80' && sched.terms.backupReviewerId) to.push(sched.terms.backupReviewerId);
+    if (stepId === 'remind_80' && sched.terms.backupReviewerId)
+      to.push(sched.terms.backupReviewerId);
     const partial = `${format(sched.partialAmountCents, cur)} (${sched.terms.partialReleasePct}%)`;
     const body =
       stepId === 'final_24h'
@@ -1270,14 +1345,20 @@ async function applyClockStep(
         type: 'deal_clock_reminder',
         title: stepId === 'final_24h' ? `24 hours left: ${t.title}` : `Review reminder: ${t.title}`,
         body,
-        payload: { ...payload, amountMinor: stepId === 'final_24h' ? sched.partialAmountCents : undefined, currency: cur },
+        payload: {
+          ...payload,
+          amountMinor: stepId === 'final_24h' ? sched.partialAmountCents : undefined,
+          currency: cur,
+        },
       });
     deal = clockEvent(deal, key, {
       at: now,
       kind: 'step',
       id: stepId,
       amountMinor: stepId === 'final_24h' ? sched.partialAmountCents : undefined,
-      note: opts.silent ? 'reminder skipped: a release was already due' : `reminded ${to.length === 1 ? 'the reviewer' : 'the reviewer and the backup reviewer'}`,
+      note: opts.silent
+        ? 'reminder skipped: a release was already due'
+        : `reminded ${to.length === 1 ? 'the reviewer' : 'the reviewer and the backup reviewer'}`,
     });
     return { deal, ok: true, notices, results };
   }
@@ -1290,8 +1371,15 @@ async function applyClockStep(
       reason: 'clock_partial',
     });
     results.push(r.result);
-    if (r.result.outcome !== 'done') return { deal: r.deal, ok: false, notices, results, note: r.result.outcome };
-    deal = clockEvent(r.deal, key, { at: now, kind: 'step', id: stepId, amountMinor: sched.partialAmountCents, note: 'partial release captured' });
+    if (r.result.outcome !== 'done')
+      return { deal: r.deal, ok: false, notices, results, note: r.result.outcome };
+    deal = clockEvent(r.deal, key, {
+      at: now,
+      kind: 'step',
+      id: stepId,
+      amountMinor: sched.partialAmountCents,
+      note: 'partial release captured',
+    });
     // pay the team their locked shares of what was just released
     const tk = await tick(deps, deal);
     deal = tk.deal;
@@ -1308,7 +1396,14 @@ async function applyClockStep(
 
   if (stepId === 'release_grace') {
     const latest = m.versions[m.versions.length - 1];
-    if (!latest?.checks?.passed) return { deal, ok: false, notices, results, note: 'latest version has not passed every check' };
+    if (!latest?.checks?.passed)
+      return {
+        deal,
+        ok: false,
+        notices,
+        results,
+        note: 'latest version has not passed every check',
+      };
     deal = step(deal, key, 'review_window_lapsed', 'system', now);
     results.push({
       outcome: 'done',
@@ -1322,7 +1417,16 @@ async function applyClockStep(
       }),
     });
     deal = put(deal, reviewClock.endClock(ms(deal, key), 'released', now, 'released', 'system'));
-    deal = clockEvent(deal, key, { at: now, kind: 'step', id: stepId, amountMinor: Math.max(0, Math.min(t.amountMinor, m.funding?.authorizedMinor || 0) - m.capturedMinor), note: 'grace ended; the rest releases' });
+    deal = clockEvent(deal, key, {
+      at: now,
+      kind: 'step',
+      id: stepId,
+      amountMinor: Math.max(
+        0,
+        Math.min(t.amountMinor, m.funding?.authorizedMinor || 0) - m.capturedMinor,
+      ),
+      note: 'grace ended; the rest releases',
+    });
     // the Money Agent captures the remainder (policy key clock:<deal>:<milestone>:release_grace) and pays out
     const tk = await tick(deps, deal);
     deal = tk.deal;
@@ -1359,9 +1463,15 @@ async function clockHoldUpkeep(
   const results: ExecOutcome[] = [];
   const now = deps.now();
   if (!c || (c.status !== 'running' && c.status !== 'paused')) return { deal, notices, results };
-  if (!f?.authorizationId || !f.authorizedAt || (f.status !== 'AUTHORIZED' && f.status !== 'PARTIALLY_CAPTURED'))
+  if (
+    !f?.authorizationId ||
+    !f.authorizedAt ||
+    (f.status !== 'AUTHORIZED' && f.status !== 'PARTIALLY_CAPTURED')
+  )
     return { deal, notices, results };
-  const projectedEnd = new Date(Date.parse(c.schedule.graceDeadline) + reviewClock.shiftOf(c, now)).toISOString();
+  const projectedEnd = new Date(
+    Date.parse(c.schedule.graceDeadline) + reviewClock.shiftOf(c, now),
+  ).toISOString();
   const hp = holdPlan(f.authorizedAt, projectedEnd);
   const maxRe = (deps.gateway as { maxReauthorizations?: number }).maxReauthorizations;
   const reauthLeft = maxRe === undefined || (f.reauthorizations || []).length < maxRe;
@@ -1375,7 +1485,13 @@ async function clockHoldUpkeep(
     const r = await execute(deps, deal, { kind: 'reauthorize', milestoneKey: key });
     results.push(r.result);
     deal = r.deal;
-    if (r.result.outcome === 'done') deal = clockEvent(deal, key, { at: now, kind: 'action', id: 'hold_reauthorized', by: 'system' });
+    if (r.result.outcome === 'done')
+      deal = clockEvent(deal, key, {
+        at: now,
+        kind: 'action',
+        id: 'hold_reauthorized',
+        by: 'system',
+      });
   }
   const mm = ms(deal, key);
   if (hp.needsRefund && mm.clock && !(mm.clock.notices || []).includes('hold_lapsing')) {
@@ -1396,7 +1512,23 @@ async function clockHoldUpkeep(
       body: `The PayPal hold for "${title}" lapses ${lapses}, before the review clock can finish. We asked the brand to re-fund it.`,
       payload,
     });
-    deal = put(deal, { ...mm, clock: { ...mm.clock, notices: [...(mm.clock.notices || []), 'hold_lapsing'], timeline: [...mm.clock.timeline, { at: now, kind: 'action', id: 'hold_lapsing', by: 'system', note: `hold lapses ${hp.lapsesISO}` }] } });
+    deal = put(deal, {
+      ...mm,
+      clock: {
+        ...mm.clock,
+        notices: [...(mm.clock.notices || []), 'hold_lapsing'],
+        timeline: [
+          ...mm.clock.timeline,
+          {
+            at: now,
+            kind: 'action',
+            id: 'hold_lapsing',
+            by: 'system',
+            note: `hold lapses ${hp.lapsesISO}`,
+          },
+        ],
+      },
+    });
   }
   return { deal, notices, results };
 }
