@@ -9,7 +9,7 @@ const path = require('node:path');
 const mongoose = require('mongoose');
 const { configureDeals, dealService } = require('../service.cts');
 const { makeMockGateway, makeSandboxGateway } = require('../paypal.cts');
-const { DEMO, seedDealDemo, ensureEvidenceFrames } = require('../demo.cts');
+const { DEMO, seedDealDemo, ensureEvidenceFrames, clocksAsSeeded } = require('../demo.cts');
 
 let dir;
 let seeded;
@@ -75,7 +75,8 @@ describe('seed-deal-demo', () => {
     expect(blocked[1].policy.violations.map((v) => v.rule)).toContain('P6_version');
     expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([]);
     const captured = l.entries.filter((e) => e.moved && /capture/.test(e.type)).reduce((a, e) => a + e.amountMinor, 0);
-    expect(captured).toBe(40000);
+    // reel1 $400 approved + reel4's review-clock partial release $75
+    expect(captured).toBe(47500);
   });
 
   test('reel2: 4 of 5 checks -> dispute -> 80% proposed from checklist arithmetic, editor accepted, client tap left', async () => {
@@ -106,6 +107,61 @@ describe('seed-deal-demo', () => {
     await seedDealDemo({ evidenceDir: false }); // back to the judge's starting state
   });
 
+  test('reel3: Fair Review Clock running with about 2 business days left; the line names the exact partial amount', async () => {
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    expect(d.terms.milestones.find((m) => m.key === 'reel3').clock).toEqual({
+      reviewWindowBusinessDays: 3,
+      partialReleasePct: 50,
+      graceBusinessDays: 3,
+      includedRevisionRounds: 2,
+    });
+    const v = await dealService().clockView(DEMO.dealId, seeded.orgId, 'reel3');
+    expect(v).toMatchObject({ milestoneState: 'IN_REVIEW', status: 'running', revisionsUsed: 0, includedRevisionRounds: 2 });
+    expect(v.state.status).toBe('running');
+    expect(v.state.businessDaysLeft).toBe(2);
+    expect(v.amounts).toMatchObject({ amountMinor: 20000, partialAmountCents: 10000, remainderCents: 10000, currency: 'USD' });
+    expect(v.state.line).toMatch(/^If no reply by .+, \$100\.00 \(50%\) releases to the team\.$/);
+    expect(v.doneSteps).not.toContain('release_partial');
+    expect(v.timeline[0]).toMatchObject({ kind: 'action', id: 'started' });
+  });
+
+  test('reel4: no reply in the window -> 50% released once and paid 70/30, now in grace, with a timeline', async () => {
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    const m = ms(d, 'reel4');
+    expect(m.state).toBe('IN_REVIEW');
+    expect(m.captures.map((c) => [c.reason, c.amountMinor])).toEqual([['clock_partial', 7500]]);
+    expect(m.payouts.map((p) => [p.email, p.amountMinor, p.tranche])).toEqual([
+      [DEMO.editor.paypal, 5250, 'clock_partial'],
+      [DEMO.motion.paypal, 2250, 'clock_partial'],
+    ]);
+    const v = await dealService().clockView(DEMO.dealId, seeded.orgId, 'reel4');
+    expect(v.state.status).toBe('released_partial');
+    expect(v.doneSteps).toEqual(expect.arrayContaining(['remind_50', 'remind_80', 'final_24h', 'release_partial']));
+    expect(v.doneSteps).not.toContain('release_grace');
+    expect(Date.parse(v.state.graceDeadline)).toBeGreaterThan(Date.now());
+    const ids = v.timeline.map((e) => e.id);
+    expect(ids[0]).toBe('started');
+    expect(ids).toEqual(expect.arrayContaining(['remind_50', 'remind_80', 'final_24h', 'release_partial']));
+    expect(v.timeline.find((e) => e.id === 'remind_50').note).toMatch(/demo seed/);
+    expect(v.timeline.find((e) => e.id === 'release_partial').amountMinor).toBe(7500);
+    // the reminders the seed logged were not sent; only the release told the parties
+    const Notification = require('../../../models/notification.model');
+    const n = await Notification.find({ 'payload.dealId': DEMO.dealId }).lean();
+    expect(n.every((x) => x.type === 'deal_clock_release')).toBe(true);
+  });
+
+  test('reuse boots keep the deal only while the clocks are still as seeded', async () => {
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    expect(clocksAsSeeded(d, Date.now())).toBe(true);
+    expect(clocksAsSeeded(d, Date.now() + 20 * 86400000)).toBe(false); // windows long over: rebuild
+  });
+
+  test('the team draft carries the default clock terms, still editable (unsigned)', async () => {
+    const d = await dealService().get(DEMO.teamDealId, seeded.orgId);
+    expect(d.terms.milestones[0].clock).toMatchObject({ reviewWindowBusinessDays: 3, partialReleasePct: 50 });
+    expect(d.termsHash).toBeUndefined();
+  });
+
   test('ensureEvidenceFrames rewrites every missing frame from the stored results (restart on ephemeral disk)', async () => {
     const d = await dealService().get(DEMO.dealId, seeded.orgId);
     const cold = fs.mkdtempSync(path.join(os.tmpdir(), 'yv-demo-cold-'));
@@ -132,6 +188,9 @@ describe('seed-deal-demo', () => {
     expect(after.chain.ok).toBe(true);
     expect(after.entries.map((e) => e.type)).toEqual(before.entries.map((e) => e.type));
     expect(after.totals).toEqual(before.totals);
+    // a reseed never stacks the seed's clock notifications
+    const Notification = require('../../../models/notification.model');
+    expect(await Notification.countDocuments({ 'payload.dealId': DEMO.dealId, type: 'deal_clock_release' })).toBeLessThanOrEqual(2);
   });
 
   test('team: Ravi 70% / motion designer 30% on reel1; an unsigned team draft; two demo projects with assignees', async () => {

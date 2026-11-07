@@ -398,6 +398,45 @@ router.post(
   }),
 );
 
+/* ------------------------------------------------- clock terms on a draft */
+
+const { planClockTerms } = require('./lib/review-clock.cts');
+/** Dry run or save: same rules (party only, unsigned only, validateTerms' clock rules, backup reviewer is a member). */
+async function clockTermsPlan(req: Req, d: DealDoc) {
+  if (!actorRole(d, uid(req))) throw bad('not_party', 'only a party can edit the draft', 403);
+  const plan = planClockTerms(d, req.params.key, req.body || {}, new Date().toISOString());
+  const backup = plan.clock?.backupReviewerId;
+  if (plan.allowed && backup && !(await access.memberOf(backup, org(req))))
+    return { ...plan, allowed: false, problems: ['the backup reviewer must be a member of this organization'], terms: null, clock: null, preview: null };
+  return plan;
+}
+/** Read-only: what these clock terms would mean (problems + "if you deliver today, review ends ..."). */
+router.post(
+  `${M}/clock-terms/check`,
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    const { terms: _t, ...plan } = await clockTermsPlan(req, d);
+    res.json({ data: { ...plan, locked: !!d.termsHash } });
+  }),
+);
+/** Set (or remove with { clock: null }) the review clock on a draft milestone. A signed deal answers 409 deal_locked. Clears signatures. */
+router.put(
+  `${M}/clock-terms`,
+  wrap(async (req, res) => {
+    const d = await readable(req, req.params.dealId);
+    if (d.termsHash) throw bad('deal_locked', 'signed deals are locked; the review clock terms cannot change', 409);
+    const plan = await clockTermsPlan(req, d);
+    if (!plan.allowed || !plan.terms) {
+      const err = bad('invalid_terms', plan.problems[0] || 'invalid review clock terms') as InstanceType<typeof ServiceError> & { details?: unknown };
+      err.details = plan.problems;
+      throw err;
+    }
+    const next = await dealService().editTerms(req.params.dealId, org(req), uid(req), plan.terms);
+    const { terms: _t, ...rest } = plan;
+    res.json({ data: { deal: view(next, uid(req)), ...rest } });
+  }),
+);
+
 /* -------------------------------------------------------------- deal team */
 
 /**

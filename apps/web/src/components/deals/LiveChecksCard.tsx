@@ -43,12 +43,15 @@ export default function LiveChecksCard({
   milestoneKey,
   onChanged,
   onRequestChanges,
+  hideDecisions = false,
 }: {
   deal: DealView
   orgId: string
   milestoneKey: string
   onChanged?: () => void
   onRequestChanges?: () => void
+  /** On a Fair Review Clock milestone the clock card carries the decisions. */
+  hideDecisions?: boolean
 }) {
   const toast = useToast()
   const pair = milestonePair(deal, milestoneKey)
@@ -60,7 +63,7 @@ export default function LiveChecksCard({
   const version = checked.find((v) => v.id === pick) ?? checked[checked.length - 1]
   const latest = runtime.versions[runtime.versions.length - 1]
   const byId = new Map((version?.checks?.results ?? []).map((r) => [r.checklistId, r]))
-  const canDecide = deal.me === 'client' && runtime.state === 'IN_REVIEW' && !!latest
+  const canDecide = !hideDecisions && deal.me === 'client' && runtime.state === 'IN_REVIEW' && !!latest
 
   const approve = async () => {
     if (!latest) return

@@ -24,6 +24,15 @@
  *          editor has accepted it, the client's tap is the one left. A $60 change order
  *          for +15 s (priced from the rate card) waits as a draft: the judge's
  *          tap accepts it and drafts the PayPal invoice live.
+ *   reel3  Fair Review Clock (3 business days, 50% partial, 3 grace days, 2 rounds):
+ *          held -> v1 passes every check -> clock running, ~2 business days left
+ *   reel4  same clock terms: v1 passed, no reply in the window -> 50% ($75)
+ *          released and paid out 70/30 -> in grace, the rest releases at its end
+ *   team draft: unsigned, with the same clock terms (editable before signing)
+ *
+ * The clock starts are picked from the pure clock maths (pickStart) so the
+ * judge sees the same picture on any day. A reuse boot (untouched real-sandbox
+ * deal) keeps the deal only while those clocks are still in that picture.
  *
  * Every step goes through the deal service (policy, ledger, lock) exactly as the
  * routes do. Run it in the server process (DEMO_MODE=1 seeds on boot) so the
@@ -48,6 +57,9 @@ const engine = require('./lib/engine.cts');
 const { hashOf } = require('./lib/canonical.cts');
 const { evidenceDir } = require('./lib/evidence.cts');
 const { dealService, gateway } = require('./service.cts');
+const reviewClock = require('./lib/review-clock.cts');
+const { buildSchedule, clockState } = require('./lib/clock.cts');
+const Notification = require('../../models/notification.model');
 
 const DEMO = {
   dealId: 'deal_demo_diwali',
@@ -66,6 +78,10 @@ const DEMO = {
     paypal: 'sana.demo@example.com',
   },
 };
+
+/** The clock terms every demo clock milestone signs (the setup panel's defaults). */
+const DEMO_CLOCK = { reviewWindowBusinessDays: 3, partialReleasePct: 50, graceBusinessDays: 3, includedRevisionRounds: 2 };
+const HOUR_MS = 3600 * 1000;
 
 const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
 
@@ -169,6 +185,49 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
         payees: [
           { userId: editorId, email: DEMO.editor.paypal, shareBp: 10000, displayName: 'Editor' },
         ],
+      },
+      {
+        // Fair Review Clock: running, about 2 business days left (seedClocks)
+        key: 'reel3',
+        title: 'Reel 3: 15s story cut',
+        amountMinor: 20000,
+        dueAt: due(12),
+        graceHours: 24,
+        reviewWindowHours: 48,
+        revisionRoundsIncluded: 2,
+        styleSample: false,
+        checklist: [
+          { ...common[0], text: 'Under 15 seconds', measure: { metric: 'duration_s', op: '<=', value: 15 } },
+          common[1],
+          common[2],
+          common[3],
+          { id: 'vibe', text: 'Feels warm and festive', kind: 'taste' },
+        ],
+        payees: [
+          { userId: editorId, email: DEMO.editor.paypal, shareBp: 10000, displayName: 'Editor' },
+        ],
+        clock: { ...DEMO_CLOCK },
+      },
+      {
+        // Fair Review Clock: no reply in the window, 50% released, now in grace (seedClocks)
+        key: 'reel4',
+        title: 'Reel 4: 6s bumper',
+        amountMinor: 15000,
+        dueAt: due(12),
+        graceHours: 24,
+        reviewWindowHours: 48,
+        revisionRoundsIncluded: 2,
+        styleSample: false,
+        checklist: [
+          { ...common[0], text: 'Under 6 seconds', measure: { metric: 'duration_s', op: '<=', value: 6 } },
+          common[2],
+          common[3],
+        ],
+        payees: [
+          { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Editor' },
+          { userId: motionId, email: DEMO.motion.paypal, shareBp: 3000, displayName: 'Motion designer' },
+        ],
+        clock: { ...DEMO_CLOCK },
       },
     ],
   } as DealTerms;
@@ -309,6 +368,8 @@ async function purgeDemoDeal(id: string) {
   await Deal.deleteOne({ _id: id });
   // the ledger model refuses deletes; the demo reset goes around it for this one deal id only
   await DealLedger.collection.deleteMany({ dealId: id });
+  // clock reminders/releases the seed itself caused; a reseed sends them again
+  await Notification.deleteMany({ 'payload.dealId': id });
 }
 
 /** Terms for the unsigned team demo: one milestone, Ravi 70% / motion designer 30%, editable by the judge (client). */
@@ -326,6 +387,7 @@ function teamDraftTerms(clientId: string, editorId: string, motionId: string): D
         title: 'Greetings reel: 20s',
         amountMinor: 25000,
         checklist: reel.checklist.slice(0, 2),
+        clock: { ...DEMO_CLOCK },
       },
     ],
   } as DealTerms;
@@ -417,7 +479,19 @@ function untouchedRealDemo(d: DealDoc | null, nowMs: number): boolean {
     return false;
   if (!r2.funding?.expiresAt || Date.parse(r2.funding.expiresAt) < nowMs + 24 * 3600 * 1000)
     return false;
+  if (!clocksAsSeeded(d, nowMs)) return false;
   return d.changeOrders.length > 0 && d.changeOrders.every((c) => c.status === 'draft');
+}
+
+/** reel3's clock still running with a business day or more left, reel4 still in grace after its partial release. */
+function clocksAsSeeded(d: DealDoc, nowMs: number): boolean {
+  const now = new Date(nowMs).toISOString();
+  const r3 = reviewClock.viewOf(d, 'reel3', now);
+  const r4 = reviewClock.viewOf(d, 'reel4', now);
+  return (
+    !!r3 && r3.status === 'running' && r3.state.status === 'running' && r3.state.businessDaysLeft >= 1 &&
+    !!r4 && r4.status === 'running' && r4.state.status === 'released_partial' && r4.doneSteps.includes('release_partial')
+  );
 }
 
 async function seedDealDemo(
@@ -676,6 +750,8 @@ async function seedDealDemo(
     by: 'agent',
   });
 
+  await seedClocks(s, id, orgId, E, dir, approve, must, J);
+
   // the team demo: unsigned, so the judge (client) can pick members and set the split
   await purgeDemoDeal(DEMO.teamDealId);
   await s.create(orgId, J, teamDraftTerms(J, E, String(motion._id)), { id: DEMO.teamDealId });
@@ -690,6 +766,152 @@ async function seedDealDemo(
   };
 }
 
+/* ------------------------------------------------------- Fair Review Clock */
+
+/**
+ * The newest clock start (on the hour, going back from now) whose state
+ * matches `want`. The clock maths is pure, so the seed picks a start that
+ * gives the judge the same picture whatever the day: reel3 ~2 business days
+ * left, reel4 just past its window and in grace.
+ */
+function pickStart(d: DealDoc, key: string, nowMs: number, want: (st: any, sched: any) => boolean): string {
+  const t = d.terms.milestones.find((x) => x.key === key)!;
+  const ct = reviewClock.clockTermsOf(d.terms, t);
+  const now = new Date(nowMs).toISOString();
+  let first: string | null = null;
+  for (let h = 0; h <= 24 * 25; h += 1) {
+    const start = new Date(Math.floor(nowMs / HOUR_MS) * HOUR_MS - h * HOUR_MS).toISOString();
+    const sched = buildSchedule(start, ct, t.amountMinor);
+    const st = clockState({ schedule: sched, now });
+    if (want(st, sched)) return start;
+    if (!first && st.status !== 'waiting_checks') first = start;
+  }
+  return first || now;
+}
+
+/**
+ * Move a just-started clock back to `startISO`: the frozen schedule is rebuilt
+ * from the same signed terms, and the version, its checks and the "started"
+ * line move with it. Demo only; money is never touched here.
+ */
+async function rebaseClock(s: any, dealId: string, orgId: string, key: string, startISO: string) {
+  await s.withDeal(dealId, orgId, async (d: DealDoc) => {
+    const t = d.terms.milestones.find((x) => x.key === key)!;
+    const ct = reviewClock.clockTermsOf(d.terms, t);
+    const milestones = d.milestones.map((m) => {
+      if (m.key !== key || !m.clock) return m;
+      const schedule = buildSchedule(startISO, ct, t.amountMinor);
+      schedule.currency = d.terms.currency;
+      const versions = m.versions.map((v, i) =>
+        i === m.versions.length - 1
+          ? { ...v, submittedAt: startISO, checks: v.checks ? { ...v.checks, at: startISO } : v.checks }
+          : v,
+      );
+      return {
+        ...m,
+        versions,
+        reviewStartedAt: startISO,
+        clock: { ...m.clock, startedAt: startISO, schedule, timeline: m.clock.timeline.map((e) => (e.id === 'started' ? { ...e, at: startISO } : e)) },
+      };
+    });
+    return { deal: { ...d, milestones }, out: null };
+  });
+}
+
+/**
+ * Run the steps already due (as the driver would), reminders silently, then
+ * date each reminder line at its scheduled time and label it: the seed wrote
+ * that history, no reminder was sent.
+ */
+async function runDueSteps(s: any, dealId: string, orgId: string, key: string) {
+  let d: DealDoc = await s.get(dealId, orgId);
+  const m = d.milestones.find((x) => x.key === key)!;
+  const due: string[] = reviewClock.dueFor(m.clock, new Date().toISOString());
+  for (const stepId of due) {
+    const r = await s.runClockStep(dealId, key, stepId, { silent: !stepId.startsWith('release_') });
+    if (!r.out.ok) throw new Error(`demo seed: clock step ${key}:${stepId} did not complete (${r.out.note || 'refused'})`);
+  }
+  const at = new Map<string, string>((m.clock!.schedule.steps as { id: string; atISO: string }[]).map((x) => [x.id, x.atISO]));
+  await s.withDeal(dealId, orgId, async (doc: DealDoc) => {
+    d = {
+      ...doc,
+      milestones: doc.milestones.map((x) =>
+        x.key !== key || !x.clock
+          ? x
+          : {
+              ...x,
+              clock: {
+                ...x.clock,
+                timeline: x.clock.timeline.map((e) =>
+                  e.kind === 'step' && !e.id.startsWith('release_') && at.has(e.id)
+                    ? { ...e, at: at.get(e.id)!, note: 'reminder logged by the demo seed (not sent)' }
+                    : e,
+                ),
+              },
+            },
+      ),
+    };
+    return { deal: d, out: null };
+  });
+}
+
+/**
+ * reel3 and reel4 on the Fair Review Clock. Both are held, delivered and pass
+ * every check (which starts the clock), then:
+ *   reel3  running, about 2 business days left (no reply yet)
+ *   reel4  no reply in its window: 50% released and paid out 70/30, now in grace
+ * Every money step goes through the service (policy, ledger, lock).
+ */
+async function seedClocks(
+  s: any,
+  id: string,
+  orgId: string,
+  E: string,
+  dir: string | false,
+  approve: (orderId: string) => unknown,
+  must: (r: { out: any }, what: string) => unknown,
+  J: string,
+) {
+  for (const key of ['reel3', 'reel4']) {
+    const d = await s.startFunding(id, orgId, J, key);
+    approve(d.milestones.find((m: { key: string }) => m.key === key)!.funding!.orderId!);
+    must(await s.confirmFunding(id, orgId, J, key), `hold on ${key}`);
+  }
+  const lines: Record<string, Line[]> = {
+    reel3: [
+      { id: 'len', metric: 'duration_s', measured: 14.6, passed: true, t: 0, tEnd: 14.6, note: 'file runs 14.6s' },
+      { id: 'hook', metric: 'hook_by_s', measured: 0.6, passed: true, t: 0.6, tEnd: 2.4, note: "first words at 0.6s: 'Swipe up for Diwali...'" },
+      { id: 'logo', metric: 'logo_present', measured: true, passed: true, t: 0, tEnd: 3, note: 'logo matched (score 0.93) from 0.0s to 3.0s' },
+      { id: 'loud', metric: 'loudness_lufs', measured: -14.1, passed: true, t: 6.3, tEnd: 6.3, note: 'integrated -14.1 LUFS, LRA 4.9, loudest moment at 6.3s' },
+    ],
+    reel4: [
+      { id: 'len', metric: 'duration_s', measured: 5.8, passed: true, t: 0, tEnd: 5.8, note: 'file runs 5.8s' },
+      { id: 'logo', metric: 'logo_present', measured: true, passed: true, t: 0, tEnd: 3, note: 'logo matched (score 0.95) from 0.0s to 3.0s' },
+      { id: 'loud', metric: 'loudness_lufs', measured: -13.8, passed: true, t: 2.1, tEnd: 2.1, note: 'integrated -13.8 LUFS, LRA 3.2, loudest moment at 2.1s' },
+    ],
+  };
+  const nowMs = Date.now();
+  for (const key of ['reel3', 'reel4']) {
+    const v = sha(`diwali-${key}-v1`);
+    await s.submitVersion(id, orgId, E, key, { id: 'v1', sha256: v });
+    await s.recordCheckReport(id, orgId, key, report('v1', v, lines[key]));
+    writeFrames(dir, id, 'v1', lines[key]);
+  }
+  const d0: DealDoc = await s.get(id, orgId);
+  // reel3: the newest start with exactly 2 business days left
+  await rebaseClock(s, id, orgId, 'reel3', pickStart(d0, 'reel3', nowMs, (st) => st.status === 'running' && st.businessDaysLeft === 2));
+  // reel4: the newest start whose window ended (partial released) with at most 3 days of grace left
+  await rebaseClock(
+    s,
+    id,
+    orgId,
+    'reel4',
+    pickStart(d0, 'reel4', nowMs, (st, sched) => st.status === 'released_partial' && Date.parse(sched.graceDeadline) - nowMs <= 72 * HOUR_MS),
+  );
+  await runDueSteps(s, id, orgId, 'reel3');
+  await runDueSteps(s, id, orgId, 'reel4');
+}
+
 async function demoJudge() {
   return User.findOne({ email: DEMO.judge.email, disabled: { $ne: true } });
 }
@@ -700,5 +922,6 @@ module.exports = {
   demoJudge,
   demoTerms,
   untouchedRealDemo,
+  clocksAsSeeded,
   ensureEvidenceFrames,
 };

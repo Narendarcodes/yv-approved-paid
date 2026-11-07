@@ -15,7 +15,7 @@
 import type { DealDoc, DealTerms, MilestoneTerms, MilestoneRuntime, ClockRuntime, ClockEvent } from './types.cts';
 import type { ClockTerms } from './clock.cts';
 
-const { normalizeTerms, buildSchedule, clockState, dueSteps } = require('./clock.cts');
+const { normalizeTerms, buildSchedule, clockState, dueSteps, fmtWhen } = require('./clock.cts');
 
 const STEP_IDS = ['remind_50', 'remind_80', 'final_24h', 'release_partial', 'release_grace'];
 const LIVE: ClockRuntime['status'][] = ['running', 'paused'];
@@ -193,4 +193,69 @@ function viewOf(deal: DealDoc, key: string, now: string) {
   };
 }
 
-module.exports = { STEP_IDS, clockTermsOf, clockProblems, onChecks, pauseForChanges, endClock, shiftOf, dueFor, viewOf, defaultTz };
+const CLOCK_KEYS = ['reviewWindowBusinessDays', 'partialReleasePct', 'graceBusinessDays', 'includedRevisionRounds', 'backupReviewerId'];
+
+/**
+ * Plan a clock-terms edit on one milestone of a draft (the dry run and the save
+ * run the same plan). `input` is { clock: {...} } or { clock: null } to remove
+ * the clock. Returns the next terms, the problems (validateTerms' clock rules
+ * plus shape rules) and a preview: when review would end if the editor
+ * delivered now. Pure: membership of the backup reviewer is checked by the route.
+ */
+function planClockTerms(deal: DealDoc, key: string, input: unknown, now: string) {
+  const problems: string[] = [];
+  const t = deal.terms.milestones.find((x) => x.key === key);
+  if (!t) return { allowed: false, problems: [`no milestone ${key}`], terms: null, clock: null, preview: null };
+  const raw = input && typeof input === 'object' ? (input as { clock?: unknown }).clock : undefined;
+  let clock: Record<string, unknown> | null = null;
+  if (raw === null) clock = null;
+  else if (!raw || typeof raw !== 'object' || Array.isArray(raw)) problems.push('clock must be an object, or null to remove the review clock');
+  else {
+    clock = {};
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+      if (!CLOCK_KEYS.includes(k)) problems.push(`unknown clock field ${k}`);
+      else if (v !== undefined && v !== null && v !== '') clock[k] = v;
+    }
+    if (clock.backupReviewerId !== undefined && clock.backupReviewerId === deal.terms.worker.userId)
+      problems.push('the backup reviewer reviews for the client, so it cannot be the editor');
+  }
+  const next: DealTerms = {
+    ...deal.terms,
+    milestones: deal.terms.milestones.map((x) => {
+      if (x.key !== key) return x;
+      const { clock: _old, ...rest } = x;
+      return clock ? { ...rest, clock } : rest;
+    }) as MilestoneTerms[],
+  };
+  if (!problems.length) problems.push(...clockProblems({ ...next, milestones: next.milestones.filter((x) => x.key === key) }));
+  let preview = null;
+  const nt = next.milestones.find((x) => x.key === key);
+  if (!problems.length && clock && nt) {
+    const ct = clockTermsOf(next, nt) as ClockTerms;
+    const sched = buildSchedule(now, ct, nt.amountMinor);
+    sched.currency = next.currency;
+    const st = clockState({ schedule: sched, now });
+    preview = {
+      deliverAt: now,
+      deadline: sched.deadline,
+      deadlineText: fmtWhen(Date.parse(sched.deadline), ct.tz),
+      graceDeadline: sched.graceDeadline,
+      graceText: fmtWhen(Date.parse(sched.graceDeadline), ct.tz),
+      capped: sched.capped,
+      partialAmountMinor: sched.partialAmountCents,
+      remainderMinor: sched.remainderCents,
+      currency: next.currency,
+      tz: ct.tz,
+      line: st.line,
+    };
+  }
+  return {
+    allowed: problems.length === 0,
+    problems,
+    terms: problems.length ? null : next,
+    clock: problems.length || !clock || !nt ? null : clockTermsOf(next, nt),
+    preview,
+  };
+}
+
+module.exports = { STEP_IDS, planClockTerms, clockTermsOf, clockProblems, onChecks, pauseForChanges, endClock, shiftOf, dueFor, viewOf, defaultTz };

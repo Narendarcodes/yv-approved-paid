@@ -1842,3 +1842,111 @@ export async function demoLogin(): Promise<{ session: Session; dealId: string; o
 export function confirmDealFunding(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; result: { outcome?: string } }> {
   return sendJson('POST', msPath(orgId, dealId, key, '/fund/confirm'))
 }
+
+/* Fair Review Clock (deal milestones with signed clock terms). Amounts come from
+ * the signed terms; the change picker sends only a citation (brief item or
+ * failed check id) and optional text, never an amount. */
+
+/** Clock terms as signed on a milestone (terms.clock). */
+export type ClockTermsSpec = {
+  reviewWindowBusinessDays?: number
+  partialReleasePct?: number
+  graceBusinessDays?: number
+  includedRevisionRounds?: number
+  backupReviewerId?: string
+}
+export type ClockTermsEffective = Required<Omit<ClockTermsSpec, 'backupReviewerId'>> & {
+  backupReviewerId?: string
+  country: 'IN' | 'US'
+  tz: string
+}
+export type ClockEvent = { at: string; kind: 'step' | 'action'; id: string; by?: string; amountMinor?: number; note?: string }
+export type ClockView = {
+  milestoneKey: string
+  milestoneState: string
+  /** The runtime clock: running | paused | approved | released | disputed | stopped, or waiting_checks before it starts. */
+  status: 'waiting_checks' | 'running' | 'paused' | 'approved' | 'released' | 'disputed' | 'stopped'
+  state: {
+    status: 'waiting_checks' | 'running' | 'paused' | 'grace' | 'released_partial' | 'released_full'
+    businessDaysLeft: number
+    shiftMs: number
+    deadline: string | null
+    graceDeadline: string | null
+    nextStep: { id: string; atISO: string } | null
+    line: string
+  }
+  terms: ClockTermsEffective
+  revisionsUsed: number
+  includedRevisionRounds: number
+  startedAt: string | null
+  pausedMs: number
+  amounts: { amountMinor: number; partialAmountCents: number; remainderCents: number; currency: string } | null
+  doneSteps: string[]
+  timeline: ClockEvent[]
+}
+export type ClockChangesReply = {
+  changeOrderRequired: boolean
+  changeOrder: DealChangeOrder | null
+  invoice: { outcome?: string } | null
+  reason?: string
+  deal: DealView
+  clock: ClockView | null
+}
+
+/** The clock on a milestone, or null when the milestone has no clock terms (404 no_clock). */
+export async function getMilestoneClock(orgId: string, dealId: string, key: string): Promise<ClockView | null> {
+  const res = await authFetch(`${API_BASE}${msPath(orgId, dealId, key, '/clock')}`, { credentials: 'include' })
+  const body = await res.json().catch(() => null)
+  if (res.status === 404 && body?.error?.code === 'no_clock') return null
+  if (!res.ok) throw new ApiError(readableError(res, body, `Request failed (${res.status})`), body?.error?.code)
+  return body?.data as ClockView
+}
+/** Brand: approve the latest version; the full amount still held releases now. */
+export function clockApprove(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; clock: ClockView | null }> {
+  return sendJson('POST', msPath(orgId, dealId, key, '/clock/approve'))
+}
+/** Brand: ask for changes. `citation` is a brief item id or a failed check id (422 citation_required / citation_unknown). */
+export function clockRequestChanges(
+  orgId: string,
+  dealId: string,
+  key: string,
+  input: { citation: string; text?: string; changeOrderId?: string },
+): Promise<ClockChangesReply> {
+  return sendJson('POST', msPath(orgId, dealId, key, '/clock/changes'), input)
+}
+/** Either party: dispute; the clock stops and what is still held stays frozen. */
+export function clockDispute(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; clock: ClockView | null }> {
+  return sendJson('POST', msPath(orgId, dealId, key, '/clock/dispute'))
+}
+export type ClockTermsPlan = {
+  allowed: boolean
+  problems: string[]
+  clock: ClockTermsEffective | null
+  locked?: boolean
+  preview: {
+    deliverAt: string
+    deadline: string
+    deadlineText: string
+    graceDeadline: string
+    graceText: string
+    capped: boolean
+    partialAmountMinor: number
+    remainderMinor: number
+    currency: string
+    tz: string
+    line: string
+  } | null
+}
+/** Dry run of clock terms on a draft milestone (read-only): problems + "if you deliver today, review ends ...". */
+export function checkClockTerms(orgId: string, dealId: string, key: string, clock: ClockTermsSpec | null): Promise<ClockTermsPlan> {
+  return sendJson('POST', msPath(orgId, dealId, key, '/clock-terms/check'), { clock })
+}
+/** Save clock terms on a draft (unsigned deals only; clears signatures). */
+export function setClockTerms(
+  orgId: string,
+  dealId: string,
+  key: string,
+  clock: ClockTermsSpec | null,
+): Promise<ClockTermsPlan & { deal: DealView }> {
+  return sendJson('PUT', msPath(orgId, dealId, key, '/clock-terms'), { clock })
+}

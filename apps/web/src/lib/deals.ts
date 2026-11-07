@@ -178,6 +178,7 @@ export function useDealRefresh(orgId: string | null, dealId: string | undefined)
       qc.invalidateQueries({ queryKey: ['deal', orgId, dealId] }),
       qc.invalidateQueries({ queryKey: ['deal-ledger', orgId, dealId] }),
       qc.invalidateQueries({ queryKey: ['deals', orgId] }),
+      qc.invalidateQueries({ queryKey: ['deal-clock', orgId, dealId] }),
     ])
 }
 

@@ -22,6 +22,9 @@ import DisputeSplitCard from '../components/deals/DisputeSplitCard'
 import DealCopilot from '../components/deals/DealCopilot'
 import DealTeamCard from '../components/deals/DealTeamCard'
 import JudgeTour from '../components/deals/JudgeTour'
+import ReviewClockCard from '../components/deals/ReviewClockCard'
+import ClockTermsCard from '../components/deals/ClockTermsCard'
+import { clockTermsOf } from '../lib/clock'
 import * as api from '../services/api'
 import { DEMO_DEAL_PATH, invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
 
@@ -139,6 +142,9 @@ export default function DealPage() {
                 const r = deal.milestones.find((m) => m.key === t.key)
                 if (!r) return null
                 const cos = deal.changeOrders.filter((c) => c.milestoneKey === t.key)
+                // a milestone on the Fair Review Clock: the clock card owns approve / changes / dispute
+                const clocked = !!clockTermsOf(t) && !!deal.termsHash
+                const showTerms = !deal.termsHash || !!clockTermsOf(t)
                 return (
                   <section key={t.key} className="space-y-4" aria-labelledby={`ms-${t.key}`}>
                     <div className="flex items-center gap-3 pt-2">
@@ -147,8 +153,19 @@ export default function DealPage() {
                       </h2>
                       <StatusChip status={r.state} />
                     </div>
-                    <LiveChecksCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} onRequestChanges={() => toReview(t.key)} />
-                    {(r.proposals?.review || r.state === 'IN_REVIEW') && (
+                    {clocked && <ReviewClockCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />}
+                    <LiveChecksCard
+                      deal={deal}
+                      orgId={orgId}
+                      milestoneKey={t.key}
+                      onChanged={changed}
+                      onRequestChanges={() => toReview(t.key)}
+                      hideDecisions={clocked}
+                    />
+                    {showTerms && (
+                      <ClockTermsCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />
+                    )}
+                    {(r.proposals?.review || (r.state === 'IN_REVIEW' && !clocked)) && (
                       <div id={`review-${t.key}`}>
                         <ReviewMergeCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />
                       </div>
