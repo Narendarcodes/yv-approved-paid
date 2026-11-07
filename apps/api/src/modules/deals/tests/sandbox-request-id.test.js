@@ -16,7 +16,7 @@ function recorder() {
     seen.push({ path, rid });
     const body =
       path === '/v1/oauth2/token'
-        ? { access_token: 'tok', expires_in: 32400 }
+        ? { access_token: 'tok', token_type: 'Bearer', expires_in: 32400 }
         : {
             id: `ID${seen.length}`,
             status: 'COMPLETED',

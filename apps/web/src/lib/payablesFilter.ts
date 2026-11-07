@@ -46,7 +46,8 @@ const OP_WORDS: [RegExp, Op][] = [
   [/^(?:<=|at most|max(?:imum)?|no more than)$/, 'lte'],
   [/^(?:<|under|below|less than|fewer than|smaller than)$/, 'lt'],
 ]
-const OP_RE = '(>=|<=|>|<|at least|at most|no less than|no more than|minimum|maximum|min|max|over|above|more than|greater than|bigger than|under|below|less than|fewer than|smaller than)'
+const OP_RE =
+  '(>=|<=|>|<|at least|at most|no less than|no more than|minimum|maximum|min|max|over|above|more than|greater than|bigger than|under|below|less than|fewer than|smaller than)'
 const SYMBOL: Record<Op, string> = { gt: '>', gte: '≥', lt: '<', lte: '≤' }
 
 function opOf(word: string): Op {
@@ -76,7 +77,10 @@ function norm(s: string): string {
     .replace(/[“”"']/g, '')
     .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^(?:show(?: me)?|only|just|with|has|have|having|that are|which are|are|is|items?|rows?|milestones?)\s+/, '')
+    .replace(
+      /^(?:show(?: me)?|only|just|with|has|have|having|that are|which are|are|is|items?|rows?|milestones?)\s+/,
+      '',
+    )
     .replace(/^(?:with|has|have|having)\s+/, '')
     .trim()
 }
@@ -89,56 +93,113 @@ export function parseClause(raw: string): PayableFilter {
 
   // held over $300 / held > 300 / holding at least ₹1.5k / over $300 held
   m =
-    s.match(new RegExp(`^(?:held|holding|hold|amount held|on hold)\\s*${OP_RE}\\s*(?:\\$|usd|₹|rs\\.?|inr)?\\s*([\\d,]+(?:\\.\\d+)?)\\s*(k)?\\s*(?:usd|inr|dollars?|rupees?)?$`)) ||
-    s.match(new RegExp(`^${OP_RE}\\s*(?:\\$|usd|₹|rs\\.?|inr)?\\s*([\\d,]+(?:\\.\\d+)?)\\s*(k)?\\s*(?:usd|inr|dollars?|rupees?)?\\s*(?:held|on hold)$`))
+    s.match(
+      new RegExp(
+        `^(?:held|holding|hold|amount held|on hold)\\s*${OP_RE}\\s*(?:\\$|usd|₹|rs\\.?|inr)?\\s*([\\d,]+(?:\\.\\d+)?)\\s*(k)?\\s*(?:usd|inr|dollars?|rupees?)?$`,
+      ),
+    ) ||
+    s.match(
+      new RegExp(
+        `^${OP_RE}\\s*(?:\\$|usd|₹|rs\\.?|inr)?\\s*([\\d,]+(?:\\.\\d+)?)\\s*(k)?\\s*(?:usd|inr|dollars?|rupees?)?\\s*(?:held|on hold)$`,
+      ),
+    )
   if (m) {
     const op = opOf(m[1])
     const minor = toMinor(m[2], m[3])
-    if (Number.isFinite(minor)) return { kind: 'held', op, minor, text, label: `Held ${SYMBOL[op]} ${moneyLabel(minor)}` }
+    if (Number.isFinite(minor))
+      return { kind: 'held', op, minor, text, label: `Held ${SYMBOL[op]} ${moneyLabel(minor)}` }
   }
 
   // 3 or more days left / 3+ days left / under 2 days left / at least 1 business day left
-  m = s.match(/^(\d+)\s*(\+|or more|or fewer|or less)?\s*(?:business |working )?days? (?:left|remaining)(?: on the clock)?$/)
+  m = s.match(
+    /^(\d+)\s*(\+|or more|or fewer|or less)?\s*(?:business |working )?days? (?:left|remaining)(?: on the clock)?$/,
+  )
   if (m) {
     const days = Number(m[1])
     // a bare "2 days left" reads as "2 days left or fewer" (how close it is)
     const op: Op = !m[2] || m[2] === 'or fewer' || m[2] === 'or less' ? 'lte' : 'gte'
-    return { kind: 'daysLeft', op, days, text, label: `Clock ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'} left` }
+    return {
+      kind: 'daysLeft',
+      op,
+      days,
+      text,
+      label: `Clock ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'} left`,
+    }
   }
-  m = s.match(new RegExp(`^${OP_RE}\\s*(\\d+)\\s*(?:business |working )?days? (?:left|remaining)(?: on the clock)?$`))
+  m = s.match(
+    new RegExp(
+      `^${OP_RE}\\s*(\\d+)\\s*(?:business |working )?days? (?:left|remaining)(?: on the clock)?$`,
+    ),
+  )
   if (m) {
     const op = opOf(m[1])
     const days = Number(m[2])
-    return { kind: 'daysLeft', op, days, text, label: `Clock ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'} left` }
+    return {
+      kind: 'daysLeft',
+      op,
+      days,
+      text,
+      label: `Clock ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'} left`,
+    }
   }
 
   // waiting 3+ days / waiting 3 or more days / waiting over 3 days / waiting at least 2 days
-  m = s.match(/^(?:waiting|in review|waiting for review|pending)(?: for)? (\d+)\s*(\+|or more|or fewer|or less)?\s*days?$/)
+  m = s.match(
+    /^(?:waiting|in review|waiting for review|pending)(?: for)? (\d+)\s*(\+|or more|or fewer|or less)?\s*days?$/,
+  )
   if (m) {
     const days = Number(m[1])
     const op: Op = m[2] === 'or fewer' || m[2] === 'or less' ? 'lte' : 'gte'
-    return { kind: 'waiting', op, days, text, label: `Waiting ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'}` }
+    return {
+      kind: 'waiting',
+      op,
+      days,
+      text,
+      label: `Waiting ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'}`,
+    }
   }
-  m = s.match(new RegExp(`^(?:waiting|in review|waiting for review|pending)(?: for)? ${OP_RE}\\s*(\\d+)\\s*days?$`))
+  m = s.match(
+    new RegExp(
+      `^(?:waiting|in review|waiting for review|pending)(?: for)? ${OP_RE}\\s*(\\d+)\\s*days?$`,
+    ),
+  )
   if (m) {
     const op = opOf(m[1])
     const days = Number(m[2])
-    return { kind: 'waiting', op, days, text, label: `Waiting ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'}` }
+    return {
+      kind: 'waiting',
+      op,
+      days,
+      text,
+      label: `Waiting ${SYMBOL[op]} ${days} day${days === 1 ? '' : 's'}`,
+    }
   }
 
-  if (/^(?:in )?grace(?: period)?$|^in the grace period$/.test(s)) return { kind: 'grace', text, label: 'In grace' }
+  if (/^(?:in )?grace(?: period)?$|^in the grace period$/.test(s))
+    return { kind: 'grace', text, label: 'In grace' }
 
   if (/^(?:failed|failing|any failed|some failed) checks?$|^checks? failed$|^failed$/.test(s))
     return { kind: 'failedChecks', text, label: 'Failed checks' }
 
-  if (/^(?:hold(?:s)? )?(?:lapsing|expiring|lapses|expires)(?: soon)?$|^(?:lapsing|expiring) holds?$|^(?:about|close) to lapse$/.test(s))
-    return { kind: 'lapsing', days: LAPSING_SOON_DAYS, text, label: `Hold lapsing ≤ ${LAPSING_SOON_DAYS} days` }
+  if (
+    /^(?:hold(?:s)? )?(?:lapsing|expiring|lapses|expires)(?: soon)?$|^(?:lapsing|expiring) holds?$|^(?:about|close) to lapse$/.test(
+      s,
+    )
+  )
+    return {
+      kind: 'lapsing',
+      days: LAPSING_SOON_DAYS,
+      text,
+      label: `Hold lapsing ≤ ${LAPSING_SOON_DAYS} days`,
+    }
 
   if (/^(?:ready to approve|approvable|needs? (?:my )?approval|to approve)$/.test(s))
     return { kind: 'approvable', text, label: 'Ready to approve' }
 
   // editor Ravi / team Sana / by Ravi / for Ravi
-  m = s.match(/^(?:editor|team|crew|member|by|for|from|editor is|editor named) ([\p{L}][\p{L}\s.-]{0,40})$/u)
+  m = s.match(
+    /^(?:editor|team|crew|member|by|for|from|editor is|editor named) ([\p{L}][\p{L}\s.-]{0,40})$/u,
+  )
   if (m) {
     const name = m[1].trim()
     return { kind: 'person', name, text, label: `Team: ${titleCase(name)}` }

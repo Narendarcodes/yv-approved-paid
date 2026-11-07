@@ -74,7 +74,9 @@ describe('seed-deal-demo', () => {
     expect(blocked[0].policy.violations.map((v) => v.rule)).toContain('P3_amount');
     expect(blocked[1].policy.violations.map((v) => v.rule)).toContain('P6_version');
     expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([]);
-    const captured = l.entries.filter((e) => e.moved && /capture/.test(e.type)).reduce((a, e) => a + e.amountMinor, 0);
+    const captured = l.entries
+      .filter((e) => e.moved && /capture/.test(e.type))
+      .reduce((a, e) => a + e.amountMinor, 0);
     // reel1 $400 approved + reel4's review-clock partial release $75
     expect(captured).toBe(47500);
   });
@@ -95,15 +97,32 @@ describe('seed-deal-demo', () => {
   test('reel2: a $60 change order waits as a draft; the judge tap accepts it and drafts the PayPal invoice', async () => {
     const d = await dealService().get(DEMO.dealId, seeded.orgId);
     expect(d.changeOrders).toEqual([
-      expect.objectContaining({ milestoneKey: 'reel2', rateCardItemId: 'extra_cut', quantity: 1, amountMinor: 6000, status: 'draft' }),
+      expect.objectContaining({
+        milestoneKey: 'reel2',
+        rateCardItemId: 'extra_cut',
+        quantity: 1,
+        amountMinor: 6000,
+        status: 'draft',
+      }),
     ]);
-    const r = await dealService().decideChangeOrder(DEMO.dealId, seeded.orgId, seeded.judge.userId, d.changeOrders[0].id, true);
+    const r = await dealService().decideChangeOrder(
+      DEMO.dealId,
+      seeded.orgId,
+      seeded.judge.userId,
+      d.changeOrders[0].id,
+      true,
+    );
     expect(r.out).toMatchObject({ outcome: 'done' });
     const after = await dealService().get(DEMO.dealId, seeded.orgId);
-    expect(after.changeOrders[0]).toMatchObject({ status: 'invoiced', invoiceId: expect.any(String) });
+    expect(after.changeOrders[0]).toMatchObject({
+      status: 'invoiced',
+      invoiceId: expect.any(String),
+    });
     const l = await dealService().ledgerOf(DEMO.dealId, seeded.orgId);
     expect(l.chain.ok).toBe(true);
-    expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([expect.objectContaining({ amountMinor: 6000, moved: false })]);
+    expect(l.entries.filter((e) => e.type === 'invoice')).toEqual([
+      expect.objectContaining({ amountMinor: 6000, moved: false }),
+    ]);
     await seedDealDemo({ evidenceDir: false }); // back to the judge's starting state
   });
 
@@ -116,10 +135,20 @@ describe('seed-deal-demo', () => {
       includedRevisionRounds: 2,
     });
     const v = await dealService().clockView(DEMO.dealId, seeded.orgId, 'reel3');
-    expect(v).toMatchObject({ milestoneState: 'IN_REVIEW', status: 'running', revisionsUsed: 0, includedRevisionRounds: 2 });
+    expect(v).toMatchObject({
+      milestoneState: 'IN_REVIEW',
+      status: 'running',
+      revisionsUsed: 0,
+      includedRevisionRounds: 2,
+    });
     expect(v.state.status).toBe('running');
     expect(v.state.businessDaysLeft).toBe(2);
-    expect(v.amounts).toMatchObject({ amountMinor: 20000, partialAmountCents: 10000, remainderCents: 10000, currency: 'USD' });
+    expect(v.amounts).toMatchObject({
+      amountMinor: 20000,
+      partialAmountCents: 10000,
+      remainderCents: 10000,
+      currency: 'USD',
+    });
     expect(v.state.line).toMatch(/^If no reply by .+, \$100\.00 \(50%\) releases to the team\.$/);
     expect(v.doneSteps).not.toContain('release_partial');
     expect(v.timeline[0]).toMatchObject({ kind: 'action', id: 'started' });
@@ -136,12 +165,16 @@ describe('seed-deal-demo', () => {
     ]);
     const v = await dealService().clockView(DEMO.dealId, seeded.orgId, 'reel4');
     expect(v.state.status).toBe('released_partial');
-    expect(v.doneSteps).toEqual(expect.arrayContaining(['remind_50', 'remind_80', 'final_24h', 'release_partial']));
+    expect(v.doneSteps).toEqual(
+      expect.arrayContaining(['remind_50', 'remind_80', 'final_24h', 'release_partial']),
+    );
     expect(v.doneSteps).not.toContain('release_grace');
     expect(Date.parse(v.state.graceDeadline)).toBeGreaterThan(Date.now());
     const ids = v.timeline.map((e) => e.id);
     expect(ids[0]).toBe('started');
-    expect(ids).toEqual(expect.arrayContaining(['remind_50', 'remind_80', 'final_24h', 'release_partial']));
+    expect(ids).toEqual(
+      expect.arrayContaining(['remind_50', 'remind_80', 'final_24h', 'release_partial']),
+    );
     expect(v.timeline.find((e) => e.id === 'remind_50').note).toMatch(/demo seed/);
     expect(v.timeline.find((e) => e.id === 'release_partial').amountMinor).toBe(7500);
     // the reminders the seed logged were not sent; only the release told the parties
@@ -158,7 +191,10 @@ describe('seed-deal-demo', () => {
 
   test('the team draft carries the default clock terms, still editable (unsigned)', async () => {
     const d = await dealService().get(DEMO.teamDealId, seeded.orgId);
-    expect(d.terms.milestones[0].clock).toMatchObject({ reviewWindowBusinessDays: 3, partialReleasePct: 50 });
+    expect(d.terms.milestones[0].clock).toMatchObject({
+      reviewWindowBusinessDays: 3,
+      partialReleasePct: 50,
+    });
     expect(d.termsHash).toBeUndefined();
   });
 
@@ -171,7 +207,12 @@ describe('seed-deal-demo', () => {
       const files = fs.readdirSync(path.join(cold, DEMO.dealId));
       expect(files).toHaveLength(wrote);
       const loud = files.find((f) => /^loud_v1_/.test(f));
-      expect(fs.readFileSync(path.join(cold, DEMO.dealId, loud)).subarray(1, 4).toString()).toBe('PNG');
+      expect(
+        fs
+          .readFileSync(path.join(cold, DEMO.dealId, loud))
+          .subarray(1, 4)
+          .toString(),
+      ).toBe('PNG');
       expect(ensureEvidenceFrames(d, cold)).toBe(0); // nothing missing now
       expect(ensureEvidenceFrames(null, cold)).toBe(0);
       expect(ensureEvidenceFrames(d, false)).toBe(0);
@@ -183,14 +224,23 @@ describe('seed-deal-demo', () => {
   test('idempotent: a second run rebuilds the same deal with the same ledger shape', async () => {
     const before = await dealService().ledgerOf(DEMO.dealId, seeded.orgId);
     const again = await seedDealDemo({ evidenceDir: false });
-    expect(again).toMatchObject({ orgId: seeded.orgId, dealId: DEMO.dealId, judge: { userId: seeded.judge.userId } });
+    expect(again).toMatchObject({
+      orgId: seeded.orgId,
+      dealId: DEMO.dealId,
+      judge: { userId: seeded.judge.userId },
+    });
     const after = await dealService().ledgerOf(DEMO.dealId, seeded.orgId);
     expect(after.chain.ok).toBe(true);
     expect(after.entries.map((e) => e.type)).toEqual(before.entries.map((e) => e.type));
     expect(after.totals).toEqual(before.totals);
     // a reseed never stacks the seed's clock notifications
     const Notification = require('../../../models/notification.model');
-    expect(await Notification.countDocuments({ 'payload.dealId': DEMO.dealId, type: 'deal_clock_release' })).toBeLessThanOrEqual(2);
+    expect(
+      await Notification.countDocuments({
+        'payload.dealId': DEMO.dealId,
+        type: 'deal_clock_release',
+      }),
+    ).toBeLessThanOrEqual(2);
   });
 
   test('team: Ravi 70% / motion designer 30% on reel1; an unsigned team draft; two demo projects with assignees', async () => {
@@ -207,14 +257,21 @@ describe('seed-deal-demo', () => {
     expect(draft.signatures).toEqual([]);
     expect(draft.terms.client.userId).toBe(seeded.judge.userId);
     expect(draft.terms.milestones[0].payees.map((p) => p.shareBp)).toEqual([7000, 3000]);
-    const projects = await Project.find({ organizationId: seeded.orgId, assignee: { $ne: null } }).lean();
+    const projects = await Project.find({
+      organizationId: seeded.orgId,
+      assignee: { $ne: null },
+    }).lean();
     expect(projects.length).toBeGreaterThanOrEqual(2);
-    expect(await Task.countDocuments({ organizationId: seeded.orgId, assignee: { $ne: null } })).toBeGreaterThanOrEqual(2);
+    expect(
+      await Task.countDocuments({ organizationId: seeded.orgId, assignee: { $ne: null } }),
+    ).toBeGreaterThanOrEqual(2);
     // a re-seed neither duplicates the projects nor overwrites a reassignment
     await Project.updateOne({ _id: projects[0]._id }, { $set: { assignee: seeded.judge.userId } });
     await seedDealDemo({ evidenceDir: false });
     expect(await Project.countDocuments({ organizationId: seeded.orgId })).toBe(projects.length);
-    expect(String((await Project.findById(projects[0]._id).lean()).assignee)).toBe(seeded.judge.userId);
+    expect(String((await Project.findById(projects[0]._id).lean()).assignee)).toBe(
+      seeded.judge.userId,
+    );
     expect((await dealService().get(DEMO.teamDealId, seeded.orgId)).signatures).toEqual([]);
   });
 
@@ -222,25 +279,54 @@ describe('seed-deal-demo', () => {
     const real = makeMockGateway();
     real.name = 'sandbox';
     configureDeals({ gateway: real });
-    await expect(seedDealDemo({ evidenceDir: false })).rejects.toThrow(/PAYPAL_MODE=mock, or PAYPAL_MODE=sandbox with DEMO_MODE=1/);
-    configureDeals({ gateway: makeSandboxGateway({ clientId: 'id', clientSecret: 's', fetchImpl: async () => ({ ok: false, status: 500, text: async () => '' }) }) });
+    await expect(seedDealDemo({ evidenceDir: false })).rejects.toThrow(
+      /PAYPAL_MODE=mock, or PAYPAL_MODE=sandbox with DEMO_MODE=1/,
+    );
+    configureDeals({
+      gateway: makeSandboxGateway({
+        clientId: 'id',
+        clientSecret: 's',
+        fetchImpl: async () => ({ ok: false, status: 500, text: async () => '' }),
+      }),
+    });
     await expect(seedDealDemo({ evidenceDir: false })).rejects.toThrow(/DEMO_MODE=1/); // sandbox without simulated approval
     configureDeals({ gateway: makeMockGateway() });
   });
 
   test('PAYPAL_MODE=sandbox: real order and INV2 invoice ids; simulated buyer approval is labelled, never passed off as real', async () => {
     let n = 0;
-    const reply = (status, body) => ({ ok: status < 300, status, text: async () => JSON.stringify(body), json: async () => body });
+    const reply = (status, body) => ({
+      ok: status < 300,
+      status,
+      text: async () => JSON.stringify(body),
+      json: async () => body,
+    });
     const fetchImpl = async (url, init = {}) => {
       const key = `${init.method || 'GET'} ${new URL(url).pathname}`;
-      if (key === 'POST /v1/oauth2/token') return reply(200, { access_token: 'tok', expires_in: 32400 });
-      if (key === 'POST /v2/checkout/orders') return reply(201, { id: `5O190127TN36471${String(++n).padStart(2, '0')}`, status: 'PAYER_ACTION_REQUIRED', links: [{ rel: 'payer-action', href: 'https://www.sandbox.paypal.com/checkoutnow' }] });
-      if (key === 'POST /v1/payments/payouts') return reply(403, { name: 'PAYOUT_NOT_AVAILABLE', message: 'You live in a country that is not allowed to send this payout.' });
-      if (key === 'POST /v2/invoicing/invoices') return reply(201, { id: 'INV2-AB12-CD34-EF56-GH78', status: 'DRAFT' });
-      if (/^POST \/v2\/invoicing\/invoices\/.+\/send$/.test(key)) return reply(200, { href: 'https://www.sandbox.paypal.com/invoice/p/#INV2-AB12-CD34-EF56-GH78' });
+      if (key === 'POST /v1/oauth2/token')
+        return reply(200, { access_token: 'tok', token_type: 'Bearer', expires_in: 32400 });
+      if (key === 'POST /v2/checkout/orders')
+        return reply(201, {
+          id: `5O190127TN36471${String(++n).padStart(2, '0')}`,
+          status: 'PAYER_ACTION_REQUIRED',
+          links: [{ rel: 'payer-action', href: 'https://www.sandbox.paypal.com/checkoutnow' }],
+        });
+      if (key === 'POST /v1/payments/payouts')
+        return reply(403, {
+          name: 'PAYOUT_NOT_AVAILABLE',
+          message: 'You live in a country that is not allowed to send this payout.',
+        });
+      if (key === 'POST /v2/invoicing/invoices')
+        return reply(201, { id: 'INV2-AB12-CD34-EF56-GH78', status: 'DRAFT' });
+      if (/^POST \/v2\/invoicing\/invoices\/.+\/send$/.test(key))
+        return reply(200, {
+          href: 'https://www.sandbox.paypal.com/invoice/p/#INV2-AB12-CD34-EF56-GH78',
+        });
       throw new Error(`unexpected PayPal call ${key}`);
     };
-    configureDeals({ gateway: makeSandboxGateway({ clientId: 'id', clientSecret: 's', fetchImpl, simulate: true }) });
+    configureDeals({
+      gateway: makeSandboxGateway({ clientId: 'id', clientSecret: 's', fetchImpl, simulate: true }),
+    });
     try {
       const r = await seedDealDemo({ evidenceDir: false });
       const d = await dealService().get(DEMO.dealId, r.orgId);
@@ -251,17 +337,30 @@ describe('seed-deal-demo', () => {
       }
       expect(ms(d, 'reel1').state).toBe('PAID_OUT');
       expect(ms(d, 'reel1').captures[0].id).toMatch(/^SIM-CAPTURE-/);
-      expect(ms(d, 'reel1').payouts.every((p) => /^SIM-BATCH-/.test(p.batchId) && p.simulated === true)).toBe(true);
-      const accepted = await dealService().decideChangeOrder(DEMO.dealId, r.orgId, r.judge.userId, d.changeOrders[0].id, true);
+      expect(
+        ms(d, 'reel1').payouts.every((p) => /^SIM-BATCH-/.test(p.batchId) && p.simulated === true),
+      ).toBe(true);
+      const accepted = await dealService().decideChangeOrder(
+        DEMO.dealId,
+        r.orgId,
+        r.judge.userId,
+        d.changeOrders[0].id,
+        true,
+      );
       expect(accepted.out).toMatchObject({ outcome: 'done' });
       const after = await dealService().get(DEMO.dealId, r.orgId);
-      expect(after.changeOrders[0]).toMatchObject({ status: 'invoiced', invoiceId: 'INV2-AB12-CD34-EF56-GH78' });
+      expect(after.changeOrders[0]).toMatchObject({
+        status: 'invoiced',
+        invoiceId: 'INV2-AB12-CD34-EF56-GH78',
+      });
       const l = await dealService().ledgerOf(DEMO.dealId, r.orgId);
       expect(l.chain.ok).toBe(true);
       const moved = l.entries.filter((e) => ['authorize', 'capture', 'payout'].includes(e.type));
       expect(moved.length).toBeGreaterThan(0);
       for (const e of moved) expect(e.explanation).toMatch(/PayPal sandbox/);
-      expect(l.entries.find((e) => e.type === 'authorize').explanation).toMatch(/PayPal sandbox: buyer approval simulated/);
+      expect(l.entries.find((e) => e.type === 'authorize').explanation).toMatch(
+        /PayPal sandbox: buyer approval simulated/,
+      );
       const inv = l.entries.find((e) => e.type === 'invoice');
       expect(inv).toMatchObject({ paypalRef: 'INV2-AB12-CD34-EF56-GH78' });
       expect(inv.explanation).toMatch(/^Created and sent a PayPal invoice/);

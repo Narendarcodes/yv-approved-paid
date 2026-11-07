@@ -5,7 +5,9 @@ import { StatusChip, type Stage } from '../status'
 /** True below `px` wide (the grids hide their less important columns there). */
 export function useNarrow(px = 760): boolean {
   const q = `(max-width: ${px}px)`
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(q).matches,
+  )
   useEffect(() => {
     const mq = window.matchMedia(q)
     const on = () => setNarrow(mq.matches)
@@ -17,12 +19,16 @@ export function useNarrow(px = 760): boolean {
 }
 
 /** One plain status for a milestone row: the review clock's phase wins over the raw state while it counts. */
-export function payableStatus(state: string, clockStatus: string | null): { label: string; stage: Stage } {
+export function payableStatus(
+  state: string,
+  clockStatus: string | null,
+): { label: string; stage: Stage } {
   if (state === 'IN_REVIEW' && clockStatus) {
     if (clockStatus === 'running') return { label: 'In review · clock running', stage: 'review' }
     if (clockStatus === 'paused') return { label: 'In review · clock paused', stage: 'review' }
     if (clockStatus === 'grace') return { label: 'In grace', stage: 'production' }
-    if (clockStatus === 'released_partial') return { label: 'In grace · part released', stage: 'production' }
+    if (clockStatus === 'released_partial')
+      return { label: 'In grace · part released', stage: 'production' }
     if (clockStatus === 'waiting_checks') return { label: 'Checks running', stage: 'review' }
   }
   const map: Record<string, { label: string; stage: Stage }> = {
@@ -53,5 +59,7 @@ export function StatusPill({ label, stage }: { label: string; stage: Stage }) {
 export function shortDate(iso?: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }

@@ -1,0 +1,25 @@
+{
+  "name": "yv-fair-clock-workflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Render Workflow that drives the Fair Review Clock: POSTs the API's idempotent /internal/clock/advance with retries",
+  "type": "commonjs",
+  "main": "dist/src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc --noEmit -p .",
+    "start": "node dist/src/index.js",
+    "trigger": "node dist/src/trigger.js",
+    "test": "tsc -p . && node --test dist/test/flows.test.js"
+  },
+  "dependencies": {
+    "@renderinc/sdk": "~1.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "~5.9"
+  }
+}

@@ -1,14 +1,39 @@
 /**
  * deals/paypal: payment gateways behind one interface.
  *   makeMockGateway({ now })     in-memory PayPal with the real rules (tests, offline demo)
- *   makeRestGateway({ ... })     PayPal REST (sandbox by default)
+ *   makeRestGateway({ ... })     PayPal REST (sandbox by default), hand-written fetch calls
+ *   makeSdkGateway({ ... })      PayPal Server SDK (APIMatic) for Orders + Payments; Payouts/Invoicing/Webhooks on REST
  *   makeSandboxGateway({ ... })  PayPal sandbox: REST + invoices sent + (demo only) pre-approved pool, then simulated approval
- *   gatewayFromEnv(env)          PAYPAL_MODE=mock|sandbox|live picks one
+ *   gatewayFromEnv(env)          PAYPAL_MODE=mock|sandbox|live picks one;
+ *                                PAYPAL_CLIENT=sdk|rest picks the adapter (default sdk on sandbox, rest on live)
  */
 const { makeMockGateway } = require('./lib/paypal-mock.cts');
 const { makeRestGateway } = require('./lib/paypal-rest.cts');
+const { makeSdkGateway, SANDBOX_BASE, LIVE_BASE } = require('./lib/paypal-sdk.cts');
 const { makeSandboxGateway } = require('./lib/paypal-sandbox.cts');
 const { GatewayError } = require('./lib/gateway.cts');
+
+/**
+ * PAYPAL_CLIENT=sdk|rest: which adapter makes the Orders/Payments calls.
+ * Default: sdk on sandbox, rest on live (the SDK path has not been run against live).
+ * A custom PAYPAL_API_BASE (not one of PayPal's two hosts) can only use rest: the SDK
+ * picks its host from its Environment, so an unset PAYPAL_CLIENT falls back to rest
+ * there and an explicit PAYPAL_CLIENT=sdk is an error.
+ */
+function paypalClientFromEnv(
+  env: Record<string, string | undefined>,
+  mode: string,
+  apiBase: string,
+): 'sdk' | 'rest' {
+  const v = (env.PAYPAL_CLIENT || '').trim().toLowerCase();
+  if (v && v !== 'sdk' && v !== 'rest') throw new Error(`unknown PAYPAL_CLIENT ${v} (sdk | rest)`);
+  const base = apiBase.replace(/\/$/, '');
+  const sdkHost = base === SANDBOX_BASE || base === LIVE_BASE;
+  if (v === 'sdk' && !sdkHost)
+    throw new Error(`PAYPAL_CLIENT=sdk cannot use PAYPAL_API_BASE=${base}; use PAYPAL_CLIENT=rest`);
+  if (v) return v as 'sdk' | 'rest';
+  return mode === 'sandbox' && sdkHost ? 'sdk' : 'rest';
+}
 
 function gatewayFromEnv(env: Record<string, string | undefined> = process.env) {
   const mode = env.PAYPAL_MODE || 'mock';
@@ -27,8 +52,10 @@ function gatewayFromEnv(env: Record<string, string | undefined> = process.env) {
     webhookId: env.PAYPAL_WEBHOOK_ID,
     currency: env.PAYPAL_CURRENCY || 'USD',
   };
-  if (mode === 'live') return makeRestGateway(opts);
-  if (mode !== 'sandbox') throw new Error(`unknown PAYPAL_MODE ${mode} (mock | sandbox | live)`);
+  if (mode !== 'live' && mode !== 'sandbox')
+    throw new Error(`unknown PAYPAL_MODE ${mode} (mock | sandbox | live)`);
+  const client = paypalClientFromEnv(env, mode, opts.apiBase);
+  if (mode === 'live') return client === 'sdk' ? makeSdkGateway(opts) : makeRestGateway(opts);
   // the judge demo cannot log a sandbox buyer in, so DEMO_MODE=1 (or PAYPAL_SANDBOX_SIMULATE=1)
   // lets the seed mark its own orders as approved; everything else stays real sandbox
   // Demo deals (ids "deal_demo_...") first take a real, pre-approved sandbox authorization from the
@@ -37,6 +64,7 @@ function gatewayFromEnv(env: Record<string, string | undefined> = process.env) {
   const usePool = simulate && env.PAYPAL_SANDBOX_POOL !== '0';
   return makeSandboxGateway({
     ...opts,
+    client,
     simulate,
     ...(usePool
       ? {
@@ -50,7 +78,9 @@ function gatewayFromEnv(env: Record<string, string | undefined> = process.env) {
 module.exports = {
   makeMockGateway,
   makeRestGateway,
+  makeSdkGateway,
   makeSandboxGateway,
   gatewayFromEnv,
+  paypalClientFromEnv,
   GatewayError,
 };

@@ -35,6 +35,7 @@ import type { PaymentGateway } from './gateway.cts';
 
 const crypto = require('node:crypto');
 const { makeRestGateway } = require('./paypal-rest.cts');
+const { makeSdkGateway } = require('./paypal-sdk.cts');
 const { makeMockGateway } = require('./paypal-mock.cts');
 
 const SIM_APPROVAL = 'PayPal sandbox: buyer approval simulated';
@@ -62,6 +63,8 @@ type RestOpts = {
   webhookId?: string;
   fetchImpl?: (url: string, init?: any) => Promise<any>;
   currency?: string;
+  /** Which adapter makes the PayPal calls: the typed PayPal Server SDK (default) or hand-written REST. */
+  client?: 'sdk' | 'rest';
 };
 
 function makeSandboxGateway(
@@ -75,7 +78,9 @@ function makeSandboxGateway(
     poolMinValidMs?: number;
   },
 ) {
-  const rest = makeRestGateway(opts);
+  // `rest` is the core PayPal gateway. With client 'sdk' (PAYPAL_CLIENT, default on sandbox) Orders and
+  // Payments go through the PayPal Server SDK and only Payouts/Invoicing/Webhooks use REST (paypal-sdk.cts).
+  const rest = opts.client === 'rest' ? makeRestGateway(opts) : makeSdkGateway(opts);
   const clock = opts.now || (() => Date.now());
   const twin = makeMockGateway({ now: opts.now });
   const simulate = !!opts.simulate;
@@ -244,7 +249,8 @@ function makeSandboxGateway(
       }
     },
     // a batch is always sent for real; PAYOUT_NOT_AVAILABLE is passed through and the engine records it as simulated
-    createPayoutBatch: (input) => rest.createPayoutBatch({ ...input, senderBatchId: rid(input.senderBatchId) }),
+    createPayoutBatch: (input) =>
+      rest.createPayoutBatch({ ...input, senderBatchId: rid(input.senderBatchId) }),
     async createInvoiceDraft(input) {
       const d = await rest.createInvoiceDraft({ ...input, requestId: rid(input.requestId) });
       try {

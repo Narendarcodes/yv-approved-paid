@@ -7,7 +7,7 @@ const {
   clockState,
   dueSteps,
   holdPlan,
-} = require('../lib/clock.cts');
+} = require('../engine.cts').clock;
 
 const IN = { country: 'IN', tz: 'Asia/Kolkata' };
 const US = { country: 'US', tz: 'America/New_York' };
@@ -47,7 +47,9 @@ describe('addBusinessDays', () => {
   test('skips an IN weekday holiday', () => {
     // Mon 23 Nov 10:00 IST: Mon day 1, Tue 24 Guru Nanak, Wed 25 day 2
     expect(addBusinessDays('2026-11-23T04:30:00Z', 2, IN)).toBe('2026-11-25T12:30:00.000Z');
-    expect(addBusinessDays('2026-11-23T04:30:00Z', 2, { country: 'US', tz: 'Asia/Kolkata' })).toBe('2026-11-24T12:30:00.000Z');
+    expect(addBusinessDays('2026-11-23T04:30:00Z', 2, { country: 'US', tz: 'Asia/Kolkata' })).toBe(
+      '2026-11-24T12:30:00.000Z',
+    );
   });
   test('skips US holidays', () => {
     // Tue 10 Nov 09:00 EST: Tue day 1, Wed 11 Veterans Day, Thu 12 day 2
@@ -78,7 +80,9 @@ describe('addBusinessDays', () => {
     expect(() => addBusinessDays('2026-11-09T04:30:00Z', 0, IN)).toThrow();
     expect(() => addBusinessDays('2026-11-09T04:30:00Z', 1.5, IN)).toThrow();
     expect(() => addBusinessDays('nope', 1, IN)).toThrow();
-    expect(() => addBusinessDays('2026-11-09T04:30:00Z', 1, { country: 'IN', tz: 'Mars/Base' })).toThrow(/timezone/);
+    expect(() =>
+      addBusinessDays('2026-11-09T04:30:00Z', 1, { country: 'IN', tz: 'Mars/Base' }),
+    ).toThrow(/timezone/);
   });
 });
 
@@ -97,7 +101,9 @@ describe('normalizeTerms', () => {
   });
   test('throws on invalid values', () => {
     for (const bad of [1, 11, 2.5, '3', -3]) {
-      expect(() => normalizeTerms({ reviewWindowBusinessDays: bad })).toThrow(/reviewWindowBusinessDays/);
+      expect(() => normalizeTerms({ reviewWindowBusinessDays: bad })).toThrow(
+        /reviewWindowBusinessDays/,
+      );
     }
     for (const bad of [91, -1, 50.5, '50']) {
       expect(() => normalizeTerms({ partialReleasePct: bad })).toThrow(/partialReleasePct/);
@@ -109,8 +115,13 @@ describe('normalizeTerms', () => {
     expect(() => normalizeTerms({ backupReviewerId: 123 })).toThrow(/backupReviewerId/);
   });
   test('accepts the bounds', () => {
-    expect(normalizeTerms({ reviewWindowBusinessDays: 2, partialReleasePct: 0 }).partialReleasePct).toBe(0);
-    expect(normalizeTerms({ reviewWindowBusinessDays: 10, partialReleasePct: 90 }).reviewWindowBusinessDays).toBe(10);
+    expect(
+      normalizeTerms({ reviewWindowBusinessDays: 2, partialReleasePct: 0 }).partialReleasePct,
+    ).toBe(0);
+    expect(
+      normalizeTerms({ reviewWindowBusinessDays: 10, partialReleasePct: 90 })
+        .reviewWindowBusinessDays,
+    ).toBe(10);
   });
 });
 
@@ -135,7 +146,13 @@ describe('buildSchedule', () => {
     expect(byId.final_24h.partialAmountCents).toBe(499999);
   });
   test('steps are in time order with stable ids', () => {
-    expect(s.steps.map((x) => x.id)).toEqual(['remind_50', 'final_24h', 'remind_80', 'release_partial', 'release_grace']);
+    expect(s.steps.map((x) => x.id)).toEqual([
+      'remind_50',
+      'final_24h',
+      'remind_80',
+      'release_partial',
+      'release_grace',
+    ]);
   });
   test('integer cents, partial floored', () => {
     expect(s.partialAmountCents).toBe(499999);
@@ -190,7 +207,9 @@ describe('clockState', () => {
     expect(st.status).toBe('running');
     expect(st.businessDaysLeft).toBe(3);
     expect(st.nextStep).toEqual({ id: 'remind_50', atISO: '2026-11-10T08:30:00.000Z' });
-    expect(st.line).toBe('If no reply by Wed 11 Nov 6:00 PM IST, ₹4,999.99 (50%) releases to the team.');
+    expect(st.line).toBe(
+      'If no reply by Wed 11 Nov 6:00 PM IST, ₹4,999.99 (50%) releases to the team.',
+    );
     expect(clockState({ schedule: s, now: '2026-11-09T13:30:00Z' }).businessDaysLeft).toBe(2); // Mon 19:00 IST
   });
   test('US line uses dollars and the local zone', () => {
@@ -200,7 +219,9 @@ describe('clockState', () => {
     );
   });
   test('after the deadline and after grace', () => {
-    expect(clockState({ schedule: s, now: '2026-11-12T00:00:00Z' }).status).toBe('released_partial');
+    expect(clockState({ schedule: s, now: '2026-11-12T00:00:00Z' }).status).toBe(
+      'released_partial',
+    );
     expect(clockState({ schedule: s, now: '2026-11-16T12:30:00Z' }).status).toBe('released_full');
     const zero = buildSchedule(START, { partialReleasePct: 0 }, 1000);
     expect(clockState({ schedule: zero, now: '2026-11-12T00:00:00Z' }).status).toBe('grace');
@@ -228,21 +249,41 @@ describe('dueSteps', () => {
   const s = buildSchedule('2026-11-09T04:30:00Z', {}, 10000);
   test('returns due steps in order and skips done ones', () => {
     expect(dueSteps(s, '2026-11-09T05:00:00Z')).toEqual([]);
-    expect(dueSteps(s, '2026-11-11T12:30:00Z')).toEqual(['remind_50', 'final_24h', 'remind_80', 'release_partial']);
-    expect(dueSteps(s, '2026-11-11T12:30:00Z', ['remind_50', 'final_24h'])).toEqual(['remind_80', 'release_partial']);
-    expect(dueSteps(s, '2026-11-20T00:00:00Z', new Set(['remind_50', 'final_24h', 'remind_80', 'release_partial']))).toEqual([
-      'release_grace',
+    expect(dueSteps(s, '2026-11-11T12:30:00Z')).toEqual([
+      'remind_50',
+      'final_24h',
+      'remind_80',
+      'release_partial',
     ]);
+    expect(dueSteps(s, '2026-11-11T12:30:00Z', ['remind_50', 'final_24h'])).toEqual([
+      'remind_80',
+      'release_partial',
+    ]);
+    expect(
+      dueSteps(
+        s,
+        '2026-11-20T00:00:00Z',
+        new Set(['remind_50', 'final_24h', 'remind_80', 'release_partial']),
+      ),
+    ).toEqual(['release_grace']);
   });
   test('a pause shift delays due steps', () => {
-    expect(dueSteps(s, '2026-11-11T12:30:00Z', [], 2 * HOUR)).toEqual(['remind_50', 'final_24h', 'remind_80']);
+    expect(dueSteps(s, '2026-11-11T12:30:00Z', [], 2 * HOUR)).toEqual([
+      'remind_50',
+      'final_24h',
+      'remind_80',
+    ]);
   });
 });
 
 describe('holdPlan', () => {
   test('PayPal: reauthorize after day 3, lapses on day 29', () => {
     const p = holdPlan('2026-11-01T10:00:00Z', '2026-11-20T10:00:00Z');
-    expect(p).toEqual({ reauthorizeAfterISO: '2026-11-04T10:00:00.000Z', lapsesISO: '2026-11-30T10:00:00.000Z', needsRefund: false });
+    expect(p).toEqual({
+      reauthorizeAfterISO: '2026-11-04T10:00:00.000Z',
+      lapsesISO: '2026-11-30T10:00:00.000Z',
+      needsRefund: false,
+    });
     expect(holdPlan('2026-11-01T10:00:00Z', '2026-11-30T10:00:00Z').needsRefund).toBe(false);
     expect(holdPlan('2026-11-01T10:00:00Z', '2026-11-30T10:00:01Z').needsRefund).toBe(true);
     expect(() => holdPlan('x', '2026-11-30T10:00:00Z')).toThrow();

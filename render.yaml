@@ -30,3 +30,33 @@ services:
         value: "12"
       - key: LLM_CALLER
         value: httpx
+
+# Fair Review Clock driver (workflows/fair-clock, a Render Workflow on @renderinc/sdk 1.7).
+# NOT active: uncomment to create it. It POSTs the API's idempotent
+# /api/v1/internal/clock/advance with retries; see workflows/fair-clock/README.md.
+# Render Workflows have no built-in schedule yet, so the cron job starts a run every 15 minutes.
+#  - type: workflow
+#    name: yv-fair-clock
+#    runtime: node
+#    region: singapore
+#    rootDir: workflows/fair-clock
+#    buildCommand: npm ci && npm run build
+#    startCommand: npm start
+#    envVars:
+#      - key: API_URL # the API origin, e.g. https://<api-service>.onrender.com
+#        sync: false
+#      - key: CLOCK_SHARED_SECRET # secret; same value as on the API service
+#        sync: false
+#  - type: cron
+#    name: yv-fair-clock-tick
+#    runtime: node
+#    region: singapore
+#    schedule: "*/15 * * * *"
+#    rootDir: workflows/fair-clock
+#    buildCommand: npm ci && npm run build
+#    startCommand: npm run trigger
+#    envVars:
+#      - key: RENDER_API_KEY # secret; Render API key that may start runs
+#        sync: false
+#      - key: FAIR_CLOCK_WORKFLOW_SLUG # the workflow service's slug
+#        sync: false

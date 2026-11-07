@@ -2,7 +2,15 @@
 // Run: npm test   (node --experimental-strip-types --test tests/)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseFilter, parseClause, matchesAll, matches, filtersToText, daysToLapse, LAPSING_SOON_DAYS } from '../src/lib/payablesFilter.ts'
+import {
+  parseFilter,
+  parseClause,
+  matchesAll,
+  matches,
+  filtersToText,
+  daysToLapse,
+  LAPSING_SOON_DAYS,
+} from '../src/lib/payablesFilter.ts'
 
 const NOW = Date.parse('2026-11-07T12:00:00Z')
 const DAY = 24 * 3600 * 1000
@@ -17,20 +25,34 @@ const strip = (fs) =>
 test('held over $300', () => {
   assert.deepEqual(strip(parseFilter('held over $300')), [{ kind: 'held', op: 'gt', minor: 30000 }])
   assert.equal(parseClause('held over $300').label, 'Held > $300')
-  assert.deepEqual(strip(parseFilter('held > 1,250.50')), [{ kind: 'held', op: 'gt', minor: 125050 }])
-  assert.deepEqual(strip(parseFilter('Held at least ₹1.5k')), [{ kind: 'held', op: 'gte', minor: 150000 }])
+  assert.deepEqual(strip(parseFilter('held > 1,250.50')), [
+    { kind: 'held', op: 'gt', minor: 125050 },
+  ])
+  assert.deepEqual(strip(parseFilter('Held at least ₹1.5k')), [
+    { kind: 'held', op: 'gte', minor: 150000 },
+  ])
   assert.deepEqual(strip(parseFilter('held under $50')), [{ kind: 'held', op: 'lt', minor: 5000 }])
   assert.deepEqual(strip(parseFilter('over $300 held')), [{ kind: 'held', op: 'gt', minor: 30000 }])
 })
 
 test('waiting 3+ days / 3 or more days left', () => {
   assert.deepEqual(strip(parseFilter('waiting 3+ days')), [{ kind: 'waiting', op: 'gte', days: 3 }])
-  assert.deepEqual(strip(parseFilter('waiting 3 or more days')), [{ kind: 'waiting', op: 'gte', days: 3 }])
-  assert.deepEqual(strip(parseFilter('waiting over 2 days')), [{ kind: 'waiting', op: 'gt', days: 2 }])
-  assert.deepEqual(strip(parseFilter('3 or more days left')), [{ kind: 'daysLeft', op: 'gte', days: 3 }])
+  assert.deepEqual(strip(parseFilter('waiting 3 or more days')), [
+    { kind: 'waiting', op: 'gte', days: 3 },
+  ])
+  assert.deepEqual(strip(parseFilter('waiting over 2 days')), [
+    { kind: 'waiting', op: 'gt', days: 2 },
+  ])
+  assert.deepEqual(strip(parseFilter('3 or more days left')), [
+    { kind: 'daysLeft', op: 'gte', days: 3 },
+  ])
   assert.deepEqual(strip(parseFilter('3+ days left')), [{ kind: 'daysLeft', op: 'gte', days: 3 }])
-  assert.deepEqual(strip(parseFilter('2 business days left')), [{ kind: 'daysLeft', op: 'lte', days: 2 }])
-  assert.deepEqual(strip(parseFilter('less than 2 days left')), [{ kind: 'daysLeft', op: 'lt', days: 2 }])
+  assert.deepEqual(strip(parseFilter('2 business days left')), [
+    { kind: 'daysLeft', op: 'lte', days: 2 },
+  ])
+  assert.deepEqual(strip(parseFilter('less than 2 days left')), [
+    { kind: 'daysLeft', op: 'lt', days: 2 },
+  ])
   assert.equal(parseClause('3 or more days left').label, 'Clock ≥ 3 days left')
 })
 
@@ -39,8 +61,12 @@ test('in grace, failed checks, lapsing soon, ready to approve', () => {
   assert.deepEqual(strip(parseFilter('grace period')), [{ kind: 'grace' }])
   assert.deepEqual(strip(parseFilter('failed checks')), [{ kind: 'failedChecks' }])
   assert.deepEqual(strip(parseFilter('with failed checks')), [{ kind: 'failedChecks' }])
-  assert.deepEqual(strip(parseFilter('lapsing soon')), [{ kind: 'lapsing', days: LAPSING_SOON_DAYS }])
-  assert.deepEqual(strip(parseFilter('hold expiring soon')), [{ kind: 'lapsing', days: LAPSING_SOON_DAYS }])
+  assert.deepEqual(strip(parseFilter('lapsing soon')), [
+    { kind: 'lapsing', days: LAPSING_SOON_DAYS },
+  ])
+  assert.deepEqual(strip(parseFilter('hold expiring soon')), [
+    { kind: 'lapsing', days: LAPSING_SOON_DAYS },
+  ])
   assert.deepEqual(strip(parseFilter('ready to approve')), [{ kind: 'approvable' }])
 })
 
@@ -55,7 +81,10 @@ test('combinations joined with and / & / commas keep their order and source text
   assert.deepEqual(strip(f), [{ kind: 'held', op: 'gt', minor: 10000 }, { kind: 'grace' }])
   assert.equal(filtersToText(f), 'held over $100 and in grace')
   const g = parseFilter('editor Ravi & failed checks, lapsing soon AND waiting 3+ days')
-  assert.deepEqual(g.map((x) => x.kind), ['person', 'failedChecks', 'lapsing', 'waiting'])
+  assert.deepEqual(
+    g.map((x) => x.kind),
+    ['person', 'failedChecks', 'lapsing', 'waiting'],
+  )
 })
 
 test('a clause it cannot read becomes a visible unknown chip that filters nothing', () => {
@@ -70,10 +99,51 @@ test('a clause it cannot read becomes a visible unknown chip that filters nothin
 
 test('matchesAll applies every filter to a row', () => {
   const rows = [
-    { id: 'a', heldMinor: 40000, clockStatus: 'running', businessDaysLeft: 2, waitingDays: 1, failedChecks: 0, editorName: 'Ravi (demo editor)', team: [{ name: 'Ravi (demo editor)' }], holdLapsesAt: new Date(NOW + 20 * DAY).toISOString(), approvable: true },
-    { id: 'b', heldMinor: 7500, clockStatus: 'released_partial', businessDaysLeft: 0, waitingDays: 4, failedChecks: 0, editorName: 'Ravi (demo editor)', team: [{ name: 'Ravi (demo editor)' }, { name: 'Sana (demo motion)' }], holdLapsesAt: new Date(NOW + 3 * DAY).toISOString() },
-    { id: 'c', heldMinor: 30000, clockStatus: null, businessDaysLeft: null, waitingDays: 5, failedChecks: 2, editorName: 'Kiran', team: [{ name: 'Kiran' }], holdLapsesAt: new Date(NOW + 4 * DAY).toISOString() },
-    { id: 'd', heldMinor: 0, clockStatus: 'approved', businessDaysLeft: 0, waitingDays: null, failedChecks: 0, editorName: 'Ravi', team: [], holdLapsesAt: null },
+    {
+      id: 'a',
+      heldMinor: 40000,
+      clockStatus: 'running',
+      businessDaysLeft: 2,
+      waitingDays: 1,
+      failedChecks: 0,
+      editorName: 'Ravi (demo editor)',
+      team: [{ name: 'Ravi (demo editor)' }],
+      holdLapsesAt: new Date(NOW + 20 * DAY).toISOString(),
+      approvable: true,
+    },
+    {
+      id: 'b',
+      heldMinor: 7500,
+      clockStatus: 'released_partial',
+      businessDaysLeft: 0,
+      waitingDays: 4,
+      failedChecks: 0,
+      editorName: 'Ravi (demo editor)',
+      team: [{ name: 'Ravi (demo editor)' }, { name: 'Sana (demo motion)' }],
+      holdLapsesAt: new Date(NOW + 3 * DAY).toISOString(),
+    },
+    {
+      id: 'c',
+      heldMinor: 30000,
+      clockStatus: null,
+      businessDaysLeft: null,
+      waitingDays: 5,
+      failedChecks: 2,
+      editorName: 'Kiran',
+      team: [{ name: 'Kiran' }],
+      holdLapsesAt: new Date(NOW + 4 * DAY).toISOString(),
+    },
+    {
+      id: 'd',
+      heldMinor: 0,
+      clockStatus: 'approved',
+      businessDaysLeft: 0,
+      waitingDays: null,
+      failedChecks: 0,
+      editorName: 'Ravi',
+      team: [],
+      holdLapsesAt: null,
+    },
   ]
   const ids = (q) => rows.filter((r) => matchesAll(r, parseFilter(q), NOW)).map((r) => r.id)
   assert.deepEqual(ids('held over $300'), ['a'])

@@ -60,7 +60,7 @@ function fakePaypal() {
     }
     let m;
     if (key === 'POST /v1/oauth2/token')
-      return reply(200, { access_token: 'tok', expires_in: 32400 });
+      return reply(200, { access_token: 'tok', token_type: 'Bearer', expires_in: 32400 });
     if (key === 'POST /v2/checkout/orders') {
       const pu = body.purchase_units[0];
       const o = {
@@ -337,7 +337,9 @@ describe('judge demo on real sandbox authorizations', () => {
     expect(ms(d, 'reel1').state).toBe('PAID_OUT');
     expect(ms(d, 'reel1').captures[0].id).toMatch(/^CAP/); // a real capture id
     expect(pp.auths.get(ms(d, 'reel1').funding.authorizationId).status).toBe('CAPTURED');
-    expect(ms(d, 'reel1').payouts.every((p) => /^SIM-BATCH-/.test(p.batchId) && p.simulated === true)).toBe(true); // payouts stay simulated
+    expect(
+      ms(d, 'reel1').payouts.every((p) => /^SIM-BATCH-/.test(p.batchId) && p.simulated === true),
+    ).toBe(true); // payouts stay simulated
     let l = await dealService().ledgerOf(DEMO.dealId, r.orgId);
     expect(l.entries.find((e) => e.type === 'authorize').explanation).not.toMatch(/simulated/);
     expect(l.entries.find((e) => e.type === 'capture').explanation).not.toMatch(/simulated/);

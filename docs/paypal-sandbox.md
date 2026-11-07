@@ -4,7 +4,7 @@
 
 This page covers what runs for real on the PayPal sandbox (`api-m.sandbox.paypal.com`), how the judge demo gets real holds without a PayPal login, how to refill that pool, and what is still simulated. No live money moves; `PAYPAL_MODE=live` is not used for the hackathon.
 
-Code: `apps/api/src/modules/deals/paypal.cts` (mode switch), `lib/paypal-sandbox.cts` (sandbox gateway), `lib/paypal-rest.cts` (REST calls), `pool.cts` (authorization pool), `demo.cts` (demo seed and reset), `lib/engine.cts` (Money Agent), `scripts/paypal-auth-pool.cjs` (pool refill).
+Code: `apps/api/src/modules/deals/paypal.cts` (mode switch), `lib/paypal-sandbox.cts` (sandbox gateway), `lib/paypal-sdk.cts` (Orders and Payments on the typed PayPal Server SDK, the sandbox default; see [apimatic.md](apimatic.md)), `lib/paypal-rest.cts` (hand-written REST calls: Payouts, Invoicing, Webhooks, and the `PAYPAL_CLIENT=rest` fallback), `pool.cts` (authorization pool), `demo.cts` (demo seed and reset), `lib/engine.cts` (Money Agent), `scripts/paypal-auth-pool.cjs` (pool refill).
 
 ## What is real and what is simulated
 
@@ -25,7 +25,7 @@ In the web app every id carries a tag, `PayPal sandbox` or `PayPal sandbox · si
 
 ### Verified live (Nov 4, 2026)
 
-Checked directly on `api-m.sandbox.paypal.com` after a demo reset:
+Checked directly on `api-m.sandbox.paypal.com` after a demo reset. These runs used the hand-written REST adapter; the PayPal Server SDK adapter (now the sandbox default) makes the same requests in the stubbed contract tests but has not been run against the real sandbox yet. Set `PAYPAL_CLIENT=rest` to go back to the verified path.
 
 | Milestone | Authorization | PayPal result |
 |---|---|---|
@@ -101,6 +101,7 @@ Sandbox only; the script refuses any other API base. Credentials come from the e
 | Variable | Meaning |
 |---|---|
 | `PAYPAL_MODE` | `mock` (in-memory PayPal with the real rules; tests and offline demo), `sandbox`, or `live` |
+| `PAYPAL_CLIENT=sdk\|rest` | Which adapter makes the Orders/Payments calls. `sdk` (default when `PAYPAL_MODE=sandbox`): the APIMatic-generated PayPal Server SDK (`@paypal/paypal-server-sdk`), with typed models, retries and timeouts. `rest`: the hand-written fetch adapter (default on `live`, and the only choice with a custom `PAYPAL_API_BASE`). Payouts, Invoicing and webhook checks use REST either way. Ignored when `PAYPAL_MODE=mock` |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Sandbox app REST credentials (developer.paypal.com > Apps & Credentials). Secrets: set them in the host's dashboard, never in the repo |
 | `PAYPAL_WEBHOOK_ID` | Optional: verifies PayPal webhooks |
 | `DEMO_MODE=1` | Judge demo: seeds the deal on boot, opens `POST /auth/demo-login` and `POST /demo/deal/reset`, and draws holds from the pool on sandbox |
@@ -108,4 +109,4 @@ Sandbox only; the script refuses any other API base. Credentials come from the e
 | `PAYOUTS_MODE=simulated\|real` | Crew payout batches: `simulated` (default) records them without calling PayPal; `real` sends them (PAYOUT_NOT_AVAILABLE still falls back to simulated) |
 | `PAYPAL_SANDBOX_SIMULATE=1` | Sandbox outside `DEMO_MODE`: allow the pool and the labelled fallback (and simulated payouts) |
 
-Tests never call real PayPal: `apps/api/src/modules/deals/tests/sandbox-pool.test.js` and `.../tests/sandbox-request-id.test.js` use a stateful fake.
+Tests never call real PayPal: `apps/api/src/modules/deals/tests/sandbox-pool.test.js` and `.../tests/sandbox-request-id.test.js` use a stateful fake. `.../tests/paypal-sdk.test.js` stubs the SDK's HTTP client, and `.../tests/paypal-contract.test.js` runs the same scenarios through both adapters and expects identical results, errors, request ids and bodies.
