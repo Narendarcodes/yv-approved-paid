@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { DEMO_DEAL_PATH, isDemoJudge } from './lib/deals'
 import AppShell from './layouts/AppShell'
@@ -30,6 +30,12 @@ import DealsPage from './pages/DealsPage'
 import DealPage from './pages/DealPage'
 import PerformanceReportPage from './pages/PerformanceReportPage'
 import BackendErrorPage from './pages/BackendErrorPage'
+import { ListSkeleton } from './components/states'
+
+// The money grids pull in AG Grid; loaded on demand so it stays out of the main bundle.
+const PayablesPage = lazy(() => import('./pages/PayablesPage'))
+const MyMoneyPage = lazy(() => import('./pages/MyMoneyPage'))
+const lazyPage = (el: ReactNode) => <Suspense fallback={<ListSkeleton rows={4} height="h-12" />}>{el}</Suspense>
 import { useBackendHealth } from './lib/health'
 
 /** Blocks the app shell until a session exists - redirects to /login. */
@@ -109,6 +115,8 @@ export default function App() {
         <Route path="/deals" element={<DealsPage />} />
         <Route path="/deals/:dealId" element={<DealPage />} />
         <Route path="/deals/:dealId/fund/:key" element={<DealPage />} />
+        <Route path="/payables" element={lazyPage(<PayablesPage />)} />
+        <Route path="/my-money" element={lazyPage(<MyMoneyPage />)} />
         <Route path="/members" element={<MembersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/profile" element={<ProfilePage />} />

@@ -93,6 +93,72 @@ router.get(
   }),
 );
 
+/* ------------------------------------------------ payables + my money */
+
+const payables = require('./payables.cts');
+const User = require('../../models/user.model');
+
+/** Display names for every party and payee of these deals (one query). */
+async function namesFor(deals: DealDoc[]): Promise<Record<string, string>> {
+  const ids = new Set<string>();
+  for (const d of deals) {
+    ids.add(d.terms.client.userId);
+    ids.add(d.terms.worker.userId);
+    for (const t of d.terms.milestones) for (const p of t.payees) ids.add(p.userId);
+  }
+  const valid = [...ids].filter((x) => /^[a-f0-9]{24}$/i.test(x));
+  if (!valid.length) return {};
+  const rows = await User.find({ _id: { $in: valid } }).select('name').lean();
+  return Object.fromEntries(rows.map((u: any) => [String(u._id), u.name]));
+}
+const nowIso = () => dealService().deps.now();
+
+/**
+ * The payables board: one row per milestone. Deal managers see every deal in
+ * the org; anyone else sees the deals they are the brand (client) on.
+ */
+router.get(
+  '/payables',
+  wrap(async (req, res) => {
+    const all = await dealService().list(org(req), uid(req), canManage(req));
+    const deals = canManage(req) ? all : all.filter((d: DealDoc) => actorRole(d, uid(req)) === 'client');
+    const rows = payables.payableRows(deals, nowIso(), await namesFor(deals), uid(req));
+    res.json({ data: { rows, asOf: nowIso(), scope: canManage(req) ? 'org' : 'brand' } });
+  }),
+);
+
+/** Where's my money: the current user's milestones as a crew member (payee). */
+router.get(
+  '/my-money',
+  wrap(async (req, res) => {
+    // every deal in the org: a payee may be a crew member who is not a party
+    const deals = await dealService().list(org(req), uid(req), true);
+    const rows = payables.myMoneyRows(deals, uid(req), nowIso());
+    res.json({ data: { rows, asOf: nowIso() } });
+  }),
+);
+
+/**
+ * Approve many milestones. { items: [{dealId, milestoneKey}], dryRun }.
+ * dryRun: what each approve would capture and who gets how much (splitCents);
+ * moves nothing. Otherwise each item runs the single-approve path (clock approve,
+ * or legacy approve + Money Agent tick) and policy decides every money move.
+ */
+router.post(
+  '/payables/bulk-approve',
+  wrap(async (req, res) => {
+    const items = payables.cleanItems(req.body?.items);
+    if (!items) throw bad('invalid_input', 'items must be a list of 1-50 { dealId, milestoneKey }');
+    if (typeof req.body?.dryRun !== 'boolean') throw bad('invalid_input', 'dryRun must be true or false');
+    const out = await payables.bulkApprove(dealService(), org(req), uid(req), items, {
+      dryRun: req.body.dryRun,
+      now: nowIso,
+      names: namesFor,
+    });
+    res.json({ data: out });
+  }),
+);
+
 router.post(
   '/',
   wrap(async (req, res) => {

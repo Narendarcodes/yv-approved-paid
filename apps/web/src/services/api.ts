@@ -2005,3 +2005,111 @@ export async function getPayoutReceipts(orgId: string, dealId: string, key: stri
   if (!res.ok) throw new ApiError(readableError(res, body, `Request failed (${res.status})`), body?.error?.code)
   return body?.data as PayoutReceipts
 }
+
+/* ------------------------------------------------- payables + my money */
+
+export type PayableRow = {
+  dealId: string
+  dealTitle: string
+  milestoneKey: string
+  title: string
+  editorName: string
+  team: { userId: string; name: string; shareBp: number }[]
+  amountMinor: number
+  heldMinor: number
+  releasedMinor: number
+  paidOutMinor: number
+  currency: string
+  state: string
+  hasClock: boolean
+  clockStatus: string | null
+  businessDaysLeft: number | null
+  deadline: string | null
+  graceDeadline: string | null
+  revisionsUsed: number
+  revisionsIncluded: number
+  failedChecks: number
+  waitingDays: number | null
+  holdAgeDays: number | null
+  holdLapsesAt: string | null
+  nextAction: string
+  nextActionCode: string
+  approvable: boolean
+  me: 'client' | 'worker' | null
+}
+export type PayablesView = { rows: PayableRow[]; asOf: string; scope: 'org' | 'brand' }
+
+export type MyMoneyRow = {
+  dealId: string
+  dealTitle: string
+  milestoneKey: string
+  title: string
+  currency: string
+  amountMinor: number
+  mySharePct: number
+  myShareMinor: number
+  releasedMinor: number
+  expectedMinor: number
+  expected: { amountMinor: number; at: string | null; label: string }[]
+  expectedAt: string | null
+  expectedLabel: string | null
+  status: string
+  state: string
+  clockStatus: string | null
+  simulated: boolean
+  payoutCount: number
+}
+export type MyMoneyView = { rows: MyMoneyRow[]; asOf: string }
+
+export type BulkPlanItem = {
+  dealId: string
+  milestoneKey: string
+  dealTitle?: string
+  title?: string
+  currency?: string
+  path?: 'clock' | 'legacy'
+  outcome: 'would_capture' | 'needs_tap' | 'blocked' | 'already_approved' | 'refused'
+  code?: string
+  message: string
+  captureMinor: number
+  payoutMinor: number
+  payees: { userId: string; name: string; shareBp: number; amountMinor: number }[]
+  violations: { rule: string; message: string }[]
+}
+export type BulkDryRun = {
+  dryRun: true
+  moved: false
+  items: BulkPlanItem[]
+  totals: {
+    captureByCurrency: Record<string, number>
+    byPerson: { userId: string; name: string; amountMinor: number; currency: string }[]
+  }
+}
+export type BulkResultItem = {
+  dealId: string
+  milestoneKey: string
+  title?: string
+  dealTitle?: string
+  currency?: string
+  ok: boolean
+  outcome: 'captured' | 'waiting_for_tap' | 'approved' | 'already_approved' | 'refused' | 'error'
+  code?: string
+  state?: string
+  message: string
+  capturedMinor: number
+  paidOutMinor: number
+}
+export type BulkResult = { dryRun: false; moved: boolean; items: BulkResultItem[] }
+
+export function getPayables(orgId: string): Promise<PayablesView> {
+  return getJson<PayablesView>(dealsPath(orgId, '/payables'))
+}
+export function getMyMoney(orgId: string): Promise<MyMoneyView> {
+  return getJson<MyMoneyView>(dealsPath(orgId, '/my-money'))
+}
+export function bulkApproveDryRun(orgId: string, items: { dealId: string; milestoneKey: string }[]): Promise<BulkDryRun> {
+  return sendJson<BulkDryRun>('POST', dealsPath(orgId, '/payables/bulk-approve'), { items, dryRun: true })
+}
+export function bulkApprove(orgId: string, items: { dealId: string; milestoneKey: string }[]): Promise<BulkResult> {
+  return sendJson<BulkResult>('POST', dealsPath(orgId, '/payables/bulk-approve'), { items, dryRun: false })
+}

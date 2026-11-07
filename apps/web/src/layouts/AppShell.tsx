@@ -24,6 +24,8 @@ import {
   X,
   Brain,
   Handshake,
+  Landmark,
+  Wallet,
 } from 'lucide-react'
 import Avatar from '../components/ui'
 import { useViewer } from '../lib/viewer'
@@ -70,6 +72,8 @@ const CRUMBS: Record<string, string> = {
   contracts: 'Contracts',
   invoices: 'Invoices',
   deals: 'Deals',
+  payables: 'Payables',
+  'my-money': "Where's my money",
 }
 
 export default function AppShell() {
@@ -431,6 +435,20 @@ const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] 
     section: 'Workspace',
     items: [
       { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
+      {
+        // brands approve (admin, reviewer); editors manage deals (deal.manage)
+        to: '/payables',
+        label: 'Payables',
+        icon: () => <Landmark {...iconProps} />,
+        roles: ['admin', 'reviewer', 'editor'],
+      },
+      {
+        // crew members: anyone who can be named on a deal's team
+        to: '/my-money',
+        label: "Where's my money",
+        icon: () => <Wallet {...iconProps} />,
+        roles: ['admin', 'editor', 'designer', 'publisher', 'member'],
+      },
       { to: '/projects', label: 'Projects', icon: () => <FolderKanban {...iconProps} /> },
       {
         to: '/review',

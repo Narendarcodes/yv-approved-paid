@@ -797,3 +797,18 @@ body {
   .marquee-track { animation: none; }
   .landing * { transition-duration: 0.01ms !important; }
 }
+
+/* AG Grid money grids (/payables, /my-money): theme params live in components/grid/agGrid.ts;
+   only the header's mono micro-label (DESIGN.md .table-head) needs CSS. */
+.yv-grid .ag-header-cell-text {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.yv-grid .ag-root-wrapper {
+  box-shadow: var(--shadow-1);
+}
+/* autoHeight grids keep a ~150px minimum body for overlays; ours render their own empty state */
+.yv-grid .ag-grid-scrolling-rows.ag-layout-auto-height {
+  min-height: 0 !important;
+}
