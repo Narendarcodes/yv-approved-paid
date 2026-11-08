@@ -2,8 +2,11 @@
  * Shared bits for the deal cards (Approved = Paid).
  * AI checks facts, people own taste, the deal decides the money.
  */
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import { PAYPAL_ENV, paypalEnv } from '../../lib/deals'
+
+/** Inside a DealSection a card drops its own frame and title: the section header carries them. */
+export const BareCards = createContext(false)
 
 /** A deal card: white surface, hairline border, header row with title + right-side meta. */
 export function DealCardShell({
@@ -21,6 +24,15 @@ export function DealCardShell({
   footer?: ReactNode
   testId?: string
 }) {
+  const bare = useContext(BareCards)
+  if (bare)
+    return (
+      <div data-testid={testId}>
+        {meta && <div className="mb-3 flex flex-wrap items-center gap-2">{meta}</div>}
+        {children}
+        {footer && <div className="mt-4 flex flex-wrap items-center gap-2">{footer}</div>}
+      </div>
+    )
   return (
     <section className="card overflow-hidden" data-testid={testId}>
       <div className="card-head justify-between">

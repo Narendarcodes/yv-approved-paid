@@ -1,28 +1,40 @@
 /**
- * JudgeTour: a dismissible three-step strip on the demo deal. Each step scrolls
- * to (or opens) the thing a judge should see; nothing here moves money.
+ * JudgeTour: one small "Tour" button on the demo deal. It opens three steps;
+ * each selects the right reel, opens the right section and scrolls to it.
+ * Nothing here moves money.
  *
- *   1. the money timeline and the PayPal ids behind it
+ *   1. the money trail and the PayPal ids behind it
  *   2. the dispute split card (checklist arithmetic, two taps)
  *   3. the copilot asked to "Capture $450 on reel 1": policy blocks it
  */
-import { useState } from 'react'
-import { Check, Compass, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Compass } from 'lucide-react'
 
 const KEY = 'yv.judgeTour.dismissed'
 
 export const JUDGE_TOUR_ASK = 'Capture $450 on reel 1'
 
-function scrollTo(selector: string) {
+/** Scroll to the first match once it renders, with a short highlight ring. */
+export function scrollToWhenReady(selector: string, tries = 20) {
   const el = document.querySelector(selector)
-  if (!el) return false
+  if (!el) {
+    if (tries > 0) window.setTimeout(() => scrollToWhenReady(selector, tries - 1), 100)
+    return
+  }
   el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   el.classList.add('ring-2', 'ring-teal/40')
   window.setTimeout(() => el.classList.remove('ring-2', 'ring-teal/40'), 1800)
-  return true
 }
 
-export default function JudgeTour({ onAsk }: { onAsk: (text: string) => void }) {
+export default function JudgeTour({
+  onMoney,
+  onDispute,
+  onAsk,
+}: {
+  onMoney: () => void
+  onDispute: () => void
+  onAsk: (text: string) => void
+}) {
   const [hidden, setHidden] = useState(() => {
     try {
       return localStorage.getItem(KEY) === '1'
@@ -30,9 +42,23 @@ export default function JudgeTour({ onAsk }: { onAsk: (text: string) => void }) 
       return false
     }
   })
+  const [open, setOpen] = useState(false)
   const [done, setDone] = useState<number[]>([])
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const off = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', off)
+    document.addEventListener('keydown', esc)
+    return () => {
+      document.removeEventListener('mousedown', off)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [open])
   if (hidden) return null
-  const mark = (i: number) => setDone((d) => (d.includes(i) ? d : [...d, i]))
   const dismiss = () => {
     try {
       localStorage.setItem(KEY, '1')
@@ -42,55 +68,61 @@ export default function JudgeTour({ onAsk }: { onAsk: (text: string) => void }) 
     setHidden(true)
   }
   const steps: { label: string; run: () => void }[] = [
-    {
-      label: 'Where the money is',
-      run: () => scrollTo('[data-testid=paypal-holds]') || scrollTo('[data-testid=money-timeline]'),
-    },
-    { label: 'The dispute split', run: () => scrollTo('[data-testid=dispute-split-card]') },
-    { label: `Ask: "${JUDGE_TOUR_ASK}"`, run: () => onAsk(JUDGE_TOUR_ASK) },
+    { label: 'Where the money is', run: onMoney },
+    { label: 'The dispute split', run: onDispute },
+    { label: `Ask "${JUDGE_TOUR_ASK}"`, run: () => onAsk(JUDGE_TOUR_ASK) },
   ]
   return (
-    <div
-      className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-teal/25 bg-tint/40 px-4 py-2.5"
-      data-testid="judge-tour"
-      role="region"
-      aria-label="Judge tour"
-    >
-      <span className="inline-flex items-center gap-1.5 text-xs text-teal">
-        <Compass size={14} strokeWidth={2} aria-hidden="true" /> Judge tour
-      </span>
-      <ol className="flex min-w-0 flex-1 flex-wrap gap-2">
-        {steps.map((s, i) => (
-          <li key={s.label}>
+    <div className="relative" ref={ref} data-testid="judge-tour">
+      <button
+        type="button"
+        className="btn-ghost btn-xs"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Compass size={14} strokeWidth={1.5} aria-hidden="true" />
+        Tour
+      </button>
+      {open && (
+        <div
+          role="menu"
+          aria-label="Judge tour"
+          className="absolute right-0 z-30 mt-1 w-64 rounded-xl border border-line bg-surface p-1.5 shadow-pop"
+        >
+          {steps.map((s, i) => (
             <button
+              key={s.label}
               type="button"
+              role="menuitem"
+              className="menu-item w-full"
               onClick={() => {
                 s.run()
-                mark(i)
+                setDone((d) => (d.includes(i) ? d : [...d, i]))
+                setOpen(false)
               }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-[12px] text-ink hover:border-teal hover:text-teal"
               data-testid={`judge-tour-step-${i + 1}`}
             >
               <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full text-xs ${done.includes(i) ? 'bg-teal text-on-accent' : 'bg-ink/10 text-umber'}`}
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${done.includes(i) ? 'bg-teal text-on-accent' : 'bg-ink/[0.06] text-umber'}`}
                 aria-hidden="true"
               >
-                {done.includes(i) ? <Check size={10} strokeWidth={3} /> : i + 1}
+                {done.includes(i) ? <Check size={11} strokeWidth={2.5} /> : i + 1}
               </span>
               {s.label}
             </button>
-          </li>
-        ))}
-      </ol>
-      <button
-        type="button"
-        onClick={dismiss}
-        className="icon-btn icon-btn-sm"
-        aria-label="Dismiss the judge tour"
-        data-testid="judge-tour-dismiss"
-      >
-        <X size={14} strokeWidth={2} />
-      </button>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            className="menu-item w-full text-umber"
+            onClick={dismiss}
+            data-testid="judge-tour-dismiss"
+          >
+            Hide tour
+          </button>
+        </div>
+      )}
     </div>
   )
 }

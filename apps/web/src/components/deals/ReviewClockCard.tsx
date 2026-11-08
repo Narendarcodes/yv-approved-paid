@@ -1,26 +1,16 @@
 /**
  * ReviewClockCard: the Fair Review Clock on one milestone, the same card for
- * both sides. A big countdown in business days, the deadline in the reviewer's
- * timezone, a progress bar with the 50% / 80% / 24 h reminder marks, the
- * plain-English line of what silence does, rounds used, and the shared
- * timeline both sides see.
+ * both sides. One line: state, business days left (or what silence pays the
+ * editor, and when), and the client's actions. The chevron opens the detail:
+ * progress bar with the 50% / 80% / 24 h marks, the plain-English silence
+ * rule, rounds used, and the shared timeline.
  *
- * Client: Approve & release (confirms the exact amount), Request changes (a
- * citation is required: a brief item or a failed check), Dispute (confirms
- * that it freezes the rest). Editor: no buttons, plus what silence pays them
- * and when. Polls every 15 s. Every amount and date comes from the API.
+ * Client: Approve & release (confirms the exact amount), Request changes (the
+ * picker requires a brief item or failed check), Dispute (confirms that it
+ * freezes the rest). Polls every 15 s. Every amount and date comes from the API.
  */
 import { useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  ChevronDown,
-  CircleCheck,
-  Clock3,
-  Gavel,
-  MessageSquareDiff,
-  PauseCircle,
-  Receipt,
-} from 'lucide-react'
+import { AlertTriangle, ChevronDown, CircleCheck, Gavel, Receipt } from 'lucide-react'
 import { Modal } from '../primitives'
 import { useToast } from '../toast'
 import * as api from '../../services/api'
@@ -35,7 +25,6 @@ import {
   progressOf,
   useMilestoneClock,
 } from '../../lib/clock'
-import { DealCardShell } from './common'
 
 type Dialog = null | 'approve' | 'changes' | 'dispute'
 
@@ -180,10 +169,9 @@ export default function ReviewClockCard({
 
   if (!pair || q.isLoading) {
     return q.isLoading ? (
-      <div className="card p-5" aria-busy="true">
-        <div className="skeleton h-4 w-32" />
-        <div className="skeleton mt-3 h-8 w-56" />
-        <div className="skeleton mt-4 h-2 w-full" />
+      <div className="card flex items-center gap-3 px-4 py-3" aria-busy="true">
+        <div className="skeleton h-5 w-20" />
+        <div className="skeleton h-4 w-56" />
       </div>
     ) : null
   }
@@ -251,9 +239,7 @@ export default function ReviewClockCard({
   }
   const doChanges = async () => {
     if (!citation) {
-      setPickError(
-        'Pick the brief item or failed check this change is about. A change request without one is not sent.',
-      )
+      setPickError('Choose the brief item first')
       return
     }
     setBusy(true)
@@ -307,143 +293,114 @@ export default function ReviewClockCard({
           ]
       : []
 
+  const when =
+    live && v.state.deadline
+      ? graceNow
+        ? `grace ends ${inZone(v.state.graceDeadline, tz)}`
+        : `ends ${inZone(v.state.deadline, tz)}`
+      : cd.small
+
   return (
     <>
-      <DealCardShell
-        testId="review-clock-card"
-        label="Fair review clock"
-        title="Review clock"
-        meta={<StatusPill v={v} />}
-        footer={
-          isClient && live ? (
-            <>
-              <button
-                className="btn-primary"
-                disabled={busy || !inReview || !latest}
-                onClick={() => setDialog('approve')}
-              >
-                <CircleCheck size={15} strokeWidth={2} />
-                Approve &amp; release
-              </button>
-              <button
-                className="btn-secondary"
-                disabled={busy || !inReview}
-                onClick={() => setDialog('changes')}
-              >
-                <MessageSquareDiff size={15} strokeWidth={2} />
-                Request changes
-              </button>
-              <button
-                className="btn-ghost text-danger"
-                disabled={busy}
-                onClick={() => setDialog('dispute')}
-              >
-                <Gavel size={15} strokeWidth={2} />
-                Dispute
-              </button>
-            </>
-          ) : undefined
-        }
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tint text-teal"
-            aria-hidden="true"
-          >
-            {v.status === 'paused' ? (
-              <PauseCircle size={18} strokeWidth={1.75} />
-            ) : (
-              <Clock3 size={18} strokeWidth={1.75} />
-            )}
-          </span>
-          <div className="min-w-0">
-            <p
-              className="font-headline text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink"
-              data-testid="clock-countdown"
-            >
+      <section className="card overflow-hidden" data-testid="review-clock-card">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+          <StatusPill v={v} />
+          <p className="min-w-0 flex-1 text-[14px] text-ink">
+            <span className="font-medium" data-testid="clock-countdown">
               {cd.big}
-            </p>
-            <p className="mt-0.5 text-[12.5px] text-umber">
-              {cd.small ? `${cd.small} · ` : ''}
-              {live && v.state.deadline
-                ? graceNow
-                  ? `Grace ends ${inZone(v.state.graceDeadline, tz)}`
-                  : `Review ends ${inZone(v.state.deadline, tz)}`
-                : `Reviewer's timezone: ${tz}`}
-            </p>
-          </div>
-        </div>
-
-        {live && <Bar v={v} />}
-
-        <p
-          className="mt-3 rounded-[10px] bg-canvas px-3 py-2.5 text-[13.5px] leading-snug text-ink"
-          data-testid="clock-line"
-        >
-          {v.state.line}
-        </p>
-
-        {silence.length > 0 && (
-          <div
-            className="mt-3 rounded-[10px] border border-st-scheduled/20 bg-st-scheduled-bg px-3 py-2.5"
-            data-testid="clock-silence"
-          >
-            <p className="micro-label !text-st-scheduled">What you'll get on silence</p>
-            <ul className="mt-1 space-y-0.5 text-[13px] text-ink">
-              {silence.map((s, i) => (
-                <li key={i}>
-                  <span className="t-num">{money(s.amount, cur)}</span> on {inZone(s.at, tz)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          <span
-            className={`chip ${roundsLeft <= 0 ? 'chip-warning' : 'chip-neutral'}`}
-            data-testid="clock-rounds"
-          >
-            Revisions used {v.revisionsUsed} of {v.includedRevisionRounds}
-          </span>
-          {v.status === 'paused' && <span className="chip chip-warning">Paused</span>}
-          {v.amounts && v.terms.partialReleasePct > 0 && (
-            <span className="chip chip-neutral">
-              {v.terms.partialReleasePct}% on silence · {v.terms.graceBusinessDays} grace day
-              {v.terms.graceBusinessDays === 1 ? '' : 's'}
             </span>
-          )}
-          <span className="chip chip-neutral">
-            Held {money(held, cur)} of {money(total, cur)}
-          </span>
-        </div>
-
-        <div className="mt-4 border-t border-line pt-3">
-          <button
-            className="flex w-full items-center justify-between text-left text-[13px] font-medium text-ink"
-            aria-expanded={open}
-            onClick={() => setOpen((o) => !o)}
-            data-testid="clock-timeline-toggle"
-          >
-            <span>
-              Timeline{' '}
-              <span className="font-normal text-umber">
-                · {v.timeline.length} event{v.timeline.length === 1 ? '' : 's'}, the same log both
-                sides see
+            {silence.length > 0 ? (
+              <span className="text-umber" data-testid="clock-silence">
+                {' '}
+                · <span className="t-num">{money(silence[0].amount, cur)}</span> to you{' '}
+                {inZone(silence[0].at, tz)}
               </span>
-            </span>
-            <ChevronDown
-              size={16}
-              className={`shrink-0 text-umber transition-transform ${open ? 'rotate-180' : ''}`}
-              aria-hidden="true"
-            />
-          </button>
-          {open && (
-            <ol className="mt-2 space-y-2" data-testid="clock-timeline">
+            ) : (
+              when && <span className="text-umber"> · {when}</span>
+            )}
+          </p>
+          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {isClient && live && (
+              <>
+                <button
+                  className="btn-primary btn-xs"
+                  disabled={busy || !inReview || !latest}
+                  onClick={() => setDialog('approve')}
+                >
+                  <CircleCheck size={14} strokeWidth={2} />
+                  Approve &amp; release
+                </button>
+                <button
+                  className="btn-ghost btn-xs"
+                  disabled={busy || !inReview}
+                  onClick={() => setDialog('changes')}
+                >
+                  Request changes
+                </button>
+                <button
+                  className="icon-btn icon-btn-sm text-umber hover:text-danger"
+                  disabled={busy}
+                  onClick={() => setDialog('dispute')}
+                  aria-label="Dispute"
+                  title="Dispute"
+                >
+                  <Gavel size={15} strokeWidth={1.75} />
+                </button>
+              </>
+            )}
+            <button
+              className="icon-btn icon-btn-sm text-umber"
+              aria-expanded={open}
+              aria-label="Clock details"
+              title="Clock details"
+              onClick={() => setOpen((o) => !o)}
+              data-testid="clock-timeline-toggle"
+            >
+              <ChevronDown
+                size={15}
+                className={`transition-transform ${open ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </div>
+
+        {open && (
+          <div className="border-t border-line px-4 pb-4 pt-1">
+            {live && <Bar v={v} />}
+            <p className="mt-3 text-[13px] leading-snug text-ink" data-testid="clock-line">
+              {v.state.line}
+            </p>
+            {silence.length > 1 && (
+              <ul className="mt-2 space-y-0.5 text-[13px] text-umber">
+                {silence.map((s, i) => (
+                  <li key={i}>
+                    <span className="t-num text-ink">{money(s.amount, cur)}</span> on{' '}
+                    {inZone(s.at, tz)}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span
+                className={`chip ${roundsLeft <= 0 ? 'chip-warning' : 'chip-neutral'}`}
+                data-testid="clock-rounds"
+              >
+                Revisions {v.revisionsUsed} of {v.includedRevisionRounds}
+              </span>
+              {v.amounts && v.terms.partialReleasePct > 0 && (
+                <span className="chip chip-neutral">
+                  {v.terms.partialReleasePct}% on silence · {v.terms.graceBusinessDays} grace day
+                  {v.terms.graceBusinessDays === 1 ? '' : 's'}
+                </span>
+              )}
+              <span className="chip chip-neutral">
+                Held {money(held, cur)} of {money(total, cur)}
+              </span>
+            </div>
+            <ol className="mt-4 space-y-2" data-testid="clock-timeline">
               {v.timeline.length === 0 && (
-                <li className="text-[12.5px] text-umber">
-                  Nothing yet. The clock starts when the automatic checks pass.
-                </li>
+                <li className="text-[13px] text-umber">Starts when the checks pass</li>
               )}
               {[...v.timeline]
                 .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
@@ -467,9 +424,9 @@ export default function ReviewClockCard({
                   </li>
                 ))}
             </ol>
-          )}
-        </div>
-      </DealCardShell>
+          </div>
+        )}
+      </section>
 
       <Modal open={dialog === 'approve'} onClose={close} title="Approve and release">
         <p className="text-[14px] text-ink">
@@ -479,10 +436,6 @@ export default function ReviewClockCard({
             ? ` (the rest of ${money(total, cur)}; ${money(total - held, cur)} was already released)`
             : ''}
           .
-        </p>
-        <p className="mt-2 text-[12.5px] text-umber">
-          The review clock stops. The Money Agent captures it through policy and pays the signed
-          split.
         </p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button className="btn-secondary" onClick={close}>
@@ -557,47 +510,54 @@ export default function ReviewClockCard({
           </div>
         ) : (
           <form
+            noValidate
             onSubmit={(e) => {
               e.preventDefault()
               void doChanges()
             }}
             data-testid="change-picker"
           >
-            <fieldset>
-              <legend className="label">Cite the brief line or failed check</legend>
-              <div className="mt-2 max-h-[38vh] space-y-1.5 overflow-y-auto pr-1" role="radiogroup">
-                {options.map((o) => (
-                  <label
-                    key={o.id}
-                    className={`flex cursor-pointer items-start gap-2.5 rounded-[10px] border px-3 py-2 text-[13.5px] ${
-                      citation === o.id
-                        ? 'border-teal bg-tint'
-                        : 'border-line hover:border-line-strong'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="citation"
-                      value={o.id}
-                      checked={citation === o.id}
-                      onChange={() => {
-                        setCitation(o.id)
-                        setPickError(null)
-                      }}
-                      className="mt-1 accent-[#035E5E]"
-                    />
-                    <span className="min-w-0 flex-1 text-ink">{o.text}</span>
-                    <span
-                      className={`chip shrink-0 ${o.kind === 'failed' ? 'chip-danger' : 'chip-neutral'}`}
-                    >
-                      {o.kind === 'failed' ? 'Failed check' : 'Brief'}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <label className="label block" htmlFor="clock-change-cite">
+              Which brief item?
+            </label>
+            <select
+              id="clock-change-cite"
+              className="input mt-1 w-full"
+              required
+              aria-required="true"
+              aria-invalid={!!pickError}
+              value={citation}
+              onChange={(e) => {
+                setCitation(e.target.value)
+                setPickError(null)
+              }}
+            >
+              <option value="" disabled>
+                Choose one
+              </option>
+              {options.some((o) => o.kind === 'failed') && (
+                <optgroup label="Failed checks">
+                  {options
+                    .filter((o) => o.kind === 'failed')
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.text}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              <optgroup label="Brief">
+                {options
+                  .filter((o) => o.kind === 'brief')
+                  .map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.text}
+                    </option>
+                  ))}
+              </optgroup>
+            </select>
             <label className="label mt-4 block" htmlFor="clock-change-text">
-              Note for the editor (optional)
+              Note
             </label>
             <textarea
               id="clock-change-text"
@@ -607,21 +567,13 @@ export default function ReviewClockCard({
               onChange={(e) => setText(e.target.value)}
               placeholder="What should change?"
             />
-            {roundsLeft <= 0 ? (
-              <p className="mt-3 rounded-[10px] bg-st-production-bg px-3 py-2 text-[12.5px] text-st-production">
-                All {v.includedRevisionRounds} included rounds are used. This becomes a paid change
-                order
-                {roundItem
-                  ? ` of ${money(roundItem.unitPriceMinor, cur)} from the signed rate card`
-                  : ''}
-                .
-              </p>
-            ) : (
-              <p className="mt-3 text-[12.5px] text-umber">
-                Uses round {v.revisionsUsed + 1} of {v.includedRevisionRounds}. The clock pauses
-                until the editor redelivers.
-              </p>
-            )}
+            <p
+              className={`mt-3 text-[13px] ${roundsLeft <= 0 ? 'text-st-production' : 'text-umber'}`}
+            >
+              {roundsLeft <= 0
+                ? `Paid change order${roundItem ? ` · ${money(roundItem.unitPriceMinor, cur)}` : ''}`
+                : `Round ${v.revisionsUsed + 1} of ${v.includedRevisionRounds}`}
+            </p>
             {pickError && (
               <p
                 className="mt-3 text-[12.5px] text-danger"

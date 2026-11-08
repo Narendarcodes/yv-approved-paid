@@ -16,6 +16,31 @@ import type { DealView } from '../../contracts/types'
 import { money, roleWord, shortHash, when } from '../../lib/deals'
 import { DealCardShell } from './common'
 
+/** Start the PayPal hold for one milestone (opens PayPal's approve page). Shared by the terms table and the reel's next action. */
+export function useFundMilestone(deal: DealView, orgId: string, onChanged?: () => void) {
+  const toast = useToast()
+  const [funding, setFunding] = useState<string | null>(null)
+  const fund = async (key: string) => {
+    setFunding(key)
+    try {
+      const d = await api.fundMilestone(orgId, deal.id, key)
+      const url = d.milestones.find((m) => m.key === key)?.funding?.approveUrl
+      if (url) window.open(url, '_blank', 'noopener')
+      toast(
+        'info',
+        'PayPal hold started',
+        'Approve the hold on PayPal; nothing is charged until the work is approved.',
+      )
+      onChanged?.()
+    } catch (e: any) {
+      toast('danger', 'Could not start funding', e?.message || 'Try again')
+    } finally {
+      setFunding(null)
+    }
+  }
+  return { fund, funding }
+}
+
 export default function DealCard({
   deal,
   orgId,
@@ -45,24 +70,7 @@ export default function DealCard({
     }
   }
 
-  const fund = async (key: string) => {
-    setBusy(`fund:${key}`)
-    try {
-      const d = await api.fundMilestone(orgId, deal.id, key)
-      const url = d.milestones.find((m) => m.key === key)?.funding?.approveUrl
-      if (url) window.open(url, '_blank', 'noopener')
-      toast(
-        'info',
-        'PayPal hold started',
-        'Approve the hold on PayPal; nothing is charged until the work is approved.',
-      )
-      onChanged?.()
-    } catch (e: any) {
-      toast('danger', 'Could not start funding', e?.message || 'Try again')
-    } finally {
-      setBusy(null)
-    }
-  }
+  const { fund, funding } = useFundMilestone(deal, orgId, onChanged)
 
   return (
     <DealCardShell
@@ -151,7 +159,7 @@ export default function DealCard({
                     {canFund && (
                       <button
                         className="btn-secondary !h-8 text-[12px]"
-                        disabled={busy === `fund:${t.key}`}
+                        disabled={funding === t.key}
                         onClick={() => fund(t.key)}
                       >
                         <Wallet size={13} strokeWidth={2} />

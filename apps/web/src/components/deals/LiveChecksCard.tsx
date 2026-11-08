@@ -155,7 +155,7 @@ export default function LiveChecksCard({
       meta={
         version ? (
           <span className="font-mono text-xs text-label">
-            VERSION {version.id} · {shortHash(version.sha256, 8)}
+            {version.id} · {shortHash(version.sha256, 8)}
           </span>
         ) : undefined
       }

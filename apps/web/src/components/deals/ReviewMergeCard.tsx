@@ -68,9 +68,7 @@ export default function ReviewMergeCard({
       testId="review-merge-card"
       label="Review merge"
       title={terms.title}
-      meta={
-        p ? <span className="font-mono text-xs text-label">VERSION {p.versionId}</span> : undefined
-      }
+      meta={p ? <span className="font-mono text-xs text-label">{p.versionId}</span> : undefined}
       footer={
         canSend ? (
           <button className="btn-primary" disabled={busy} onClick={send}>
