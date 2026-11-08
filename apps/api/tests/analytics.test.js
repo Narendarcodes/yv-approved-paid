@@ -211,7 +211,8 @@ describe('analytics API (demo mode, simulated series)', () => {
     // "This month" fixtures must stay inside the current UTC month even in the
     // first days of a month (now - 10 days would land in last month).
     const monthStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-    const daysAgoThisMonth = (d) => new Date(Math.max(now - d * DAY, monthStart + (now - monthStart) / (d + 1)));
+    const daysAgoThisMonth = (d) =>
+      new Date(Math.max(now - d * DAY, monthStart + (now - monthStart) / (d + 1)));
     projects = [
       await Project.create({
         organizationId: orgId,
@@ -411,7 +412,8 @@ describe('dashboard pipeline', () => {
       platform: 'Instagram',
       provider: 'local',
       status: 'scheduled',
-      scheduledFor: new Date(Date.now() + 5 * 60000),
+      // now, not now + 5 min: +5 min crossed midnight (team tz) when CI ran at 23:57 IST
+      scheduledFor: new Date(),
       publishedAt: null,
     });
 
