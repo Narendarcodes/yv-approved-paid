@@ -1,8 +1,9 @@
 /**
  * /payables: every milestone's money across the org's deals, for the brand and
- * deal managers. AG Grid (Community) with sorting, a quick search, checkbox
- * selection and CSV export, plus a plain-language filter box whose parsed
- * filters are always shown as chips the user can edit or remove. "Approve
+ * deal managers. AG Grid (Community) with sorting, checkbox selection and CSV
+ * export. One box filters and searches: it suggests the plain-language filters
+ * as you type; what parses becomes an editable chip, anything else is a plain
+ * text search over the rows. "Approve
  * selected" always shows a dry run (what would be captured, who gets how much)
  * before anything moves; the server re-applies policy and the tap rules.
  */
@@ -16,7 +17,15 @@ import type {
   RowSelectionOptions,
   SelectionChangedEvent,
 } from 'ag-grid-community'
-import { AlertTriangle, CheckCircle2, Download, Search, X, XCircle, Clock3 } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  CornerDownLeft,
+  Download,
+  Search,
+  X,
+  XCircle,
+} from 'lucide-react'
 import { yvGridTheme } from '../components/grid/agGrid'
 import { payableStatus, shortDate, StatusPill, useNarrow } from '../components/grid/moneyGrid'
 import { PageHeader } from '../components/ui'
@@ -36,7 +45,15 @@ import {
 import * as api from '../services/api'
 import type { BulkDryRun, BulkResult, PayableRow } from '../services/api'
 
-const EXAMPLES = ['held over $300', 'in grace', 'failed checks', 'lapsing soon', 'waiting 3+ days']
+const SUGGESTIONS = [
+  'held over $300',
+  'in grace',
+  'failed checks',
+  'lapsing soon',
+  'waiting 3+ days',
+  'ready to approve',
+  'days left under 2',
+]
 
 function sumByCurrency(rows: { currency?: string; v: number }[]): string {
   const by: Record<string, number> = {}
@@ -47,92 +64,49 @@ function sumByCurrency(rows: { currency?: string; v: number }[]): string {
 
 /* ------------------------------------------------------------ cells */
 
-function DealCell(p: ICellRendererParams<PayableRow>) {
+function MilestoneCell(p: ICellRendererParams<PayableRow> & { showDeal?: boolean }) {
   if (!p.data) return null
   return (
     <Link
-      to={`/deals/${encodeURIComponent(p.data.dealId)}`}
-      className="flex h-full items-center truncate font-medium text-teal hover:underline"
+      to={`/deals/${encodeURIComponent(p.data.dealId)}?reel=${encodeURIComponent(p.data.milestoneKey)}`}
+      className="flex h-full min-w-0 items-center gap-1.5 text-ink hover:text-teal"
+      title={`${p.data.title} · ${p.data.dealTitle}`}
     >
-      {p.data.dealTitle}
+      <span className="truncate">{p.data.title}</span>
+      {p.showDeal && <span className="truncate text-umber">· {p.data.dealTitle}</span>}
     </Link>
   )
 }
-function MilestoneCell(
-  p: ICellRendererParams<PayableRow> & { compact?: boolean; narrow?: boolean },
-) {
-  if (!p.data) return null
-  const team = p.data.team.map((t) => t.name).join(', ')
-  if (p.narrow) {
-    // phones: the status pill moves under the title so held and status both stay visible
-    const st = payableStatus(p.data.state, p.data.clockStatus)
-    return (
-      <span className="flex h-full min-w-0 flex-col justify-center gap-1 leading-tight">
-        <span className="truncate text-ink" title={`${p.data.title} · ${p.data.dealTitle}`}>
-          {p.data.title}
-        </span>
-        <span className="flex min-w-0">
-          <StatusPill label={st.label} stage={st.stage} />
-        </span>
-      </span>
-    )
-  }
-  return (
-    <span className="flex h-full min-w-0 flex-col justify-center leading-tight">
-      <span className="truncate text-ink" title={p.data.title}>
-        {p.data.title}
-      </span>
-      {p.compact && (
-        <span className="truncate text-xs text-umber" title={`${p.data.dealTitle} · ${team}`}>
-          {p.data.dealTitle} · {team}
-        </span>
-      )}
-    </span>
-  )
-}
-function StatusCell(p: ICellRendererParams<PayableRow>) {
-  if (!p.data) return null
-  const s = payableStatus(p.data.state, p.data.clockStatus)
-  return <StatusPill label={s.label} stage={s.stage} />
-}
-function FailedCell(p: ICellRendererParams<PayableRow>) {
-  const n = p.data?.failedChecks ?? 0
-  return n > 0 ? (
-    <span className="chip chip-danger" title={`${n} failed check${n === 1 ? '' : 's'}`}>
-      {n}
-    </span>
-  ) : (
-    <span className="text-umber">0</span>
-  )
-}
-function HoldAgeCell(p: ICellRendererParams<PayableRow> & { nowMs: number }) {
+/** State, plus what needs an eye in the same cell: failed checks and a PayPal hold close to lapsing. */
+function StatusCell(p: ICellRendererParams<PayableRow> & { nowMs: number }) {
   const r = p.data
-  if (!r || r.holdAgeDays == null) return <span className="text-umber">—</span>
+  if (!r) return null
+  const s = payableStatus(r.state, r.clockStatus)
   const left = daysToLapse(r.holdLapsesAt, p.nowMs)
-  const warn = left != null && left <= LAPSING_SOON_DAYS
+  const lapsing = left != null && left <= LAPSING_SOON_DAYS
   return (
-    <span
-      className="flex items-center gap-1.5"
-      title={
-        r.holdLapsesAt
-          ? `PayPal hold lapses ${new Date(r.holdLapsesAt).toLocaleString()}`
-          : undefined
-      }
-    >
-      <span>{r.holdAgeDays}d</span>
-      {left != null && (
+    <span className="flex h-full items-center gap-1.5">
+      <StatusPill label={s.label} stage={s.stage} />
+      {r.failedChecks > 0 && (
+        <span className="chip chip-danger !px-2">{r.failedChecks} failed</span>
+      )}
+      {lapsing && (
         <span
-          className={`chip ${warn ? 'chip-warning' : 'chip-neutral'} !px-2`}
-          data-testid={warn ? 'lapse-warn' : undefined}
+          className="chip chip-warning !px-2"
+          data-testid="lapse-warn"
+          title={
+            r.holdLapsesAt
+              ? `PayPal hold lapses ${new Date(r.holdLapsesAt).toLocaleString()}`
+              : undefined
+          }
         >
-          {warn && <AlertTriangle size={11} strokeWidth={2} />}
-          {left <= 0 ? 'lapses today' : `${left}d left`}
+          <AlertTriangle size={11} strokeWidth={2} />
+          {left <= 0 ? 'Hold lapses today' : `Hold lapses in ${left}d`}
         </span>
       )}
     </span>
   )
 }
-
 /* ------------------------------------------------------------ chips */
 
 function FilterChip({
@@ -174,7 +148,7 @@ function FilterChip({
     )
   return (
     <span
-      className={`chip ${unknown ? 'chip-warning' : 'chip-teal'} !h-7 !pr-1`}
+      className={`chip ${unknown ? 'chip-neutral' : 'chip-teal'} !h-7 !pr-1`}
       data-testid="filter-chip"
       data-kind={f.kind}
     >
@@ -187,7 +161,7 @@ function FilterChip({
         }}
         title={`Edit: ${f.text}`}
       >
-        {f.label}
+        {unknown ? `“${f.text}”` : f.label}
       </button>
       <button
         type="button"
@@ -403,8 +377,6 @@ export default function PayablesPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const narrow = useNarrow()
-  // below this width the deal and team fold into the milestone cell so every money column fits
-  const compact = useNarrow(1500)
   const gridRef = useRef<AgGridReact<PayableRow>>(null)
   const q = useQuery({
     queryKey: ['payables', orgId],
@@ -413,7 +385,8 @@ export default function PayablesPage() {
   })
   const [text, setText] = useState('')
   const [filters, setFilters] = useState<PayableFilter[]>([])
-  const [quick, setQuick] = useState('')
+  const [focused, setFocused] = useState(false)
+  const [hi, setHi] = useState(-1)
   const [selected, setSelected] = useState<PayableRow[]>([])
   const [dialog, setDialog] = useState(false)
   const [plan, setPlan] = useState<BulkDryRun | null>(null)
@@ -433,50 +406,71 @@ export default function PayablesPage() {
     setText(filtersToText(next))
   }
   const applyText = () => apply(parseFilter(text))
-  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') applyText()
+  // text that is not a filter searches the rows
+  const quick = filters
+    .filter((f) => f.kind === 'unknown')
+    .map((f) => f.text)
+    .join(' ')
+  // suggest for the clause being typed (after the last "and" or comma)
+  const parts = text.split(/\s*(?:,|\band\b)\s*/i)
+  const typing = (parts[parts.length - 1] || '').trim().toLowerCase()
+  const suggestions = SUGGESTIONS.filter(
+    (x) => x.includes(typing) && !filters.some((f) => f.text.toLowerCase() === x),
+  ).slice(0, 5)
+  const pick = (x: string) => {
+    const head = parts.slice(0, -1).filter(Boolean)
+    apply(parseFilter([...head, x].join(' and ')))
+    setHi(-1)
   }
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHi((i) => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHi((i) => Math.max(i - 1, -1))
+    } else if (e.key === 'Enter') {
+      if (hi >= 0 && suggestions[hi]) pick(suggestions[hi])
+      else applyText()
+      setFocused(false)
+    } else if (e.key === 'Escape') setFocused(false)
+  }
+  const showDeal = new Set(rows.map((r) => r.dealId)).size > 1
 
+  // Deal, Team, Revisions, Failed and Hold age stay as hidden columns so the CSV keeps every field.
   const cols = useMemo<ColDef<PayableRow>[]>(
     () => [
-      {
-        headerName: 'Deal',
-        field: 'dealTitle',
-        cellRenderer: DealCell,
-        minWidth: 150,
-        flex: 1.1,
-        hide: compact,
-      },
+      { headerName: 'Deal', field: 'dealTitle', hide: true },
       {
         headerName: 'Milestone',
         field: 'title',
         cellRenderer: MilestoneCell,
-        cellRendererParams: { compact, narrow },
-        minWidth: narrow ? 130 : 170,
-        flex: 1.4,
+        cellRendererParams: { showDeal: showDeal && !narrow },
+        minWidth: narrow ? 130 : 220,
+        flex: 1.6,
       },
       {
         headerName: 'Team',
         colId: 'team',
         valueGetter: (p) => (p.data ? p.data.team.map((t) => t.name).join(', ') : ''),
-        minWidth: 150,
-        flex: 1,
-        hide: compact,
+        hide: true,
       },
       {
         headerName: 'Held',
         field: 'heldMinor',
         valueFormatter: (p) => (p.data ? money(p.value, p.data.currency) : ''),
-        width: narrow ? 92 : 100,
-        cellClass: 'font-medium',
+        width: narrow ? 92 : 110,
+        type: 'rightAligned',
+        cellClass: 'ag-right-aligned-cell font-medium t-num',
       },
       {
         headerName: 'Status',
         colId: 'status',
         valueGetter: (p) => (p.data ? payableStatus(p.data.state, p.data.clockStatus).label : ''),
         cellRenderer: StatusCell,
-        minWidth: 180,
-        hide: narrow,
+        cellRendererParams: { nowMs },
+        minWidth: narrow ? 150 : 260,
+        flex: 1.2,
       },
       {
         headerName: 'Days left',
@@ -488,9 +482,9 @@ export default function PayablesPage() {
           (p.data.clockStatus === 'running' || p.data.clockStatus === 'paused')
             ? p.data.businessDaysLeft
             : null,
-        valueFormatter: (p) =>
-          p.value == null ? '—' : `${p.value} day${p.value === 1 ? '' : 's'}`,
-        width: 95,
+        valueFormatter: (p) => (p.value == null ? '—' : `${p.value}d`),
+        width: 100,
+        type: 'rightAligned',
         hide: narrow,
       },
       {
@@ -499,31 +493,21 @@ export default function PayablesPage() {
         valueGetter: (p) => (p.data ? p.data.revisionsUsed : 0),
         valueFormatter: (p) =>
           p.data ? `${p.data.revisionsUsed} / ${p.data.revisionsIncluded}` : '',
-        width: 95,
-        hide: narrow,
+        hide: true,
       },
-      {
-        headerName: 'Failed',
-        field: 'failedChecks',
-        cellRenderer: FailedCell,
-        width: 95,
-        hide: narrow,
-      },
+      { headerName: 'Failed', field: 'failedChecks', hide: true },
       {
         headerName: 'Hold age',
         field: 'holdAgeDays',
-        cellRenderer: HoldAgeCell,
-        cellRendererParams: { nowMs },
         valueFormatter: (p) =>
           p.data?.holdAgeDays == null
             ? ''
             : `${p.data.holdAgeDays}d (lapses ${shortDate(p.data.holdLapsesAt)})`,
-        width: 135,
-        hide: narrow,
+        hide: true,
       },
-      { headerName: 'Next action', field: 'nextAction', minWidth: 150, flex: 1, hide: narrow },
+      { headerName: 'Action', field: 'nextAction', minWidth: 170, flex: 1, hide: narrow },
     ],
-    [narrow, compact, nowMs],
+    [narrow, nowMs, showDeal],
   )
 
   const rowSelection = useMemo<RowSelectionOptions<PayableRow>>(
@@ -620,6 +604,11 @@ export default function PayablesPage() {
               className="btn-primary"
               onClick={() => void openApprove()}
               disabled={!selected.length}
+              title={
+                rows.length && !rows.some((r) => r.approvable)
+                  ? 'Only the brand on a deal approves its milestones'
+                  : undefined
+              }
               data-testid="approve-selected"
             >
               <CheckCircle2 size={16} strokeWidth={1.75} />
@@ -644,107 +633,99 @@ export default function PayablesPage() {
         />
       ) : (
         <>
-          <div className="card mb-4 p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="relative min-w-0 flex-1 basis-[280px]">
-                <span className="sr-only">Filter in plain language</span>
+          <div className="mb-4">
+            <div className="relative">
+              <label className="relative block">
+                <span className="sr-only">Filter or search</span>
                 <Search
                   size={16}
                   strokeWidth={1.5}
                   className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-umber"
                 />
                 <input
-                  className="input !pl-9"
-                  placeholder="Filter"
+                  className="input !pl-9 !pr-11"
+                  placeholder="Filter or search"
                   value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  onChange={(e) => {
+                    setText(e.target.value)
+                    setHi(-1)
+                    setFocused(true)
+                  }}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => window.setTimeout(() => setFocused(false), 120)}
                   onKeyDown={onKey}
+                  role="combobox"
+                  aria-expanded={focused && suggestions.length > 0}
+                  aria-controls="payables-suggest"
+                  aria-autocomplete="list"
                   data-testid="nl-filter"
                 />
               </label>
-              <button className="btn-secondary" onClick={applyText} data-testid="nl-apply">
-                Apply
+              <button
+                className="icon-btn icon-btn-sm absolute right-1.5 top-1/2 -translate-y-1/2 text-umber"
+                onClick={applyText}
+                aria-label="Apply filter"
+                title="Apply"
+                data-testid="nl-apply"
+              >
+                <CornerDownLeft size={15} strokeWidth={1.5} />
               </button>
-              <label className="relative basis-[200px] max-sm:flex-1">
-                <span className="sr-only">Quick search</span>
-                <Search
-                  size={15}
-                  strokeWidth={1.75}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-umber"
-                />
-                <input
-                  className="input !pl-9"
-                  placeholder="Search"
-                  value={quick}
-                  onChange={(e) => setQuick(e.target.value)}
-                  data-testid="quick-filter"
-                />
-              </label>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-live="polite">
-              {filters.length ? (
-                <>
-                  <span className="micro-label mr-1">Filtering by</span>
-                  {filters.map((f, i) => (
-                    <FilterChip
-                      key={`${i}:${f.text}`}
-                      f={f}
-                      onRemove={() => apply(filters.filter((_, j) => j !== i))}
-                      onEdit={(t) => {
-                        const next = t.trim()
-                          ? filters.map((x, j) => (j === i ? parseClause(t) : x))
-                          : filters.filter((_, j) => j !== i)
-                        apply(next)
-                      }}
-                    />
+              {focused && suggestions.length > 0 && (
+                <ul
+                  id="payables-suggest"
+                  role="listbox"
+                  className="absolute left-0 right-0 z-20 mt-1 rounded-xl border border-line bg-surface p-1 shadow-pop"
+                  data-testid="nl-suggestions"
+                >
+                  {suggestions.map((x, i) => (
+                    <li key={x} role="option" aria-selected={i === hi}>
+                      <button
+                        type="button"
+                        className={`menu-item w-full ${i === hi ? 'bg-ink/[0.045]' : ''}`}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          pick(x)
+                          setFocused(false)
+                        }}
+                      >
+                        {x}
+                      </button>
+                    </li>
                   ))}
-                  <button className="btn-ghost btn-xs" onClick={() => apply([])}>
-                    Clear all
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span className="micro-label mr-1">Try</span>
-                  {EXAMPLES.map((x) => (
-                    <button
-                      key={x}
-                      className="chip chip-neutral hover:bg-ink/10"
-                      onClick={() => apply(parseFilter(x))}
-                    >
-                      {x}
-                    </button>
-                  ))}
-                </>
+                </ul>
               )}
             </div>
-            {filters.some((f) => f.kind === 'unknown') && (
-              <p className="mt-2 text-[12px] text-warning">
-                Amber chips were not understood, so they filter nothing. Click one to reword it.
-              </p>
+            {filters.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-live="polite">
+                {filters.map((f, i) => (
+                  <FilterChip
+                    key={`${i}:${f.text}`}
+                    f={f}
+                    onRemove={() => apply(filters.filter((_, j) => j !== i))}
+                    onEdit={(t) => {
+                      const next = t.trim()
+                        ? filters.map((x, j) => (j === i ? parseClause(t) : x))
+                        : filters.filter((_, j) => j !== i)
+                      apply(next)
+                    }}
+                  />
+                ))}
+                <button className="btn-ghost btn-xs" onClick={() => apply([])}>
+                  Clear all
+                </button>
+              </div>
             )}
           </div>
 
-          <div
-            className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-umber"
+          <p
+            className="mb-2 text-[13px] text-umber"
             data-testid="payables-summary"
+            title={`As of ${new Date(nowMs).toLocaleTimeString()}`}
           >
-            <span>
-              <span className="t-num text-ink">{shown.length}</span> of {rows.length} milestones
-            </span>
-            <span>
-              <span className="t-num text-ink">{heldTotal}</span> held
-            </span>
-            <span>
-              <span className="t-num text-ink">{ready}</span> ready for your approval
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock3 size={12} /> as of{' '}
-              {new Date(nowMs).toLocaleTimeString(undefined, {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          </div>
+            <span className="t-num text-ink">{shown.length}</span> of {rows.length} milestones ·{' '}
+            <span className="t-num text-ink">{heldTotal}</span> held ·{' '}
+            <span className="t-num text-ink">{ready}</span> ready for your approval
+          </p>
 
           {shown.length ? (
             <div className="yv-grid" data-testid="payables-grid">
@@ -761,7 +742,6 @@ export default function PayablesPage() {
                 quickFilterText={quick}
                 domLayout={shown.length <= 25 ? 'autoHeight' : 'normal'}
                 containerStyle={shown.length <= 25 ? undefined : { height: 640 }}
-                rowHeight={narrow ? 64 : undefined}
                 animateRows={false}
               />
             </div>
@@ -774,12 +754,6 @@ export default function PayablesPage() {
                 </button>
               }
             />
-          )}
-          {rows.length > 0 && !rows.some((r) => r.approvable) && (
-            <p className="mt-3 text-[12px] text-umber">
-              Only the brand on a deal can approve its milestones, so there is nothing for you to
-              select here.
-            </p>
           )}
         </>
       )}
