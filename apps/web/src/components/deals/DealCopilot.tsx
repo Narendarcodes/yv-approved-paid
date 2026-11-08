@@ -11,6 +11,7 @@
  * AI checks facts, people own taste, the deal decides the money.
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { JumpToLatest, useStickToBottom } from '../chat/Thread'
 import { useQuery } from '@tanstack/react-query'
 import { Bot, Send } from 'lucide-react'
 import * as api from '../../services/api'
@@ -298,12 +299,9 @@ export default function DealCopilot({
   const [turns, setTurns] = useState<Turn[]>([])
   const [text, setText] = useState('')
   const seq = useRef(0)
-  const end = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
   const refresh = useDealRefresh(orgId, deal.id)
-
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: 'nearest' })
-  }, [turns])
+  const { endRef: end, atBottom, jump } = useStickToBottom(turns, scroller)
 
   const liveOff = useRef<string | null>(null)
   // null until the first reply: the badge only says "offline replay" once a reply really came from it
@@ -315,6 +313,7 @@ export default function DealCopilot({
     const uid = ++seq.current
     const cid = ++seq.current
     setText('')
+    requestAnimationFrame(() => jump(false))
     // a money verb with an amount or a version: policy answers it, deterministically, no model
     const dry = moneyAsk(t, deal)
     if (dry) {
@@ -412,7 +411,7 @@ export default function DealCopilot({
   return (
     <aside
       ref={panel}
-      className="card flex max-h-[calc(100vh-2rem)] scroll-mt-4 flex-col overflow-hidden"
+      className="card flex max-h-[calc(100dvh-6rem)] scroll-mt-20 flex-col overflow-hidden xl:sticky xl:top-20"
       aria-label="Deal copilot"
       data-testid="deal-copilot"
     >
@@ -443,7 +442,10 @@ export default function DealCopilot({
                 : 'ready'}
         </span>
       </div>
-      <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
+      <div
+        ref={scroller}
+        className="min-h-[160px] flex-1 space-y-3 overflow-y-auto overscroll-contain p-4"
+      >
         {turns.length === 0 && (
           <div className="flex flex-col items-start gap-1.5" data-testid="copilot-suggestions">
             {STARTERS.map((s) => (
@@ -462,7 +464,7 @@ export default function DealCopilot({
           t.role === 'user' ? (
             <p
               key={t.id}
-              className="ml-auto w-fit max-w-[90%] rounded-xl bg-teal/10 px-3 py-2 text-[13px] text-ink"
+              className="ml-auto w-fit max-w-[90%] whitespace-pre-wrap break-words rounded-[14px] bg-cream px-3 py-2 text-[13px] text-ink"
             >
               {t.text}
             </p>
@@ -485,6 +487,11 @@ export default function DealCopilot({
           ),
         )}
         <div ref={end} />
+        <JumpToLatest
+          show={!atBottom && turns.length > 0}
+          onClick={() => jump()}
+          offset="bottom-0"
+        />
       </div>
       <div className="border-t border-line p-3">
         <form onSubmit={submit} className="flex gap-2">

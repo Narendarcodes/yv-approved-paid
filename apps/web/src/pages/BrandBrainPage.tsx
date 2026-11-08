@@ -3,8 +3,16 @@
  * Answers stream over SSE from Node (which proxies the private Python agent) and
  * always show the post/metric citations and the data limits the agent stated.
  */
-import { useEffect, useRef, useState } from 'react'
-import { Brain, Send, ListChecks } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Brain, ListChecks } from 'lucide-react'
+import {
+  AssistantBlock,
+  Composer,
+  JumpToLatest,
+  Markdown,
+  UserBubble,
+  useStickToBottom,
+} from '../components/chat/Thread'
 import { PageHeader } from '../components/ui'
 import { ErrorBanner } from '../components/states'
 import { useToast } from '../components/toast'
@@ -45,7 +53,6 @@ export default function BrandBrainPage() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const endRef = useRef<HTMLDivElement>(null)
   const titleOf = (id: string) =>
     posts.find((p) => p.id === id)?.title || (id === 'brand' ? 'Brand hub' : id.slice(-6))
 
@@ -78,13 +85,15 @@ export default function BrandBrainPage() {
     }
   }, [])
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [turns])
+  const lastText = turns.length ? turns[turns.length - 1].text.length : 0
+  const { endRef, atBottom, jump } = useStickToBottom(`${turns.length}:${lastText}`)
 
   async function ask(q: string) {
     if (!orgId || !q.trim() || busy) return
     setBusy(true)
     setInput('')
     setTurns((t) => [...t, { q, text: '' }])
+    requestAnimationFrame(() => jump(false))
     const patch = (fn: (t: Turn) => Turn) =>
       setTurns((all) => all.map((t, i) => (i === all.length - 1 ? fn(t) : t)))
     try {
@@ -115,24 +124,83 @@ export default function BrandBrainPage() {
     }
   }
 
-  return (
+  const side = (
     <div className="space-y-6">
+      <section>
+        <h2 className="text-[13px] font-medium text-ink">Posts</h2>
+        <ul className="mt-2 divide-y divide-line">
+          {posts.map((p) => (
+            <li key={p.id} className="py-2 text-[13px]">
+              <p className="text-ink">{p.title}</p>
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-umber">
+                <span className="t-num">
+                  {p.platform} · {(p.metrics.views ?? 0).toLocaleString()} views
+                </span>
+                <button onClick={() => run(p.id, 'analyze')} className="text-teal hover:underline">
+                  Analyze
+                </button>
+                <button
+                  onClick={() => run(p.id, 'review-digest')}
+                  className="inline-flex items-center gap-1 text-teal hover:underline"
+                >
+                  <ListChecks size={12} aria-hidden="true" /> Review digest
+                </button>
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section>
+        <h2 className="text-[13px] font-medium text-ink">Insights</h2>
+        {insights.length === 0 && (
+          <p className="mt-2 text-[13px] text-umber">Run Analyze on a post to get an insight.</p>
+        )}
+        <ul className="mt-2 space-y-3">
+          {insights.map((i) => (
+            <li key={i.id} className="text-[13px]">
+              <p className="text-[12px] text-teal">
+                {i.kind.replace('_', ' ')}
+                {i.atSecond != null
+                  ? ` @ ${Math.floor(i.atSecond / 60)}:${String(Math.round(i.atSecond % 60)).padStart(2, '0')}`
+                  : ''}{' '}
+                · {titleOf(i.postId)}
+              </p>
+              <p className="line-clamp-4 whitespace-pre-wrap text-ink/80">{i.summary}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  )
+
+  return (
+    <div>
       <PageHeader title="Brand Brain" subtitle={PAGE_LINE['/brand-brain']} />
       {error && <ErrorBanner message={error} />}
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-        <section className="flex min-h-[520px] flex-col rounded-xl border border-black/10 bg-white">
-          <div className="flex-1 space-y-5 overflow-y-auto p-5" aria-live="polite">
+      <details className="mb-4 rounded-md border border-line px-3 py-2 lg:hidden">
+        <summary className="cursor-pointer text-[13px] text-umber">
+          Posts and insights ({posts.length})
+        </summary>
+        <div className="pt-3">{side}</div>
+      </details>
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+        <section
+          className="mx-auto flex min-h-[calc(100dvh-220px)] w-full max-w-[720px] flex-col"
+          aria-label="Brand Brain conversation"
+          data-testid="brand-brain-thread"
+        >
+          <div className="flex-1 space-y-8 pb-6" aria-live="polite">
             {turns.length === 0 && (
-              <div className="space-y-3">
-                <p className="flex items-center gap-2 text-sm text-black/60">
-                  <Brain size={16} /> Try one of these:
+              <div className="space-y-3 pt-6">
+                <p className="flex items-center gap-2 text-[14px] text-umber">
+                  <Brain size={16} strokeWidth={1.5} aria-hidden="true" /> Try one of these
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col items-start gap-2">
                   {SUGGESTIONS.map((s) => (
                     <button
                       key={s}
                       onClick={() => ask(s)}
-                      className="rounded-full border border-black/10 px-3 py-1.5 text-sm hover:border-[#035E5E] hover:text-[#035E5E]"
+                      className="rounded-md border border-line px-3 py-2 text-left text-[14px] text-ink hover:border-line-strong"
                     >
                       {s}
                     </button>
@@ -141,111 +209,52 @@ export default function BrandBrainPage() {
               </div>
             )}
             {turns.map((t, i) => (
-              <div key={i} className="space-y-2">
-                <p className="font-medium text-[#171310]">{t.q}</p>
-                {t.flow && (
-                  <span className=" text-xs text-[#035E5E]">{t.flow.replace('_', ' ')}</span>
-                )}
-                <div className="whitespace-pre-wrap text-sm leading-relaxed text-black/80">
-                  {t.text || (busy && i === turns.length - 1 ? 'Thinking…' : '')}
-                </div>
-                {t.error && <p className="text-sm text-red-700">{t.error}</p>}
-                {t.answer && t.answer.citations.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5" aria-label="Citations">
-                    {t.answer.citations.map((c, j) => (
-                      <span
-                        key={j}
-                        title={c.note || ''}
-                        className="rounded-md bg-[#035E5E]/8 px-2 py-0.5 text-xs text-[#035E5E]"
-                      >
-                        {titleOf(c.postId)} · {c.metric} = {String(c.value)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {t.answer && t.answer.dataLimits.length > 0 && (
-                  <ul className="list-disc space-y-0.5 pl-5 text-xs text-black/55">
-                    {t.answer.dataLimits.map((d, j) => (
-                      <li key={j}>{d}</li>
-                    ))}
-                  </ul>
-                )}
+              <div key={i} className="space-y-4">
+                <UserBubble>{t.q}</UserBubble>
+                <AssistantBlock meta={t.flow ? t.flow.replace('_', ' ') : undefined}>
+                  {t.text ? (
+                    <Markdown text={t.text} />
+                  ) : busy && i === turns.length - 1 ? (
+                    <p className="text-umber">Thinking…</p>
+                  ) : null}
+                  {t.error && <p className="mt-2 text-[14px] text-danger">{t.error}</p>}
+                  {t.answer && t.answer.citations.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Citations">
+                      {t.answer.citations.map((c, j) => (
+                        <span
+                          key={j}
+                          title={c.note || ''}
+                          className="rounded-sm border border-line px-2 py-0.5 text-[12px] text-umber"
+                        >
+                          {titleOf(c.postId)} · {c.metric} = {String(c.value)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {t.answer && t.answer.dataLimits.length > 0 && (
+                    <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[12px] text-umber">
+                      {t.answer.dataLimits.map((d, j) => (
+                        <li key={j}>{d}</li>
+                      ))}
+                    </ul>
+                  )}
+                </AssistantBlock>
               </div>
             ))}
             <div ref={endRef} />
           </div>
-          <form
-            className="flex gap-2 border-t border-black/10 p-3"
-            onSubmit={(e) => {
-              e.preventDefault()
-              ask(input)
-            }}
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about a post, a rule, or next week's plan…"
-              aria-label="Ask Brand Brain"
-              className="flex-1 rounded-lg border border-black/10 px-3 py-2 text-sm outline-none focus:border-[#035E5E]"
-            />
-            <button
-              disabled={busy || !input.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#171310] px-3 py-2 text-sm text-white disabled:opacity-40"
-            >
-              <Send size={14} /> Ask
-            </button>
-          </form>
+          <JumpToLatest show={!atBottom && turns.length > 0} onClick={() => jump()} />
+          <Composer
+            value={input}
+            onChange={setInput}
+            onSend={() => void ask(input)}
+            placeholder="Ask about a post, a rule, or next week's plan…"
+            label="Ask Brand Brain"
+            busy={busy}
+          />
         </section>
-        <aside className="space-y-6">
-          <div className="rounded-xl border border-black/10 bg-white p-4">
-            <h2 className="mb-3 text-xs text-black/60">Posts</h2>
-            <ul className="space-y-2">
-              {posts.map((p) => (
-                <li key={p.id} className="text-sm">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[#171310]">{p.title}</span>
-                    <span className="shrink-0 text-xs text-black/50">
-                      {p.platform} · {(p.metrics.views ?? 0).toLocaleString()} views
-                    </span>
-                  </div>
-                  <div className="mt-1 flex gap-2">
-                    <button
-                      onClick={() => run(p.id, 'analyze')}
-                      className="inline-flex items-center text-xs text-teal hover:underline"
-                    >
-                      Analyze
-                    </button>
-                    <button
-                      onClick={() => run(p.id, 'review-digest')}
-                      className="inline-flex items-center gap-1 text-xs text-[#035E5E] hover:underline"
-                    >
-                      <ListChecks size={12} /> Review digest
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-black/10 bg-white p-4">
-            <h2 className="mb-3 text-xs text-black/60">Insights</h2>
-            {insights.length === 0 && (
-              <p className="text-sm text-black/50">Run Analyze on a post to get an insight.</p>
-            )}
-            <ul className="space-y-3">
-              {insights.map((i) => (
-                <li key={i.id} className="text-sm">
-                  <p className=" text-xs text-[#035E5E]">
-                    {i.kind.replace('_', ' ')}
-                    {i.atSecond != null
-                      ? ` @ ${Math.floor(i.atSecond / 60)}:${String(Math.round(i.atSecond % 60)).padStart(2, '0')}`
-                      : ''}{' '}
-                    · {titleOf(i.postId)}
-                  </p>
-                  <p className="line-clamp-4 whitespace-pre-wrap text-black/75">{i.summary}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <aside className="hidden lg:block">
+          <div className="sticky top-20">{side}</div>
         </aside>
       </div>
     </div>
