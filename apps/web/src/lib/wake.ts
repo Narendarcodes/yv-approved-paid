@@ -1,6 +1,7 @@
 /**
  * Wake the API early. The free Render instance sleeps when idle and takes
- * about 30 s to start, so the landing and login pages ping GET /health on
+ * about 30 s to start, so the landing and login pages ping GET /api/v1/health
+ * (API_BASE + /health; a bare /health is the SPA's index.html on Vercel) on
  * load: the server is waking while the visitor reads. "Try the demo" waits
  * for the same ping instead of failing on a cold server.
  */
@@ -32,7 +33,7 @@ async function ping(timeoutMs: number): Promise<boolean> {
   }
 }
 
-/** Resolves true once /health answers (polls every ~2.5 s, up to maxMs). Shared across callers. */
+/** Resolves true once /api/v1/health answers (polls every ~2.5 s, up to maxMs). Shared across callers. */
 export function wakeApi(maxMs = 90_000): Promise<boolean> {
   if (state === 'ready') return Promise.resolve(true)
   if (inflight) return inflight
