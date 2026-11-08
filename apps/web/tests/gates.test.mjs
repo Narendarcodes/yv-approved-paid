@@ -84,15 +84,15 @@ test('deal picker lists every milestone of every deal', () => {
   const opts = dealOptions([
     {
       id: 'd1',
-      terms: { title: 'Diwali', milestones: [{ key: 'reel1', title: 'Reel 1' }, { key: 'reel2' }] },
+      terms: { title: 'Autumn', milestones: [{ key: 'reel1', title: 'Reel 1' }, { key: 'reel2' }] },
     },
     { id: 'd2', terms: { milestones: [] } },
   ])
   assert.deepEqual(
     opts.map((o) => [o.value, o.label]),
     [
-      ['d1::reel1', 'Diwali · Reel 1'],
-      ['d1::reel2', 'Diwali · reel2'],
+      ['d1::reel1', 'Autumn · Reel 1'],
+      ['d1::reel2', 'Autumn · reel2'],
     ],
   )
 })

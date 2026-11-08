@@ -15,39 +15,72 @@ const IG_MAX_COLLAB = 3
 const X_MAX = 280
 const IG_MAX = 2200
 
-export function defaultSettings(platforms: PlatformKey[], ctx: { title: string; file: FileLite | null }, prev: PlatformSettings = {}): PlatformSettings {
+export function defaultSettings(
+  platforms: PlatformKey[],
+  ctx: { title: string; file: FileLite | null },
+  prev: PlatformSettings = {},
+): PlatformSettings {
   const out: PlatformSettings = {}
   for (const p of platforms) {
-    if (p === 'instagram') out.instagram = prev.instagram ?? { format: ctx.file?.mimeType?.startsWith('video/') ? 'reel' : 'post', collaborators: [] }
-    if (p === 'youtube') out.youtube = prev.youtube ?? { title: ctx.title.slice(0, 100), visibility: 'public', madeForKids: undefined, tags: [], thumbnailFileId: null }
+    if (p === 'instagram')
+      out.instagram = prev.instagram ?? {
+        format: ctx.file?.mimeType?.startsWith('video/') ? 'reel' : 'post',
+        collaborators: [],
+      }
+    if (p === 'youtube')
+      out.youtube = prev.youtube ?? {
+        title: ctx.title.slice(0, 100),
+        visibility: 'public',
+        madeForKids: undefined,
+        tags: [],
+        thumbnailFileId: null,
+      }
     if (p === 'x') out.x = prev.x ?? { whoCanReply: 'everyone' }
     if (p === 'linkedin') out.linkedin = prev.linkedin ?? { carousel: false, carouselName: '' }
   }
   return out
 }
 
-export function validateSettings(s: PlatformSettings, ctx: { caption: string; file: FileLite | null; files: FileLite[] }): FieldError[] {
+export function validateSettings(
+  s: PlatformSettings,
+  ctx: { caption: string; file: FileLite | null; files: FileLite[] },
+): FieldError[] {
   const errs: FieldError[] = []
-  const add = (platform: string, field: string, message: string) => errs.push({ platform, field, message })
+  const add = (platform: string, field: string, message: string) =>
+    errs.push({ platform, field, message })
   const isVideo = (f?: FileLite | null) => !!f && f.mimeType.startsWith('video/')
   const images = ctx.files.filter((f) => f.mimeType.startsWith('image/'))
   if (s.instagram) {
     if (!ctx.file) add('instagram', 'media', 'Instagram needs an image or video')
-    if (s.instagram.format === 'reel' && ctx.file && !isVideo(ctx.file)) add('instagram', 'format', 'A Reel needs a video file')
-    if (ctx.caption.length > IG_MAX) add('instagram', 'caption', `Instagram captions are limited to ${IG_MAX} characters`)
-    if (s.instagram.collaborators.length > IG_MAX_COLLAB) add('instagram', 'collaborators', `Instagram allows up to ${IG_MAX_COLLAB} collaborators`)
-    for (const c of s.instagram.collaborators) if (!/^@?[A-Za-z0-9._]{1,30}$/.test(c)) add('instagram', 'collaborators', `"${c}" is not a valid Instagram username`)
-    if (s.instagram.format === 'story' && s.instagram.collaborators.length) add('instagram', 'collaborators', 'Stories cannot have collaborators')
+    if (s.instagram.format === 'reel' && ctx.file && !isVideo(ctx.file))
+      add('instagram', 'format', 'A Reel needs a video file')
+    if (ctx.caption.length > IG_MAX)
+      add('instagram', 'caption', `Instagram captions are limited to ${IG_MAX} characters`)
+    if (s.instagram.collaborators.length > IG_MAX_COLLAB)
+      add('instagram', 'collaborators', `Instagram allows up to ${IG_MAX_COLLAB} collaborators`)
+    for (const c of s.instagram.collaborators)
+      if (!/^@?[A-Za-z0-9._]{1,30}$/.test(c))
+        add('instagram', 'collaborators', `"${c}" is not a valid Instagram username`)
+    if (s.instagram.format === 'story' && s.instagram.collaborators.length)
+      add('instagram', 'collaborators', 'Stories cannot have collaborators')
   }
   if (s.youtube) {
     const t = s.youtube.title.trim()
-    if (t.length < 2 || t.length > 100) add('youtube', 'title', 'YouTube title must be 2-100 characters')
-    if (typeof s.youtube.madeForKids !== 'boolean') add('youtube', 'madeForKids', 'Say whether the video is made for kids (required by YouTube)')
+    if (t.length < 2 || t.length > 100)
+      add('youtube', 'title', 'YouTube title must be 2-100 characters')
+    if (typeof s.youtube.madeForKids !== 'boolean')
+      add('youtube', 'madeForKids', 'Say whether the video is made for kids (required by YouTube)')
     if (!isVideo(ctx.file)) add('youtube', 'media', 'YouTube needs a video file')
     if (s.youtube.tags.length > 15) add('youtube', 'tags', 'Use at most 15 tags')
   }
-  if (s.x && ctx.caption.length > X_MAX) add('x', 'caption', `X posts are limited to ${X_MAX} characters (${ctx.caption.length} now)`)
-  if (s.linkedin?.carousel && images.length < 2) add('linkedin', 'carousel', 'A LinkedIn carousel needs at least 2 images in the approved version')
+  if (s.x && ctx.caption.length > X_MAX)
+    add('x', 'caption', `X posts are limited to ${X_MAX} characters (${ctx.caption.length} now)`)
+  if (s.linkedin?.carousel && images.length < 2)
+    add(
+      'linkedin',
+      'carousel',
+      'A LinkedIn carousel needs at least 2 images in the approved version',
+    )
   return errs
 }
 
@@ -69,8 +102,10 @@ export function PlatformSettingsPanel({
   files: FileLite[]
 }) {
   const platforms = (Object.keys(value) as PlatformKey[]).filter((k) => value[k])
-  if (!platforms.length) return <p className="mt-3 text-sm text-umber">Pick channels to see their settings.</p>
-  const errFor = (p: string, f: string) => errors.filter((e) => e.platform === p && e.field === f).map((e) => e.message)
+  if (!platforms.length)
+    return <p className="mt-3 text-sm text-umber">Pick channels to see their settings.</p>
+  const errFor = (p: string, f: string) =>
+    errors.filter((e) => e.platform === p && e.field === f).map((e) => e.message)
   const Err = ({ p, f }: { p: string; f: string }) => {
     const m = errFor(p, f)
     return m.length ? (
@@ -84,7 +119,11 @@ export function PlatformSettingsPanel({
   return (
     <div className="mt-3 space-y-3" data-testid="platform-settings">
       {platforms.map((p) => (
-        <div key={p} className="rounded-[10px] border border-line p-4" data-testid={`settings-${p}`}>
+        <div
+          key={p}
+          className="rounded-[10px] border border-line p-4"
+          data-testid={`settings-${p}`}
+        >
           <div className="mb-3 flex items-center gap-2">
             <PlatformIcon platform={p} size="sm" />
             <span className="text-sm font-semibold text-ink">{PLATFORMS[p].label}</span>
@@ -98,7 +137,12 @@ export function PlatformSettingsPanel({
                 <select
                   className="input mt-1 w-full"
                   value={value.instagram.format}
-                  onChange={(e) => onChange({ ...value, instagram: { ...value.instagram!, format: e.target.value as 'post' } })}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      instagram: { ...value.instagram!, format: e.target.value as 'post' },
+                    })
+                  }
                   data-testid="ig-format"
                 >
                   <option value="post">Feed post</option>
@@ -113,7 +157,12 @@ export function PlatformSettingsPanel({
                   className="input mt-1 w-full"
                   placeholder="@studio, @kavya.makes"
                   defaultValue={value.instagram.collaborators.join(', ')}
-                  onBlur={(e) => onChange({ ...value, instagram: { ...value.instagram!, collaborators: splitList(e.target.value) } })}
+                  onBlur={(e) =>
+                    onChange({
+                      ...value,
+                      instagram: { ...value.instagram!, collaborators: splitList(e.target.value) },
+                    })
+                  }
                   data-testid="ig-collaborators"
                 />
                 <Err p="instagram" f="collaborators" />
@@ -127,7 +176,9 @@ export function PlatformSettingsPanel({
                 <input
                   className="input mt-1 w-full"
                   value={value.youtube.title}
-                  onChange={(e) => onChange({ ...value, youtube: { ...value.youtube!, title: e.target.value } })}
+                  onChange={(e) =>
+                    onChange({ ...value, youtube: { ...value.youtube!, title: e.target.value } })
+                  }
                   data-testid="yt-title"
                 />
                 <Err p="youtube" f="title" />
@@ -137,7 +188,12 @@ export function PlatformSettingsPanel({
                 <select
                   className="input mt-1 w-full"
                   value={value.youtube.visibility}
-                  onChange={(e) => onChange({ ...value, youtube: { ...value.youtube!, visibility: e.target.value as 'public' } })}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      youtube: { ...value.youtube!, visibility: e.target.value as 'public' },
+                    })
+                  }
                 >
                   <option value="public">Public</option>
                   <option value="unlisted">Unlisted</option>
@@ -156,7 +212,12 @@ export function PlatformSettingsPanel({
                         type="radio"
                         name="yt-kids"
                         checked={value.youtube!.madeForKids === v}
-                        onChange={() => onChange({ ...value, youtube: { ...value.youtube!, madeForKids: v as boolean } })}
+                        onChange={() =>
+                          onChange({
+                            ...value,
+                            youtube: { ...value.youtube!, madeForKids: v as boolean },
+                          })
+                        }
                         data-testid={`yt-kids-${l}`}
                       />
                       {l === 'yes' ? 'Yes' : 'No'}
@@ -169,9 +230,14 @@ export function PlatformSettingsPanel({
                 Tags
                 <input
                   className="input mt-1 w-full"
-                  placeholder="diwali, workshop"
+                  placeholder="autumn, coffee"
                   defaultValue={value.youtube.tags.join(', ')}
-                  onBlur={(e) => onChange({ ...value, youtube: { ...value.youtube!, tags: splitList(e.target.value) } })}
+                  onBlur={(e) =>
+                    onChange({
+                      ...value,
+                      youtube: { ...value.youtube!, tags: splitList(e.target.value) },
+                    })
+                  }
                 />
                 <Err p="youtube" f="tags" />
               </label>
@@ -180,7 +246,12 @@ export function PlatformSettingsPanel({
                 <select
                   className="input mt-1 w-full"
                   value={value.youtube.thumbnailFileId || ''}
-                  onChange={(e) => onChange({ ...value, youtube: { ...value.youtube!, thumbnailFileId: e.target.value || null } })}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      youtube: { ...value.youtube!, thumbnailFileId: e.target.value || null },
+                    })
+                  }
                 >
                   <option value="">Auto (YouTube picks a frame)</option>
                   {images.map((f) => (
@@ -199,7 +270,9 @@ export function PlatformSettingsPanel({
               <select
                 className="input mt-1 w-full sm:w-64"
                 value={value.x.whoCanReply}
-                onChange={(e) => onChange({ ...value, x: { whoCanReply: e.target.value as 'everyone' } })}
+                onChange={(e) =>
+                  onChange({ ...value, x: { whoCanReply: e.target.value as 'everyone' } })
+                }
                 data-testid="x-reply"
               >
                 <option value="everyone">Everyone</option>
@@ -216,17 +289,28 @@ export function PlatformSettingsPanel({
                 <input
                   type="checkbox"
                   checked={value.linkedin.carousel}
-                  onChange={(e) => onChange({ ...value, linkedin: { ...value.linkedin!, carousel: e.target.checked } })}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      linkedin: { ...value.linkedin!, carousel: e.target.checked },
+                    })
+                  }
                   data-testid="li-carousel"
                 />
-                Post images as a carousel ({images.length} image{images.length === 1 ? '' : 's'} in the approved version)
+                Post images as a carousel ({images.length} image{images.length === 1 ? '' : 's'} in
+                the approved version)
               </label>
               {value.linkedin.carousel && (
                 <input
                   className="input w-56"
                   placeholder="Carousel name (optional)"
                   value={value.linkedin.carouselName || ''}
-                  onChange={(e) => onChange({ ...value, linkedin: { ...value.linkedin!, carouselName: e.target.value } })}
+                  onChange={(e) =>
+                    onChange({
+                      ...value,
+                      linkedin: { ...value.linkedin!, carouselName: e.target.value },
+                    })
+                  }
                 />
               )}
               <div className="w-full">

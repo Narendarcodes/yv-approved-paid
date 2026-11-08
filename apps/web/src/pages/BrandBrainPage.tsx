@@ -21,6 +21,8 @@ import { getAppSocket } from '../lib/chat'
 import {
   enqueueAgentJob,
   getAgentInsights,
+  getBrandMemory,
+  type BrandMemory,
   getAgentPosts,
   streamAgentChat,
   type AgentAnswer,
@@ -37,12 +39,38 @@ interface Turn {
   error?: string
 }
 
+/**
+ * What the reader sees when the agent or its model fails: one plain line, never a
+ * provider's raw error (billing, 410 Gone, stack text). Display only.
+ */
+function friendlyError(raw: string): string {
+  const m = String(raw || '')
+  if (/402|insufficient|billing|quota|budget/i.test(m))
+    return 'The assistant is out of model credit right now. Brand memory is still listed on the side.'
+  if (/410|404|not found|gone/i.test(m))
+    return 'The assistant’s model is unavailable right now. Brand memory is still listed on the side.'
+  if (/not configured|unavailable|waking|agent service|503|502|timeout|timed out/i.test(m))
+    return 'The assistant is offline right now. Try again in a minute; brand memory is still listed on the side.'
+  return 'The assistant could not answer this time. Try again in a moment.'
+}
+
 const SUGGESTIONS = [
-  'Why did our best short go viral?',
+  'What are our logo and colour rules?',
   "Can we use 'Buy now' as a call to action?",
-  "Merge the reviewers' comments on the dads video",
-  "Plan next week's posts from what worked",
+  'Who is our audience?',
+  'Which words should captions avoid?',
 ]
+
+/** Brand memory groups, in the order a reader scans them. */
+const KIND_LABEL: Record<string, string> = {
+  purpose: 'Brand',
+  voice: 'Voice and tone',
+  do: 'Use',
+  dont: 'Avoid',
+  visual: 'Logo and colour',
+  audience: 'Audience',
+  resource: 'Products and templates',
+}
 
 export default function BrandBrainPage() {
   const toast = useToast()
@@ -53,6 +81,8 @@ export default function BrandBrainPage() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [memory, setMemory] = useState<BrandMemory | null>(null)
+  const [agentOffline, setAgentOffline] = useState(false)
   const titleOf = (id: string) =>
     posts.find((p) => p.id === id)?.title || (id === 'brand' ? 'Brand hub' : id.slice(-6))
 
@@ -60,12 +90,16 @@ export default function BrandBrainPage() {
     primaryOrgId().then(async (id) => {
       if (!id) return
       setOrgId(id)
+      getBrandMemory(id)
+        .then(setMemory)
+        .catch(() => setMemory({ rules: [], sample: [] }))
       try {
         const [p, i] = await Promise.all([getAgentPosts(id), getAgentInsights(id)])
         setPosts(p)
         setInsights(i)
-      } catch (e: any) {
-        setError(e.message)
+      } catch {
+        // the agent service is optional: the memory and the sample still show
+        setAgentOffline(true)
       }
       const sock = getAppSocket()
       sock.emit('org:join', { organizationId: id })
@@ -100,11 +134,19 @@ export default function BrandBrainPage() {
       await streamAgentChat(orgId, q, (ev, data) => {
         if (ev === 'meta') patch((t) => ({ ...t, flow: data.flow }))
         if (ev === 'token') patch((t) => ({ ...t, text: t.text + data.text }))
-        if (ev === 'answer') patch((t) => ({ ...t, answer: data, text: data.answer }))
-        if (ev === 'error') patch((t) => ({ ...t, error: data.message }))
+        if (ev === 'answer')
+          patch((t) => ({
+            ...t,
+            answer: data,
+            text: data.answer,
+            error: String(data.answer || '').trim()
+              ? t.error
+              : 'The model returned no text this time. Try again in a moment.',
+          }))
+        if (ev === 'error') patch((t) => ({ ...t, error: friendlyError(data.message) }))
       })
     } catch (e: any) {
-      patch((t) => ({ ...t, error: e.message }))
+      patch((t) => ({ ...t, error: friendlyError(e.message) }))
     } finally {
       setBusy(false)
     }
@@ -124,8 +166,41 @@ export default function BrandBrainPage() {
     }
   }
 
+  const groups = Object.keys(KIND_LABEL)
+    .map((k) => ({ k, rules: (memory?.rules ?? []).filter((r) => r.kind === k) }))
+    .filter((g) => g.rules.length > 0)
   const side = (
     <div className="space-y-6">
+      <section data-testid="brand-memory">
+        <h2 className="text-[13px] font-medium text-ink">
+          Brand memory{memory ? ` (${memory.rules.length})` : ''}
+        </h2>
+        {memory && memory.rules.length === 0 && (
+          <p className="mt-2 text-[13px] text-umber">No brand rules saved yet.</p>
+        )}
+        <div className="mt-2 space-y-3">
+          {groups.map((g) => (
+            <div key={g.k}>
+              <p className="text-[12px] text-teal">{KIND_LABEL[g.k]}</p>
+              <ul className="mt-1 space-y-1">
+                {g.rules.map((r) => (
+                  <li key={r.id} className="text-[13px]">
+                    <details>
+                      <summary className="cursor-pointer text-ink">{r.title}</summary>
+                      <p className="mt-1 whitespace-pre-wrap text-[12.5px] text-umber">{r.body}</p>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+      {agentOffline && (
+        <p className="text-[12px] text-umber" data-testid="agent-offline">
+          The assistant is offline right now; brand memory still shows here.
+        </p>
+      )}
       <section>
         <h2 className="text-[13px] font-medium text-ink">Posts</h2>
         <ul className="mt-2 divide-y divide-line">
@@ -179,7 +254,7 @@ export default function BrandBrainPage() {
       {error && <ErrorBanner message={error} />}
       <details className="mb-4 rounded-md border border-line px-3 py-2 lg:hidden">
         <summary className="cursor-pointer text-[13px] text-umber">
-          Posts and insights ({posts.length})
+          Brand memory, posts and insights
         </summary>
         <div className="pt-3">{side}</div>
       </details>
@@ -190,6 +265,31 @@ export default function BrandBrainPage() {
           data-testid="brand-brain-thread"
         >
           <div className="flex-1 space-y-8 pb-6" aria-live="polite">
+            {turns.length === 0 && (memory?.sample.length ?? 0) > 0 && (
+              <div className="space-y-6 pt-2" data-testid="brand-brain-sample">
+                <p className="text-[12px] text-label">Sample conversation</p>
+                {memory!.sample.map((t, i) => (
+                  <div key={i} className="space-y-4">
+                    <UserBubble>{t.q}</UserBubble>
+                    <AssistantBlock meta="brand qa">
+                      <Markdown text={t.a} />
+                      {t.cites.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="From brand memory">
+                          {t.cites.map((c) => (
+                            <span
+                              key={c}
+                              className="rounded-sm border border-line px-2 py-0.5 text-[12px] text-umber"
+                            >
+                              Brand memory · {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </AssistantBlock>
+                  </div>
+                ))}
+              </div>
+            )}
             {turns.length === 0 && (
               <div className="space-y-3 pt-6">
                 <p className="flex items-center gap-2 text-[14px] text-umber">

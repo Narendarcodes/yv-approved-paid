@@ -1687,6 +1687,19 @@ async function agentJson<T>(url: string, init?: RequestInit): Promise<T> {
   if (!res.ok) throw new Error(readableError(res, body, 'Request failed'))
   return body.data as T
 }
+/** Brand Brain's brand memory (read-only) and the org's sample conversation, if any. */
+export interface BrandMemoryRule {
+  id: string
+  kind: string
+  title: string
+  body: string
+}
+export interface BrandMemory {
+  rules: BrandMemoryRule[]
+  sample: { q: string; a: string; cites: string[] }[]
+}
+export const getBrandMemory = (orgId: string) =>
+  agentJson<BrandMemory>(`${API_BASE}/organizations/${orgId}/brand-memory`)
 export const getAgentPosts = (orgId: string) =>
   agentJson<AgentPost[]>(`${API_BASE}/organizations/${orgId}/agent/posts`)
 export const getAgentInsights = (orgId: string) =>

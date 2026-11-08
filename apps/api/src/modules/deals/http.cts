@@ -791,7 +791,7 @@ const poolRouter = require('./pool.cts').makePoolRouter(() => {
 });
 
 /**
- * POST /api/v1/demo/deal/reset: the demo judge rebuilds "Diwali launch reels"
+ * POST /api/v1/demo/deal/reset: the demo judge rebuilds Lumen Coffee's "Autumn launch reels"
  * (DEMO_MODE=1 only). On sandbox this draws fresh pre-approved authorizations
  * from the pool, so it is limited to one reset every 2 minutes for everyone.
  */

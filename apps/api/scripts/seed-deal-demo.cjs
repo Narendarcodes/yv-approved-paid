@@ -1,6 +1,6 @@
 /**
  * Seeds the "Approved = Paid" judge demo: org, judge/editor/motion users and the
- * fixed deal "Diwali launch reels" (deal_demo_diwali) in every demo state
+ * fixed deal Lumen Coffee "Autumn launch reels" (id deal_demo_diwali) in every demo state
  * (docs/phase4-ui-plan.md section 6). Idempotent: re-running rebuilds that one deal.
  *
  *   MONGO_URI=... PAYPAL_MODE=mock node scripts/seed-deal-demo.cjs   -> prints {orgId, dealId, judge}

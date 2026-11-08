@@ -8,15 +8,26 @@ const DAY = 24 * HOUR;
 
 function terms(over = {}) {
   return {
-    title: 'Diwali launch reels',
+    title: 'Autumn launch reels',
     currency: 'USD',
     client: { role: 'client', userId: 'u_client', displayName: 'Kalpa Crafts', country: 'IN' },
-    worker: { role: 'worker', userId: 'u_worker', displayName: 'Ravi', country: 'IN', paypalEmail: 'ravi@example.com' },
+    worker: {
+      role: 'worker',
+      userId: 'u_worker',
+      displayName: 'Ravi',
+      country: 'IN',
+      paypalEmail: 'ravi@example.com',
+    },
     killFeeBp: 2500,
     humanApprovalThresholdMinor: 50000,
     rateCard: [
       { id: 'extra_cut', label: 'Extra 15s cut', unit: 'per cut', unitPriceMinor: 6000 },
-      { id: 'revision_round', label: 'Extra revision round', unit: 'per round', unitPriceMinor: 4000 },
+      {
+        id: 'revision_round',
+        label: 'Extra revision round',
+        unit: 'per round',
+        unitPriceMinor: 4000,
+      },
     ],
     milestones: [
       {
@@ -29,11 +40,33 @@ function terms(over = {}) {
         revisionRoundsIncluded: 1,
         styleSample: true,
         checklist: [
-          { id: 'len', text: 'Under 45 seconds', kind: 'check', measure: { metric: 'duration_s', op: '<=', value: 45 }, source: 'punchy' },
-          { id: 'hook', text: 'Hook in the first 3 seconds', kind: 'check', measure: { metric: 'hook_by_s', op: '<=', value: 3 }, source: 'punchy' },
-          { id: 'logo', text: 'Logo visible from 0:00 to 0:03', kind: 'check', measure: { metric: 'logo_present', op: 'present', window: [0, 3] } },
-          { id: 'loud', text: 'Loudness -14 LUFS (+-1)', kind: 'check', measure: { metric: 'loudness_lufs', op: 'between', value: -15, max: -13 } },
-          { id: 'vibe', text: 'Feels warm and festive', kind: 'taste' },
+          {
+            id: 'len',
+            text: 'Under 45 seconds',
+            kind: 'check',
+            measure: { metric: 'duration_s', op: '<=', value: 45 },
+            source: 'punchy',
+          },
+          {
+            id: 'hook',
+            text: 'Hook in the first 3 seconds',
+            kind: 'check',
+            measure: { metric: 'hook_by_s', op: '<=', value: 3 },
+            source: 'punchy',
+          },
+          {
+            id: 'logo',
+            text: 'Logo visible from 0:00 to 0:03',
+            kind: 'check',
+            measure: { metric: 'logo_present', op: 'present', window: [0, 3] },
+          },
+          {
+            id: 'loud',
+            text: 'Loudness -14 LUFS (+-1)',
+            kind: 'check',
+            measure: { metric: 'loudness_lufs', op: 'between', value: -15, max: -13 },
+          },
+          { id: 'vibe', text: 'Feels warm and cozy', kind: 'taste' },
         ],
         payees: [
           { userId: 'u_worker', email: 'ravi@example.com', shareBp: 7000, displayName: 'Ravi' },
@@ -49,8 +82,17 @@ function terms(over = {}) {
         reviewWindowHours: 48,
         revisionRoundsIncluded: 2,
         styleSample: false,
-        checklist: [{ id: 'len', text: 'Under 30 seconds', kind: 'check', measure: { metric: 'duration_s', op: '<=', value: 30 } }],
-        payees: [{ userId: 'u_worker', email: 'ravi@example.com', shareBp: 10000, displayName: 'Ravi' }],
+        checklist: [
+          {
+            id: 'len',
+            text: 'Under 30 seconds',
+            kind: 'check',
+            measure: { metric: 'duration_s', op: '<=', value: 30 },
+          },
+        ],
+        payees: [
+          { userId: 'u_worker', email: 'ravi@example.com', shareBp: 10000, displayName: 'Ravi' },
+        ],
       },
     ],
     ...over,
@@ -76,17 +118,35 @@ function memoryLedger() {
 
 function harness(over = {}) {
   let now = T0;
-  const clock = { now: () => new Date(now).toISOString(), advance: (ms) => (now += ms), set: (t) => (now = t) };
+  const clock = {
+    now: () => new Date(now).toISOString(),
+    advance: (ms) => (now += ms),
+    set: (t) => (now = t),
+  };
   const gateway = over.gateway || makeMockGateway({ now: () => now });
   const ledger = memoryLedger();
   const deps = {
     gateway,
     ledger,
     now: clock.now,
-    returnUrl: (d, k) => ({ returnUrl: `https://app.test/deals/${d.id}/${k}/funded`, cancelUrl: `https://app.test/deals/${d.id}` }),
+    returnUrl: (d, k) => ({
+      returnUrl: `https://app.test/deals/${d.id}/${k}/funded`,
+      cancelUrl: `https://app.test/deals/${d.id}`,
+    }),
   };
   let deal = engine.createDeal({ id: 'deal_1', orgId: 'org_1', terms: terms(over.terms) });
-  return { deps, gateway, ledger, clock, get deal() { return deal; }, set deal(d) { deal = d; } };
+  return {
+    deps,
+    gateway,
+    ledger,
+    clock,
+    get deal() {
+      return deal;
+    },
+    set deal(d) {
+      deal = d;
+    },
+  };
 }
 
 /** Sign by both sides and fund one milestone through the mock (buyer approval simulated). */

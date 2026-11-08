@@ -64,7 +64,16 @@ function stateLine(deal: DealView, key: string): string {
   }
 }
 
-/** The delivered cut: the first evidence frame of the latest checked version, or a quiet placeholder. */
+/** A same-site path to the cut's file, when the version carries one (the demo reels do). */
+function mediaOf(v: unknown): string | null {
+  const url = (v as { mediaUrl?: unknown } | undefined)?.mediaUrl
+  return typeof url === 'string' && /^\/[A-Za-z0-9/_.-]+\.mp4$/.test(url) ? url : null
+}
+
+/**
+ * The delivered cut: a player when the latest version has its file (the check
+ * time chips seek it), otherwise the first evidence frame or a quiet placeholder.
+ */
 function CutTile({ deal, orgId, mkey }: { deal: DealView; orgId: string; mkey: string }) {
   const r = deal.milestones.find((m) => m.key === mkey)
   const versions = r?.versions ?? []
@@ -74,6 +83,33 @@ function CutTile({ deal, orgId, mkey }: { deal: DealView; orgId: string; mkey: s
     .flatMap((v) => v.checks?.results ?? [])
     .flatMap((x) => x.evidence ?? [])
     .find((e) => e.screenshot)?.screenshot
+  const media = mediaOf(latest)
+  if (media)
+    return (
+      <div
+        className="relative aspect-[9/16] w-[96px] shrink-0 overflow-hidden rounded-lg border border-line bg-ink sm:w-[124px]"
+        data-testid="reel-cut"
+      >
+        <video
+          key={media}
+          data-reel-player
+          src={media}
+          poster={frame ? api.dealEvidenceUrl(orgId, deal.id, frame) : undefined}
+          controls
+          muted
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          aria-label={`Delivered cut, ${latest!.id}`}
+        />
+        <span
+          className="pointer-events-none absolute left-1 top-1 rounded bg-ink/70 px-1.5 py-px text-xs text-on-accent"
+          title={latest!.sha256}
+        >
+          {latest!.id} · {shortHash(latest!.sha256, 6)}
+        </span>
+      </div>
+    )
   return (
     <div
       className="relative flex aspect-video w-[120px] shrink-0 sm:w-[168px] items-center justify-center overflow-hidden rounded-lg border border-line bg-canvas"

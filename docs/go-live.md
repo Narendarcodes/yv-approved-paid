@@ -71,7 +71,7 @@ The clock already runs inside the API (Money Agent tick). The workflow is a seco
 
 On `https://yv-approved-paid.vercel.app`:
 
-- [x] **Try the demo** logs in and opens "Diwali launch reels".
+- [x] **Try the demo** logs in and opens Lumen Coffee's "Autumn launch reels".
 - [x] Reel 1: captured $400, ids tagged `PayPal sandbox` (not `simulated`) in the PayPal ids panel.
 - [x] Reel 2: accept the 80% split; the Money Agent captures $240 and voids the rest.
 - [x] Reel 3: review clock shows about 2 business days left. Reel 4: 50% released, in grace.

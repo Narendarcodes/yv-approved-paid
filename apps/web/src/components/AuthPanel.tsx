@@ -24,10 +24,18 @@ function ProductGlimpse() {
       data-testid="auth-glimpse"
     >
       <div className="flex items-center gap-3">
-        <span className="h-9 w-14 shrink-0 rounded-md bg-teal/90" />
+        <img
+          src="/landing/lumen-thumb.jpg"
+          alt=""
+          width={56}
+          height={36}
+          className="h-9 w-14 shrink-0 rounded-md object-cover"
+        />
         <div className="min-w-0">
-          <p className="truncate text-[13px] font-medium text-ink">Reel 3: 15s story cut</p>
-          <p className="text-[11.5px] text-umber">v2 · checks passed</p>
+          <p className="truncate text-[13px] font-medium text-ink">
+            Lumen Coffee · Reel 3: 15s story cut
+          </p>
+          <p className="text-[11.5px] text-umber">v1 · checks passed</p>
         </div>
       </div>
       <div className="mt-3 flex items-center gap-1.5 whitespace-nowrap text-[12px]">

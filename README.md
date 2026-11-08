@@ -152,10 +152,10 @@ In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal
 
 1. Open **https://yv-approved-paid.vercel.app** and press **Try the demo** on the login page. You don't need a PayPal account or a password.
 2. The first load can take **about a minute**: the API and the agent run on Render's free tier and sleep when idle.
-3. You land on the **"Diwali launch reels"** deal:
+3. You sign in as Priya Shah, content ops lead at **Lumen Coffee** (a fictional global coffee brand, US-based), and land on its **"Autumn launch reels"** deal. The team is Alex Morgan (brand reviewer), Ravi Kumar (editor), Sana Lee (motion designer) and Mei Tan (social publisher); Team chat, Brand Brain and the project pages carry the same story:
    - **Reel 1** has been approved. Its hold was captured for the signed $400 and paid 70/30.
-   - **Reel 2** is in dispute. 4 of 5 checks passed, so the proposed split is 80% ($240). Accept the split and the Money Agent captures $240 and voids the rest.
-   - **Reel 3** is on the review clock with about 2 business days left. **Reel 4** got no reply in its window, so 50% was released and it is now in grace.
+   - **Reel 2** failed its captions check (the brief asks for captions; the cut has none), a +15s change order waits as a draft, and the reel is in dispute. 4 of 5 checks passed, so the proposed split is 80% ($240). Accept the split and the Money Agent captures $240 and voids the rest.
+   - **Reel 3** is on the review clock with about 2 business days left (US business days: the clock skips US holidays such as Veterans Day and Thanksgiving). **Reel 4** got no reply in its window, so 50% was released and it is now in grace.
    - Ask the copilot to "capture $450" or "pay the old version". It is dry-run and comes back **blocked** (`P3_amount` / `P6_version`) with "No money moved".
 4. Open **Payables** and **Where's my money** in the sidebar.
 5. To start over on fresh holds, the judge account can reset the demo (`POST /api/v1/demo/deal/reset`, at most once every 2 minutes for everyone).
@@ -210,7 +210,7 @@ Needs Node.js 24+, npm and a MongoDB 7 (for example `docker run -d -p 27017:2701
 ```bash
 # 1. API with the judge demo on the mock PayPal (no PayPal account needed)
 cd apps/api && npm ci && cp .env.example .env
-DEMO_MODE=1 PAYPAL_MODE=mock npm run dev        # http://localhost:3000, seeds "Diwali launch reels" on boot
+DEMO_MODE=1 PAYPAL_MODE=mock npm run dev        # http://localhost:3000, seeds Lumen Coffee's "Autumn launch reels" on boot
 
 # 2. Web app, in another terminal
 cd apps/web && npm ci && npm run dev            # http://localhost:5173 -> /login -> "Try the demo"
@@ -334,7 +334,7 @@ yv. is my own project. I started its content-ops core (projects, tasks, briefs, 
 
 The detail behind the sections above: pages, cards, the copilot, team splits and PayPal modes.
 
-- **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded "Diwali launch reels" deal.
+- **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded Lumen Coffee "Autumn launch reels" deal.
 - **Cards** (`apps/web/src/components/deals/`): DealCard (terms hash, both signatures, per-milestone amount, due + grace, review window, rounds left, kill fee), LiveChecksCard (measured vs target per checklist line, screenshot evidence from `GET .../deals/:dealId/evidence/:file`; taste lines say "people decide"), ReviewMergeCard (Fix cites a failed line, Taste costs a round, never pay), MoneyTimeline (hash-chained ledger, live over Socket.IO `deal:join` -> `deal:ledger`; blocked attempts show the rule and "No money moved"), ChangeOrderCard (priced from the signed rate card; Accept drafts the PayPal invoice), DisputeSplitCard (split from checklist arithmetic; agreed only when both sides accept the same number), PolicyBlockedChip.
 - **Deal copilot:** a side panel that answers by rendering those cards. With the live agent on, an LLM picks which cards answer the question (`POST .../deals/:dealId/copilot` -> the lean deal agent); otherwise, or when the agent is slow or down, it runs as an offline replay (deterministic intent matching, no model call), so the demo always works. Every reply is labelled **live AI · <provider>** or **offline replay**. It only proposes: a "capture $450" or "pay the old version" ask is dry-run through `POST .../policy-check` and comes back as a PolicyBlockedChip. No copilot action takes an amount it wrote: the model only names cards and ids from the deal (checked by the agent, the API and the web), and a capture uses the signed amount or the number the person typed.
 - **Live AI agent (optional):** `services/agent/app/deals_service.py`, a lean FastAPI service (`Dockerfile.deals`, `requirements-deals.txt`: fastapi, uvicorn, httpx, pydantic; ~40 MB RSS) that fits a Render **free** web service (`render.yaml`, `GET /health`). LLM routing (`app/deals/llm_router.py`): River AI (`Qwen/Qwen3.8-27B-FP8`) -> NVIDIA NIM (`nvidia/nemotron-3.5-lightning-30b-a3b`) -> OmniRoute (only if `OMNIROUTE_URL` is set). Names are stripped before any prompt leaves; the model never sees amounts. The API calls it only when `AGENT_ENABLED=true`, `AGENT_URL` and `AGENT_SHARED_SECRET` (sent as `X-Agent-Secret`, same value on both services) are set; it gives up after `AGENT_COPILOT_TIMEOUT_MS` (15 s; a free instance cold-starts slowly) and answers `{ source: 'offline' }`.
@@ -754,6 +754,14 @@ This repo: `github.com/Narendarcodes/yv-approved-paid` (the PayPal AI Hackathon 
 ## Credits
 
 Illustrations: [unDraw](https://undraw.co) by Katerina Limpitsouni (free licence, no attribution required), recoloured to the yv. teal.
+
+Demo reels (`apps/web/public/demo/reels`): real stock footage from [Pexels](https://www.pexels.com) under the [Pexels licence](https://www.pexels.com/license/) (free commercial use, no attribution required), only trimmed, cropped to 9:16 and overlaid with the "LUMEN" text logo and captions; audio is silent. Thanks to the creators:
+[Juan Manuel Suárez](https://www.pexels.com/video/pouring-hot-coffee-to-cup-10571186/) (coffee pour),
+[Mizuno K](https://www.pexels.com/video/a-man-pouring-a-milk-in-a-cup-13736515/) (barista in a cafe),
+[Diego Castro Calderon](https://www.pexels.com/video/close-up-of-roasted-coffee-beans-pouring-34907989/) (roasted beans),
+[宇航 钱](https://www.pexels.com/video/a-person-taking-a-cup-of-coffee-5269588/) (a hand taking a latte),
+[Esra Afşar](https://www.pexels.com/video/a-coffee-cup-sits-on-a-table-outside-a-cafe-25727987/) (cafe terrace).
+Lumen Coffee and its team are fictional.
 
 ## License
 

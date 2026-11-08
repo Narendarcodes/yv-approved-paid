@@ -43,7 +43,7 @@ cd apps/web && npx vite build              # web build (CI runs tsc -b && vite b
 cd services/agent && python -m pytest -q   # deal agent
 ```
 
-Smoke run (local): API with `DEMO_MODE=1 PAYPAL_MODE=mock npm run dev`, web with `npm run dev`, then `/login` → "Try the demo". Check: `/deals/deal_demo_diwali` shows reels 1 to 4 in the rail and `?open=money` shows the money timeline; the copilot answers "Capture $450 on reel 1" with "No money moved"; `/payables` loads its grid and exports CSV; `/my-money` loads.
+Smoke run (local): API with `DEMO_MODE=1 PAYPAL_MODE=mock npm run dev`, web with `npm run dev`, then `/login` → "Try the demo". Check: `/deals/deal_demo_diwali` (Lumen Coffee, "Autumn launch reels"; the id is kept from an earlier demo) shows reels 1 to 4 in the rail and `?open=money` shows the money timeline; the copilot answers "Capture $450 on reel 1" with "No money moved"; `/payables` loads its grid and exports CSV; `/my-money` loads.
 
 ## Never do
 
