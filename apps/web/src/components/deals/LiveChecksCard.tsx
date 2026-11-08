@@ -15,6 +15,7 @@ import * as api from '../../services/api'
 import type { DealChecklistItem, DealMeasure, DealView } from '../../contracts/types'
 import { milestonePair, shortHash, when } from '../../lib/deals'
 import { DealCardShell } from './common'
+import { HINT } from '../../lib/copy'
 
 /** Unit for a measure: the signed unit, else the metric's suffix (duration_s -> s). */
 function unitOf(m?: DealMeasure): string {
@@ -220,6 +221,9 @@ export default function LiveChecksCard({
               <MessageSquareDiff size={15} strokeWidth={2} />
               Request changes
             </button>
+            <span className="text-[12px] text-umber" data-testid="decision-hint">
+              {HINT.approve}
+            </span>
           </>
         ) : undefined
       }

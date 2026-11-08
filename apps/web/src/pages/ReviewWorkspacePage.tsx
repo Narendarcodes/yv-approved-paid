@@ -20,6 +20,7 @@ import {
 import { useToast } from '../components/toast'
 import { pickVersion } from '../lib/reviewVersions'
 import { StatusChip } from '../components/status'
+import { EMPTY_LINE } from '../lib/copy'
 
 interface LocalComment {
   id: string
@@ -605,7 +606,9 @@ export default function ReviewWorkspacePage() {
                 </article>
               ))
             ) : (
-              <p className="py-10 text-center text-sm text-umber">No comments yet</p>
+              <p className="py-10 text-center text-sm text-umber">
+                No comments yet. {EMPTY_LINE.comments}
+              </p>
             )}
           </div>
         </div>

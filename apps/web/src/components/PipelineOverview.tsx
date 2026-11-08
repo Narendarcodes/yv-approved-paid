@@ -18,6 +18,7 @@ import { PlatformIcon, StatusChip, StatusDot, stageOf } from './status'
 import { Skeleton } from './states'
 import { EmptyState } from './states'
 import type { Project } from '../lib/types'
+import { EMPTY_LINE } from '../lib/copy'
 
 const STAGE_LINK: Record<string, string> = {
   idea: '/concepts',
@@ -207,7 +208,7 @@ export function PipelineOverview({
             ))}
           </ul>
         ) : (
-          <EmptyState title="All clear" illustration="calendar" />
+          <EmptyState title="All clear" description={EMPTY_LINE.pipeline} illustration="calendar" />
         )}
       </section>
 

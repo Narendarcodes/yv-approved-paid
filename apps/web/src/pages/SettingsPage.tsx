@@ -4,6 +4,7 @@ import { useViewer } from '../lib/viewer'
 import { ROLES, PERMISSION_LABELS } from '../lib/roles'
 import { useToast } from '../components/toast'
 import { useTeam } from '../lib/data'
+import { PAGE_LINE } from '../lib/copy'
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -87,6 +88,7 @@ export default function SettingsPage() {
     <div className="fade-in mx-auto max-w-2xl">
       <header className="mb-6">
         <h1 className="t-display">Settings</h1>
+        <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/settings']}</p>
       </header>
 
       <div className="space-y-6">

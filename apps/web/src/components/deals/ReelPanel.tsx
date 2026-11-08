@@ -22,6 +22,7 @@ import TeamPayoutCard from './TeamPayoutCard'
 import MoneyTimeline from './MoneyTimeline'
 import DealSection from './DealSection'
 import { useFundMilestone } from './DealCard'
+import { HINT } from '../../lib/copy'
 
 export type SectionId = 'checks' | 'payout' | 'changes' | 'money' | 'terms'
 
@@ -192,6 +193,11 @@ export default function ReelPanel({
               </button>
             )}
           </div>
+        )}
+        {canFund && (
+          <p className="-mt-1 px-1 text-[12px] text-umber" data-testid="decision-hint">
+            {HINT.fund}
+          </p>
         )}
         {reviewNow && (
           <div id={`review-${mkey}`} className="scroll-mt-20">

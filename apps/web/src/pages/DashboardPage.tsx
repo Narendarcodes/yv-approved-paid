@@ -23,6 +23,7 @@ import Avatar from '../components/ui'
 import { useEffect, useState } from 'react'
 import { StatusChip, PlatformIcons } from '../components/status'
 import { initialsOf } from '../lib/initials'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 const iconProps = { size: 18, strokeWidth: 1.75 }
 
@@ -550,7 +551,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="t-display">Dashboard</h1>
+      <div>
+        <h1 className="t-display">Dashboard</h1>
+        <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/dashboard']}</p>
+      </div>
 
       {/* Pipeline: stage strip, waiting on, going live today, last week's best */}
       {projectsError ? (
@@ -721,7 +725,10 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="card p-8 text-center text-sm text-umber">Nothing published yet.</div>
+              <div className="card p-8 text-center text-sm text-umber">
+                Nothing published yet.
+                <p className="mt-1 text-[13px]">{EMPTY_LINE.published}</p>
+              </div>
             )}
           </section>
         </>

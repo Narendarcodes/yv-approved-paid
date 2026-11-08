@@ -46,6 +46,7 @@ import {
   type ScheduledPost,
 } from '../../services/api'
 import { StatusChip, StatusDot, PlatformIcon, stageOf } from '../../components/status'
+import { PAGE_LINE, EMPTY_LINE } from '../../lib/copy'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -199,6 +200,7 @@ export default function CalendarPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Publishing calendar"
+        subtitle={PAGE_LINE['/publishing/calendar']}
         actions={
           <>
             <Link to="/publishing/channels" className="btn-secondary">
@@ -435,6 +437,7 @@ export default function CalendarPage() {
               ? 'Nothing on the calendar this week'
               : 'Nothing on the calendar this month'
           }
+          description={EMPTY_LINE.calendar}
           action={
             canManage ? (
               <Link to="/publishing/compose" className="btn-primary">

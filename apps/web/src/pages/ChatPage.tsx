@@ -7,6 +7,7 @@ import { useViewer } from '../lib/viewer'
 import { useTeam } from '../lib/data'
 import { useChat } from '../lib/chat'
 import type { ChatChannel } from '../lib/chat'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 export default function ChatPage() {
   const viewer = useViewer()
@@ -89,6 +90,7 @@ export default function ChatPage() {
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="t-display">Team chat</h1>
+          <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/chat']}</p>
         </div>
       </header>
       {/* Mobile channel bar: the channel list is hidden below sm */}
@@ -212,6 +214,7 @@ export default function ChatPage() {
             ) : !chat.channels.length ? (
               <div className="py-10 text-center" data-testid="chat-empty">
                 <p className="text-sm text-umber">No channels yet.</p>
+                <p className="mt-1 text-[13px] text-umber">{EMPTY_LINE.chatChannels}</p>
                 <button className="btn-primary mt-3" onClick={() => setNewChannelOpen(true)}>
                   <Plus size={14} strokeWidth={2} /> Create the first one
                 </button>

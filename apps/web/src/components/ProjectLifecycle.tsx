@@ -18,6 +18,7 @@ import {
   transitionProject,
   type Brief,
 } from '../services/api'
+import { EMPTY_LINE } from '../lib/copy'
 
 /** Macro stages shown in the stepper, each owning a set of backend statuses. */
 const STAGES: { key: string; label: string; statuses: string[] }[] = [
@@ -375,7 +376,7 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
           )}
         </dl>
       ) : (
-        <p className="px-5 py-8 text-center text-sm text-umber">No brief yet</p>
+        <p className="px-5 py-8 text-center text-sm text-umber">No brief yet. {EMPTY_LINE.brief}</p>
       )}
     </div>
   )

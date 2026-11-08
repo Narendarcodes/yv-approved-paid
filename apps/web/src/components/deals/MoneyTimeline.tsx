@@ -16,6 +16,7 @@ import type { DealLedgerEntry, DealView } from '../../contracts/types'
 import { blockedSummary, invoiceSent, money, useDealLedger, when } from '../../lib/deals'
 import { DealCardShell, PaypalId, PaypalInvoiceId, Stat } from './common'
 import PolicyBlockedChip from './PolicyBlockedChip'
+import { EMPTY_LINE } from '../../lib/copy'
 
 const LABEL: Record<DealLedgerEntry['type'], string> = {
   authorize: 'Held on PayPal',
@@ -176,7 +177,9 @@ export default function MoneyTimeline({
           )}
 
           {entries.length === 0 ? (
-            <p className="mt-4 text-[13px] text-umber">No money has moved yet</p>
+            <p className="mt-4 text-[13px] text-umber">
+              No money has moved yet. {EMPTY_LINE.moneyTrail}
+            </p>
           ) : (
             <ol className="relative mt-5 space-y-4 border-l border-line pl-5" aria-label="Ledger">
               {entries.map((e) => (

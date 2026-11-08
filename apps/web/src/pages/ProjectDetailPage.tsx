@@ -32,6 +32,7 @@ import {
 } from '../lib/data'
 import { StatusChip } from '../components/status'
 import { CardSkeleton, Skeleton } from '../components/states'
+import { EMPTY_LINE } from '../lib/copy'
 
 function strId(v: unknown): string {
   if (!v) return ''
@@ -639,7 +640,9 @@ export default function ProjectDetailPage() {
                 ))}
               </ul>
             ) : (
-              <p className="px-5 py-8 text-center text-sm text-umber">No activity recorded yet.</p>
+              <p className="px-5 py-8 text-center text-sm text-umber">
+                No activity recorded yet. {EMPTY_LINE.activity}
+              </p>
             )}
           </div>
         </div>

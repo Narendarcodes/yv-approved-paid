@@ -16,6 +16,7 @@ import type { DealView } from '../../contracts/types'
 import { milestonePair, money, roleWord } from '../../lib/deals'
 import { DealCardShell, PassPill } from './common'
 import PolicyBlockedChip from './PolicyBlockedChip'
+import { HINT } from '../../lib/copy'
 
 export default function DisputeSplitCard({
   deal,
@@ -75,10 +76,15 @@ export default function DisputeSplitCard({
       }
       footer={
         canAccept ? (
-          <button className="btn-primary" disabled={busy} onClick={accept}>
-            <Scale size={15} strokeWidth={2} />
-            Accept {money(p!.workerMinor, cur)} to the editor
-          </button>
+          <>
+            <button className="btn-primary" disabled={busy} onClick={accept}>
+              <Scale size={15} strokeWidth={2} />
+              Accept {money(p!.workerMinor, cur)} to the editor
+            </button>
+            <span className="text-[12px] text-umber" data-testid="decision-hint">
+              {HINT.disputeSplit}
+            </span>
+          </>
         ) : undefined
       }
     >

@@ -25,6 +25,7 @@ import {
   progressOf,
   useMilestoneClock,
 } from '../../lib/clock'
+import { HINT } from '../../lib/copy'
 
 type Dialog = null | 'approve' | 'changes' | 'dispute'
 
@@ -365,6 +366,11 @@ export default function ReviewClockCard({
           </div>
         </div>
 
+        {isClient && live && inReview && (
+          <p className="-mt-1 px-4 pb-3 text-[12px] text-umber" data-testid="decision-hint">
+            {HINT.clockSilence}
+          </p>
+        )}
         {open && (
           <div className="border-t border-line px-4 pb-4 pt-1">
             {live && <Bar v={v} />}
@@ -520,6 +526,7 @@ export default function ReviewClockCard({
             <label className="label block" htmlFor="clock-change-cite">
               Which brief item?
             </label>
+            <p className="mt-0.5 text-[12px] text-umber">{HINT.requestChanges}</p>
             <select
               id="clock-change-cite"
               className="input mt-1 w-full"

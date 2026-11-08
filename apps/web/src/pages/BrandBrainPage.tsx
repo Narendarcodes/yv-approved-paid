@@ -19,6 +19,7 @@ import {
   type AgentInsight,
   type AgentPost,
 } from '../services/api'
+import { PAGE_LINE } from '../lib/copy'
 
 interface Turn {
   q: string
@@ -116,7 +117,7 @@ export default function BrandBrainPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Brand Brain" />
+      <PageHeader title="Brand Brain" subtitle={PAGE_LINE['/brand-brain']} />
       {error && <ErrorBanner message={error} />}
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <section className="flex min-h-[520px] flex-col rounded-xl border border-black/10 bg-white">

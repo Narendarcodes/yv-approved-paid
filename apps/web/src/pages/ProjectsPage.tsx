@@ -10,6 +10,7 @@ import { useTeam, useProjects, useBoard, invalidateProjectData, type BoardTask }
 import { setTaskStatus } from '../services/api'
 import { useToast } from '../components/toast'
 import { StatusChip } from '../components/status'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 let teamRef: ReturnType<typeof useTeam>['team'] = []
 export function setTeamRef(t: typeof teamRef) {
@@ -102,6 +103,7 @@ export default function ProjectsPage() {
     <div className="fade-in">
       <PageHeader
         title="Projects"
+        subtitle={PAGE_LINE['/projects']}
         actions={
           <div className="flex items-center gap-2">
             {/* View toggle — the Asana pattern: same data, two lenses */}
@@ -281,6 +283,7 @@ function ProjectListView({
           {allProjects.length === 0 ? (
             <EmptyState
               title="No projects yet"
+              description={EMPTY_LINE.projects}
               illustration="team"
               action={
                 <Link to="/concepts" className="btn-primary !h-9 text-[13px]">

@@ -8,18 +8,19 @@ import { PageHeader } from '../components/ui'
 import { EmptyState, ErrorBanner, ListSkeleton } from '../components/states'
 import { StatusChip, StatusDot, stageOf } from '../components/status'
 import { money, useDeals } from '../lib/deals'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 export default function DealsPage() {
   const { data: deals, isLoading, isError, refetch } = useDeals()
   return (
     <div className="fade-in">
-      <PageHeader title="Deals" />
+      <PageHeader title="Deals" subtitle={PAGE_LINE['/deals']} />
       {isLoading ? (
         <ListSkeleton rows={3} height="h-24" />
       ) : isError ? (
         <ErrorBanner message="Your deals did not load." onRetry={() => void refetch()} />
       ) : !deals?.length ? (
-        <EmptyState title="No deals yet" illustration="deal" />
+        <EmptyState title="No deals yet" description={EMPTY_LINE.deals} illustration="deal" />
       ) : (
         <ul className="card divide-y divide-line overflow-hidden" data-testid="deals-list">
           {deals.map((d) => {

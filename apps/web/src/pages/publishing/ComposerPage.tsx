@@ -33,6 +33,7 @@ import {
   type FieldError,
 } from '../../components/PlatformSettingsPanel'
 import { PlatformIcon, StatusChip } from '../../components/status'
+import { PAGE_LINE, EMPTY_LINE } from '../../lib/copy'
 
 const LIMITS: Partial<Record<PlatformKey, number>> = {
   x: 280,
@@ -207,6 +208,7 @@ export default function ComposerPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Compose"
+        subtitle={PAGE_LINE['/publishing/compose']}
         actions={
           <Link to="/publishing/calendar" className="btn-secondary">
             <CalendarClock size={14} strokeWidth={1.75} /> Calendar
@@ -222,6 +224,7 @@ export default function ComposerPage() {
         <EmptyState
           icon={<FileText size={22} strokeWidth={1.5} />}
           title="No approved projects yet"
+          description={EMPTY_LINE.compose}
           action={
             <Link to="/projects" className="btn-primary">
               Go to projects

@@ -6,6 +6,7 @@ import { invalidateTeam, useMembers } from '../lib/data'
 import { useToast } from '../components/toast'
 import { addMember } from '../services/api'
 import { can, useViewer } from '../lib/viewer'
+import { EMPTY_LINE } from '../lib/copy'
 
 const roleTone: Record<string, 'teal' | 'neutral' | 'warning' | 'success'> = {
   Admin: 'teal',
@@ -110,6 +111,7 @@ export default function MembersPage() {
                 <Users size={18} strokeWidth={1.75} />
               </span>
               <p className="text-sm font-medium text-ink">No members yet</p>
+              <p className="mt-1 text-[13px] text-umber">{EMPTY_LINE.members}</p>
             </div>
           ) : (
             <>

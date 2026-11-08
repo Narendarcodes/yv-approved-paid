@@ -29,6 +29,7 @@ import {
   type SocialChannel,
 } from '../../services/api'
 import { PlatformIcon } from '../../components/status'
+import { PAGE_LINE } from '../../lib/copy'
 
 export default function ChannelsPage() {
   const toast = useToast()
@@ -181,6 +182,7 @@ export default function ChannelsPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Channels"
+        subtitle={PAGE_LINE['/publishing/channels']}
         actions={
           <Link to="/publishing/compose" className="btn-primary" data-testid="channels-compose">
             Schedule a post <ArrowRight size={14} strokeWidth={1.75} />
