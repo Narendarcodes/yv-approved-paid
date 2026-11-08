@@ -10,6 +10,23 @@ Built for **brands and their content-ops teams**, and for the **editors and desi
 
 ![yv. Approved = Paid social preview](.github/social-preview.png)
 
+## Hackathon
+
+Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/) (Devpost, Oct 1 to Nov 12, 2026). The rules ask for one thing: meaningful use of both PayPal (sandbox) and AI. There are no tracks; this build is entered for the overall prizes, Best Use of PayPal + AI, and the AG Grid, APIMatic and Render sponsor prizes.
+
+> AI checks facts, people own taste, the deal decides the money.
+
+| Used | Where it lives |
+| --- | --- |
+| PayPal Orders v2 holds, Payments v2 capture/void, Invoicing v2, Payouts (sandbox) | [`apps/api/src/modules/deals/paypal.cts`](apps/api/src/modules/deals/paypal.cts), [`lib/paypal-sandbox.cts`](apps/api/src/modules/deals/lib/paypal-sandbox.cts), [`team.cts`](apps/api/src/modules/deals/team.cts) (payout batches) |
+| APIMatic: the typed PayPal Server SDK, REST fallback | [`lib/paypal-sdk.cts`](apps/api/src/modules/deals/lib/paypal-sdk.cts), [docs/apimatic.md](docs/apimatic.md) |
+| AI: video QA checks, review merge, dispute split evidence, deal copilot (River AI, NVIDIA NIM fallback); never sets an amount | [`services/agent/app/deals`](services/agent/app/deals), [`apps/api/src/modules/deals/copilot.cts`](apps/api/src/modules/deals/copilot.cts) |
+| Policy dry run before every money move (P1 to P9) | [`lib/policy.cts`](apps/api/src/modules/deals/lib/policy.cts) |
+| AG Grid: the payables board | [`apps/web/src/pages/PayablesPage.tsx`](apps/web/src/pages/PayablesPage.tsx), [`components/grid`](apps/web/src/components/grid) |
+| Render: API and agent web services; the review clock as a Render Workflow (code only, not deployed) | [`render.yaml`](render.yaml), [`workflows/fair-clock`](workflows/fair-clock) |
+
+In the app, every screen where money moves carries a "PayPal sandbox" chip, and the landing page and sign-in panel say "Built for the PayPal AI Hackathon".
+
 ---
 
 ## Architecture
@@ -270,6 +287,7 @@ Counts are from a local run on Nov 7, 2026. Typecheck: `npm run typecheck` at th
 
 ## Table of contents
 
+- [Hackathon](#hackathon)
 - [Problems we solve](#problems-we-solve)
 - [How it works](#how-it-works)
 - [What's real vs simulated](#whats-real-vs-simulated)
