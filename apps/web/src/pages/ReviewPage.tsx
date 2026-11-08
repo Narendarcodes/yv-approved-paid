@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { CheckCircle2, PlayCircle } from 'lucide-react'
-import { EmptyState, PageHeader } from '../components/primitives'
+import { PlayCircle } from 'lucide-react'
+import { PageHeader } from '../components/primitives'
+import { EmptyState } from '../components/states'
 import { Skeleton } from '../components/states'
 import { AssigneeAvatar } from '../components/ui'
 import { useProjects, useReviews, useTeam } from '../lib/data'
@@ -84,9 +85,8 @@ export default function ReviewPage() {
         </div>
       ) : (
         <EmptyState
-          icon={<CheckCircle2 strokeWidth={1.5} />}
-          title="You’re all caught up"
-          description="Nothing is waiting for review. Approved work moves on to publishing."
+          title="All caught up"
+          illustration="review"
           action={
             <Link to="/publishing/calendar" className="btn-secondary btn-sm">
               Open the calendar

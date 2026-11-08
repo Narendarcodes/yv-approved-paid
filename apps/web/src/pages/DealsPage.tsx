@@ -19,7 +19,7 @@ export default function DealsPage() {
       ) : isError ? (
         <ErrorBanner message="Your deals did not load." onRetry={() => void refetch()} />
       ) : !deals?.length ? (
-        <EmptyState title="No deals yet" />
+        <EmptyState title="No deals yet" illustration="deal" />
       ) : (
         <ul className="space-y-3" data-testid="deals-list">
           {deals.map((d) => {

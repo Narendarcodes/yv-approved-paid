@@ -7,6 +7,7 @@
  */
 import type { ReactNode } from 'react'
 import { WifiOff, RefreshCw, Inbox } from 'lucide-react'
+import Illustration, { type IllustrationName } from './Illustration'
 
 export function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`skeleton ${className}`} aria-hidden="true" />
@@ -86,12 +87,25 @@ export function ErrorBanner({ onRetry, message }: { onRetry?: () => void; messag
 }
 
 /** Genuine "nothing here yet" state. */
-export function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  action,
+  illustration,
+}: {
+  title: string
+  action?: ReactNode
+  /** An illustrated empty state for the few places that earn one (deals, payables, my money, projects, review). */
+  illustration?: IllustrationName
+}) {
   return (
     <div className="fade-in flex flex-col items-center gap-3 rounded-xl border border-line bg-surface px-6 py-10 text-center">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-canvas text-umber">
-        <Inbox size={18} strokeWidth={1.75} />
-      </span>
+      {illustration ? (
+        <Illustration name={illustration} className="mb-2 h-28 w-auto" />
+      ) : (
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-canvas text-umber">
+          <Inbox size={18} strokeWidth={1.75} />
+        </span>
+      )}
       <div>
         <p className="text-sm font-medium text-ink">{title}</p>
       </div>

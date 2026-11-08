@@ -185,7 +185,7 @@ export default function MyMoneyPage() {
       ) : org.isError || q.isError ? (
         <ErrorBanner message="Your payouts did not load." onRetry={() => void q.refetch()} />
       ) : !rows.length ? (
-        <EmptyState title="No payouts yet" />
+        <EmptyState title="No payouts yet" illustration="wallet" />
       ) : (
         <>
           <div

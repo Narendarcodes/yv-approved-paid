@@ -624,7 +624,8 @@ export default function PayablesPage() {
         <ErrorBanner message="Payables did not load." onRetry={() => void q.refetch()} />
       ) : !rows.length ? (
         <EmptyState
-          title="No payables yet"
+          title="Nothing held"
+          illustration="wallet"
           action={
             <Link to="/deals" className="btn-secondary !h-9 text-[13px]">
               Go to deals
