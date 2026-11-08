@@ -275,6 +275,33 @@ describe('seed-deal-demo', () => {
     expect((await dealService().get(DEMO.teamDealId, seeded.orgId)).signatures).toEqual([]);
   });
 
+  test('stage gates: every demo project meets the gates of its stage; reel 1 and reel 2 can move on, the team draft is locked on the deal', async () => {
+    const Project = require('../../../models/project.model');
+    const gates = require('../../../services/stageGates.service');
+    const byTitle = async (t) => Project.findOne({ organizationId: seeded.orgId, title: t }).lean();
+    const reel1 = await byTitle('Diwali reel 1: 45s launch cut');
+    const reel2 = await byTitle('Diwali reel 2: 30s teaser');
+    const team = await byTitle('Diwali greetings reel (team draft)');
+    expect([reel1.dealId, reel1.milestoneKey]).toEqual([DEMO.dealId, 'reel1']);
+    expect([reel2.dealId, reel2.milestoneKey]).toEqual([DEMO.dealId, 'reel2']);
+    expect([team.dealId, team.milestoneKey]).toEqual([DEMO.teamDealId, 'greeting']);
+    // every gate up to the stage each project sits in is met
+    for (const p of [reel1, reel2, team]) {
+      const upTo = gates.STAGES.slice(1, gates.stageIndex(p.status) + 1).map((s) => s.key);
+      for (const stage of upTo) {
+        const missing = (await gates.checklist(p, stage)).filter((i) => !i.done).map((i) => i.key);
+        expect({ title: p.title, stage, missing }).toEqual({ title: p.title, stage, missing: [] });
+      }
+    }
+    const g1 = await gates.evaluate(reel1);
+    expect(g1).toMatchObject({ from: 'production', to: 'review', ready: true });
+    const g2 = await gates.evaluate(reel2);
+    expect(g2).toMatchObject({ from: 'brief', to: 'production', ready: true });
+    const g3 = await gates.evaluate(team);
+    expect(g3).toMatchObject({ from: 'brief', to: 'production', ready: false });
+    expect(g3.missing.map((m) => m.key)).toEqual(['deal_signed', 'money_held']);
+  });
+
   test('refuses to run on a real PayPal gateway', async () => {
     const real = makeMockGateway();
     real.name = 'sandbox';

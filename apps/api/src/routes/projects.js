@@ -26,6 +26,7 @@ const {
   createProjectSchema,
   transitionSchema,
   assignSchema,
+  dealLinkSchema,
   addVersionSchema,
   approveSchema,
   scheduleSchema,
@@ -68,6 +69,15 @@ router.post(
   can(null, PROJECT),
   validate(transitionSchema),
   projectController.transition,
+);
+// Stage gates: the checklist for the next move, and the deal link it reads.
+router.get('/:id/gate', authenticate, can('project.view', PROJECT), projectController.gate);
+router.put(
+  '/:id/deal',
+  authenticate,
+  can('project.transition', PROJECT),
+  validate(dealLinkSchema),
+  projectController.linkDeal,
 );
 router.post(
   '/:id/assign',

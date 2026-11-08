@@ -51,6 +51,8 @@ const Organization = require('../../models/organization.model');
 const Membership = require('../../models/membership.model');
 const Project = require('../../models/project.model');
 const Task = require('../../models/task.model');
+const Concept = require('../../models/concept.model');
+const Brief = require('../../models/brief.model');
 const { seedDefaultRoles } = require('../../seed/roles');
 const { Deal, DealLedger } = require('./lib/models.cts');
 const engine = require('./lib/engine.cts');
@@ -80,7 +82,12 @@ const DEMO = {
 };
 
 /** The clock terms every demo clock milestone signs (the setup panel's defaults). */
-const DEMO_CLOCK = { reviewWindowBusinessDays: 3, partialReleasePct: 50, graceBusinessDays: 3, includedRevisionRounds: 2 };
+const DEMO_CLOCK = {
+  reviewWindowBusinessDays: 3,
+  partialReleasePct: 50,
+  graceBusinessDays: 3,
+  includedRevisionRounds: 2,
+};
 const HOUR_MS = 3600 * 1000;
 
 const sha = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
@@ -197,7 +204,11 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
         revisionRoundsIncluded: 2,
         styleSample: false,
         checklist: [
-          { ...common[0], text: 'Under 15 seconds', measure: { metric: 'duration_s', op: '<=', value: 15 } },
+          {
+            ...common[0],
+            text: 'Under 15 seconds',
+            measure: { metric: 'duration_s', op: '<=', value: 15 },
+          },
           common[1],
           common[2],
           common[3],
@@ -219,13 +230,22 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
         revisionRoundsIncluded: 2,
         styleSample: false,
         checklist: [
-          { ...common[0], text: 'Under 6 seconds', measure: { metric: 'duration_s', op: '<=', value: 6 } },
+          {
+            ...common[0],
+            text: 'Under 6 seconds',
+            measure: { metric: 'duration_s', op: '<=', value: 6 },
+          },
           common[2],
           common[3],
         ],
         payees: [
           { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Editor' },
-          { userId: motionId, email: DEMO.motion.paypal, shareBp: 3000, displayName: 'Motion designer' },
+          {
+            userId: motionId,
+            email: DEMO.motion.paypal,
+            shareBp: 3000,
+            displayName: 'Motion designer',
+          },
         ],
         clock: { ...DEMO_CLOCK },
       },
@@ -331,7 +351,8 @@ function ensureEvidenceFrames(deal: DealDoc | null, dir: string | false = eviden
         for (const r of v.checks?.results || []) {
           for (const e of r.evidence || []) {
             const name = typeof e.screenshot === 'string' ? path.basename(e.screenshot) : '';
-            if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}\.png$/.test(name) || name.includes('..')) continue;
+            if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}\.png$/.test(name) || name.includes('..'))
+              continue;
             const file = path.join(d, name);
             if (fs.existsSync(file) || fs.existsSync(path.join(dir, name))) continue;
             fs.mkdirSync(d, { recursive: true });
@@ -394,9 +415,18 @@ function teamDraftTerms(clientId: string, editorId: string, motionId: string): D
 }
 
 /**
- * Two demo projects with an assignee each (and one task each), so the Assign
- * picker has something to show. Created once, keyed by title: a re-seed never
- * overwrites what a judge changed (reassigning, moving a task).
+ * The demo projects, one per piece of deal work, each with an assignee and one
+ * task, so the Assign picker and the stage gates have something to show.
+ * Created once, keyed by title: a re-seed never overwrites what a judge changed
+ * (reassigning, moving a task, editing the brief).
+ *
+ * Every project meets the stage gates of the stage it sits in (services/
+ * stageGates.service.js): it came from an approved concept, its brief has
+ * deliverables and an editor is assigned. The links (concept, deal, milestone)
+ * are re-set on every seed so a reset deal is always the one the project reads.
+ *   reel 1 (Production)  deal_demo_diwali/reel1: signed, held, v2 checked -> ready for Review
+ *   reel 2 (Brief)       deal_demo_diwali/reel2: signed, held -> ready for Production
+ *   greetings (Brief)    deal_demo_team_draft/greeting: unsigned, nothing held -> locked
  */
 async function seedDemoProjects(
   orgId: string,
@@ -411,6 +441,9 @@ async function seedDemoProjects(
       status: 'IN_PROGRESS',
       assignee: editorId,
       task: 'Raise the mix to -14 LUFS',
+      dealId: DEMO.dealId,
+      milestoneKey: 'reel1',
+      deliverables: ['45s launch cut (9:16)', 'Logo in the first 3s', 'Mix at -14 LUFS'],
     },
     {
       title: 'Diwali reel 2: 30s teaser',
@@ -418,6 +451,19 @@ async function seedDemoProjects(
       status: 'ASSIGNED',
       assignee: motionId,
       task: 'Animate the diya logo sting (0:00-0:03)',
+      dealId: DEMO.dealId,
+      milestoneKey: 'reel2',
+      deliverables: ['30s teaser (9:16)', 'Captions in the bottom third'],
+    },
+    {
+      title: 'Diwali greetings reel (team draft)',
+      description: 'A 20s greetings reel; the team and the split are still being agreed.',
+      status: 'ASSIGNED',
+      assignee: editorId,
+      task: 'Rough cut of the greetings reel',
+      dealId: DEMO.teamDealId,
+      milestoneKey: 'greeting',
+      deliverables: ['20s greetings reel (9:16)', 'Captions'],
     },
   ];
   for (const r of rows) {
@@ -433,6 +479,37 @@ async function seedDemoProjects(
           creator: judgeId,
           assignee: r.assignee,
           assignedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true },
+    );
+    const concept = await Concept.findOneAndUpdate(
+      { organizationId: orgId, title: r.title },
+      {
+        $setOnInsert: {
+          organizationId: orgId,
+          title: r.title,
+          description: r.description,
+          proposer: judgeId,
+          status: 'APPROVED',
+          approvedProjectId: p._id,
+        },
+      },
+      { upsert: true, new: true },
+    );
+    await Project.updateOne(
+      { _id: p._id },
+      { $set: { conceptId: concept._id, dealId: r.dealId, milestoneKey: r.milestoneKey } },
+    );
+    await Brief.findOneAndUpdate(
+      { projectId: p._id },
+      {
+        $setOnInsert: {
+          projectId: p._id,
+          organizationId: orgId,
+          goal: r.description,
+          deliverables: r.deliverables,
+          submittedBy: judgeId,
         },
       },
       { upsert: true, new: true },
@@ -489,8 +566,14 @@ function clocksAsSeeded(d: DealDoc, nowMs: number): boolean {
   const r3 = reviewClock.viewOf(d, 'reel3', now);
   const r4 = reviewClock.viewOf(d, 'reel4', now);
   return (
-    !!r3 && r3.status === 'running' && r3.state.status === 'running' && r3.state.businessDaysLeft >= 1 &&
-    !!r4 && r4.status === 'running' && r4.state.status === 'released_partial' && r4.doneSteps.includes('release_partial')
+    !!r3 &&
+    r3.status === 'running' &&
+    r3.state.status === 'running' &&
+    r3.state.businessDaysLeft >= 1 &&
+    !!r4 &&
+    r4.status === 'running' &&
+    r4.state.status === 'released_partial' &&
+    r4.doneSteps.includes('release_partial')
   );
 }
 
@@ -774,7 +857,12 @@ async function seedDealDemo(
  * gives the judge the same picture whatever the day: reel3 ~2 business days
  * left, reel4 just past its window and in grace.
  */
-function pickStart(d: DealDoc, key: string, nowMs: number, want: (st: any, sched: any) => boolean): string {
+function pickStart(
+  d: DealDoc,
+  key: string,
+  nowMs: number,
+  want: (st: any, sched: any) => boolean,
+): string {
   const t = d.terms.milestones.find((x) => x.key === key)!;
   const ct = reviewClock.clockTermsOf(d.terms, t);
   const now = new Date(nowMs).toISOString();
@@ -804,14 +892,23 @@ async function rebaseClock(s: any, dealId: string, orgId: string, key: string, s
       schedule.currency = d.terms.currency;
       const versions = m.versions.map((v, i) =>
         i === m.versions.length - 1
-          ? { ...v, submittedAt: startISO, checks: v.checks ? { ...v.checks, at: startISO } : v.checks }
+          ? {
+              ...v,
+              submittedAt: startISO,
+              checks: v.checks ? { ...v.checks, at: startISO } : v.checks,
+            }
           : v,
       );
       return {
         ...m,
         versions,
         reviewStartedAt: startISO,
-        clock: { ...m.clock, startedAt: startISO, schedule, timeline: m.clock.timeline.map((e) => (e.id === 'started' ? { ...e, at: startISO } : e)) },
+        clock: {
+          ...m.clock,
+          startedAt: startISO,
+          schedule,
+          timeline: m.clock.timeline.map((e) => (e.id === 'started' ? { ...e, at: startISO } : e)),
+        },
       };
     });
     return { deal: { ...d, milestones }, out: null };
@@ -829,9 +926,14 @@ async function runDueSteps(s: any, dealId: string, orgId: string, key: string) {
   const due: string[] = reviewClock.dueFor(m.clock, new Date().toISOString());
   for (const stepId of due) {
     const r = await s.runClockStep(dealId, key, stepId, { silent: !stepId.startsWith('release_') });
-    if (!r.out.ok) throw new Error(`demo seed: clock step ${key}:${stepId} did not complete (${r.out.note || 'refused'})`);
+    if (!r.out.ok)
+      throw new Error(
+        `demo seed: clock step ${key}:${stepId} did not complete (${r.out.note || 'refused'})`,
+      );
   }
-  const at = new Map<string, string>((m.clock!.schedule.steps as { id: string; atISO: string }[]).map((x) => [x.id, x.atISO]));
+  const at = new Map<string, string>(
+    (m.clock!.schedule.steps as { id: string; atISO: string }[]).map((x) => [x.id, x.atISO]),
+  );
   await s.withDeal(dealId, orgId, async (doc: DealDoc) => {
     d = {
       ...doc,
@@ -844,7 +946,11 @@ async function runDueSteps(s: any, dealId: string, orgId: string, key: string) {
                 ...x.clock,
                 timeline: x.clock.timeline.map((e) =>
                   e.kind === 'step' && !e.id.startsWith('release_') && at.has(e.id)
-                    ? { ...e, at: at.get(e.id)!, note: 'reminder logged by the demo seed (not sent)' }
+                    ? {
+                        ...e,
+                        at: at.get(e.id)!,
+                        note: 'reminder logged by the demo seed (not sent)',
+                      }
                     : e,
                 ),
               },
@@ -879,15 +985,71 @@ async function seedClocks(
   }
   const lines: Record<string, Line[]> = {
     reel3: [
-      { id: 'len', metric: 'duration_s', measured: 14.6, passed: true, t: 0, tEnd: 14.6, note: 'file runs 14.6s' },
-      { id: 'hook', metric: 'hook_by_s', measured: 0.6, passed: true, t: 0.6, tEnd: 2.4, note: "first words at 0.6s: 'Swipe up for Diwali...'" },
-      { id: 'logo', metric: 'logo_present', measured: true, passed: true, t: 0, tEnd: 3, note: 'logo matched (score 0.93) from 0.0s to 3.0s' },
-      { id: 'loud', metric: 'loudness_lufs', measured: -14.1, passed: true, t: 6.3, tEnd: 6.3, note: 'integrated -14.1 LUFS, LRA 4.9, loudest moment at 6.3s' },
+      {
+        id: 'len',
+        metric: 'duration_s',
+        measured: 14.6,
+        passed: true,
+        t: 0,
+        tEnd: 14.6,
+        note: 'file runs 14.6s',
+      },
+      {
+        id: 'hook',
+        metric: 'hook_by_s',
+        measured: 0.6,
+        passed: true,
+        t: 0.6,
+        tEnd: 2.4,
+        note: "first words at 0.6s: 'Swipe up for Diwali...'",
+      },
+      {
+        id: 'logo',
+        metric: 'logo_present',
+        measured: true,
+        passed: true,
+        t: 0,
+        tEnd: 3,
+        note: 'logo matched (score 0.93) from 0.0s to 3.0s',
+      },
+      {
+        id: 'loud',
+        metric: 'loudness_lufs',
+        measured: -14.1,
+        passed: true,
+        t: 6.3,
+        tEnd: 6.3,
+        note: 'integrated -14.1 LUFS, LRA 4.9, loudest moment at 6.3s',
+      },
     ],
     reel4: [
-      { id: 'len', metric: 'duration_s', measured: 5.8, passed: true, t: 0, tEnd: 5.8, note: 'file runs 5.8s' },
-      { id: 'logo', metric: 'logo_present', measured: true, passed: true, t: 0, tEnd: 3, note: 'logo matched (score 0.95) from 0.0s to 3.0s' },
-      { id: 'loud', metric: 'loudness_lufs', measured: -13.8, passed: true, t: 2.1, tEnd: 2.1, note: 'integrated -13.8 LUFS, LRA 3.2, loudest moment at 2.1s' },
+      {
+        id: 'len',
+        metric: 'duration_s',
+        measured: 5.8,
+        passed: true,
+        t: 0,
+        tEnd: 5.8,
+        note: 'file runs 5.8s',
+      },
+      {
+        id: 'logo',
+        metric: 'logo_present',
+        measured: true,
+        passed: true,
+        t: 0,
+        tEnd: 3,
+        note: 'logo matched (score 0.95) from 0.0s to 3.0s',
+      },
+      {
+        id: 'loud',
+        metric: 'loudness_lufs',
+        measured: -13.8,
+        passed: true,
+        t: 2.1,
+        tEnd: 2.1,
+        note: 'integrated -13.8 LUFS, LRA 3.2, loudest moment at 2.1s',
+      },
     ],
   };
   const nowMs = Date.now();
@@ -899,14 +1061,26 @@ async function seedClocks(
   }
   const d0: DealDoc = await s.get(id, orgId);
   // reel3: the newest start with exactly 2 business days left
-  await rebaseClock(s, id, orgId, 'reel3', pickStart(d0, 'reel3', nowMs, (st) => st.status === 'running' && st.businessDaysLeft === 2));
+  await rebaseClock(
+    s,
+    id,
+    orgId,
+    'reel3',
+    pickStart(d0, 'reel3', nowMs, (st) => st.status === 'running' && st.businessDaysLeft === 2),
+  );
   // reel4: the newest start whose window ended (partial released) with at most 3 days of grace left
   await rebaseClock(
     s,
     id,
     orgId,
     'reel4',
-    pickStart(d0, 'reel4', nowMs, (st, sched) => st.status === 'released_partial' && Date.parse(sched.graceDeadline) - nowMs <= 72 * HOUR_MS),
+    pickStart(
+      d0,
+      'reel4',
+      nowMs,
+      (st, sched) =>
+        st.status === 'released_partial' && Date.parse(sched.graceDeadline) - nowMs <= 72 * HOUR_MS,
+    ),
   );
   await runDueSteps(s, id, orgId, 'reel3');
   await runDueSteps(s, id, orgId, 'reel4');

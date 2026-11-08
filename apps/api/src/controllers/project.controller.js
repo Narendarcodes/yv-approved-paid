@@ -1,5 +1,7 @@
 const projectService = require('../services/project.service');
 const publicationService = require('../services/publication.service');
+const stageGates = require('../services/stageGates.service');
+const { allows } = require('../modules/access/index.cts');
 
 async function create(req, res, next) {
   try {
@@ -78,6 +80,35 @@ async function assign(req, res, next) {
       organizationId,
       assigneeId,
       actorId: req.user._id,
+    });
+    res.json({ data: project });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** GET /projects/:id/gate - what the next move needs, as this caller sees it. */
+async function gate(req, res, next) {
+  try {
+    const data = await stageGates.gateFor({
+      projectId: req.params.id,
+      organizationId: req.ctx.orgId,
+      canApprove: allows(req.ctx.permissions || [], 'project.approve'),
+    });
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** PUT /projects/:id/deal - link (or unlink) the deal this project delivers. */
+async function linkDeal(req, res, next) {
+  try {
+    const project = await projectService.linkDeal({
+      projectId: req.params.id,
+      organizationId: req.ctx.orgId,
+      dealId: req.body.dealId || null,
+      milestoneKey: req.body.milestoneKey || null,
     });
     res.json({ data: project });
   } catch (err) {
@@ -181,6 +212,8 @@ module.exports = {
   get,
   transition,
   assign,
+  gate,
+  linkDeal,
   getVersions,
   addVersion,
   approve,

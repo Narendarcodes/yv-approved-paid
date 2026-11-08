@@ -2,7 +2,12 @@ const mongoose = require('mongoose');
 
 const ProjectSchema = new mongoose.Schema(
   {
-    organizationId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Organization', index: true },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'Organization',
+      index: true,
+    },
     title: { type: String, required: true, trim: true },
     type: { type: String, default: 'content' },
     description: { type: String, default: '' },
@@ -10,7 +15,11 @@ const ProjectSchema = new mongoose.Schema(
     creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     assignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     assignedAt: { type: Date, default: null },
-    approvedVersionId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectVersion', default: null },
+    approvedVersionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProjectVersion',
+      default: null,
+    },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },
     scheduledAt: { type: Date, default: null },
@@ -28,8 +37,12 @@ const ProjectSchema = new mongoose.Schema(
     },
     // Concept this project was created from (Concepts -> Project conversion).
     conceptId: { type: mongoose.Schema.Types.ObjectId, ref: 'Concept', default: null },
+    // The deal (and its milestone) this project delivers. Read by the stage
+    // gates only (services/stageGates.service.js); no money logic lives here.
+    dealId: { type: String, default: null },
+    milestoneKey: { type: String, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Dashboard query patterns: status, assignee, scheduled date, org boundary

@@ -26,6 +26,11 @@ const transitionSchema = Joi.object({
   status: Joi.string().required(),
 });
 
+const dealLinkSchema = Joi.object({
+  dealId: Joi.string().trim().max(120).allow(null, '').required(),
+  milestoneKey: Joi.string().trim().max(120).allow(null, ''),
+});
+
 const assignSchema = Joi.object({
   assigneeId: Joi.string().hex().length(24).required(),
 });
@@ -90,6 +95,7 @@ module.exports = {
   listProjectsSchema,
   transitionSchema,
   assignSchema,
+  dealLinkSchema,
   addVersionSchema,
   approveSchema,
   scheduleSchema,

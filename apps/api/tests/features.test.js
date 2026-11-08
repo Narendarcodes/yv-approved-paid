@@ -1,6 +1,7 @@
 const request = require('supertest');
 const app = require('../src/app');
 const mongoose = require('mongoose');
+const { meetGates } = require('./helpers/gates');
 
 // New Fluit-aligned features: tasks, briefs, review lock/summarize,
 // project chat, contracts, invoices.
@@ -13,20 +14,41 @@ describe('Fluit-aligned features', () => {
   beforeAll(async () => {
     await require('../src/db/mongo').connect();
     const adminEmail = 'featadmin@example.com';
-    await request(app).post('/api/v1/auth/register').send({ name: 'FeatAdmin', email: adminEmail, password: 'P@ssw0rd' });
-    const login = await request(app).post('/api/v1/auth/login').send({ email: adminEmail, password: 'P@ssw0rd' });
+    await request(app)
+      .post('/api/v1/auth/register')
+      .send({ name: 'FeatAdmin', email: adminEmail, password: 'P@ssw0rd' });
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: adminEmail, password: 'P@ssw0rd' });
     adminToken = login.body.data.accessToken;
 
-    const createOrg = await request(app).post('/api/v1/organizations').set('Authorization', `Bearer ${adminToken}`).send({ name: 'FeatureOrg', slug: 'feature-org' });
+    const createOrg = await request(app)
+      .post('/api/v1/organizations')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'FeatureOrg', slug: 'feature-org' });
     orgId = createOrg.body.data._id;
 
-    const createProj = await request(app).post('/api/v1/projects').set('Authorization', `Bearer ${adminToken}`).send({ organizationId: orgId, title: 'Feature Project' });
+    const createProj = await request(app)
+      .post('/api/v1/projects')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ organizationId: orgId, title: 'Feature Project' });
     projectId = createProj.body.data._id;
+    // stage gates: approved concept, brief items, an editor, signed + held deal with checks
+    await meetGates(projectId, { assigneeId: login.body.data.user._id });
 
     // move project to IN_PROGRESS and add a version for review features
-    await request(app).post(`/api/v1/projects/${projectId}/transition`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'ASSIGNED' });
-    await request(app).post(`/api/v1/projects/${projectId}/transition`).set('Authorization', `Bearer ${adminToken}`).send({ status: 'IN_PROGRESS' });
-    const v = await request(app).post(`/api/v1/projects/${projectId}/versions`).set('Authorization', `Bearer ${adminToken}`).send({ changeSummary: 'first cut' });
+    await request(app)
+      .post(`/api/v1/projects/${projectId}/transition`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'ASSIGNED' });
+    await request(app)
+      .post(`/api/v1/projects/${projectId}/transition`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'IN_PROGRESS' });
+    const v = await request(app)
+      .post(`/api/v1/projects/${projectId}/versions`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ changeSummary: 'first cut' });
     versionId = v.body.data._id;
   });
 
@@ -42,7 +64,12 @@ describe('Fluit-aligned features', () => {
       const create = await request(app)
         .post(`/api/v1/projects/${projectId}/tasks`)
         .set(auth())
-        .send({ title: 'Draft captions', description: 'Write captions for v1', priority: 'high', dueDate: '2026-09-01T00:00:00.000Z' });
+        .send({
+          title: 'Draft captions',
+          description: 'Write captions for v1',
+          priority: 'high',
+          dueDate: '2026-09-01T00:00:00.000Z',
+        });
       expect(create.statusCode).toBe(201);
       const taskId = create.body.data._id;
       expect(create.body.data.status).toBe('todo');
@@ -58,19 +85,30 @@ describe('Fluit-aligned features', () => {
       expect(transition.statusCode).toBe(200);
       expect(transition.body.data.status).toBe('in_review');
 
-      const update = await request(app).patch(`/api/v1/projects/${projectId}/tasks/${taskId}`).set(auth()).send({ priority: 'low' });
+      const update = await request(app)
+        .patch(`/api/v1/projects/${projectId}/tasks/${taskId}`)
+        .set(auth())
+        .send({ priority: 'low' });
       expect(update.statusCode).toBe(200);
       expect(update.body.data.priority).toBe('low');
 
-      const remove = await request(app).delete(`/api/v1/projects/${projectId}/tasks/${taskId}`).set(auth());
+      const remove = await request(app)
+        .delete(`/api/v1/projects/${projectId}/tasks/${taskId}`)
+        .set(auth());
       expect(remove.statusCode).toBe(200);
       expect(remove.body.data.deleted).toBe(true);
     });
 
     test('rejects invalid task status', async () => {
-      const create = await request(app).post(`/api/v1/projects/${projectId}/tasks`).set(auth()).send({ title: 'Invalid' });
+      const create = await request(app)
+        .post(`/api/v1/projects/${projectId}/tasks`)
+        .set(auth())
+        .send({ title: 'Invalid' });
       const taskId = create.body.data._id;
-      const bad = await request(app).post(`/api/v1/projects/${projectId}/tasks/${taskId}/status`).set(auth()).send({ status: 'nope' });
+      const bad = await request(app)
+        .post(`/api/v1/projects/${projectId}/tasks/${taskId}/status`)
+        .set(auth())
+        .send({ status: 'nope' });
       expect(bad.statusCode).toBe(400);
     });
   });
@@ -100,17 +138,29 @@ describe('Fluit-aligned features', () => {
   describe('Review lock + summarize', () => {
     test('summarize feedback and lock it into a revision scope', async () => {
       // add two feedback comments on the version
-      await request(app).post(`/api/v1/projects/${projectId}/comments`).set(auth()).send({ versionId, body: 'Please cool down the color grading on the product shot.' });
-      const timed = await request(app).post(`/api/v1/projects/${projectId}/comments`).set(auth()).send({ versionId, body: 'Can we tighten the audio sync at 0:42?', timecode: 42 });
+      await request(app)
+        .post(`/api/v1/projects/${projectId}/comments`)
+        .set(auth())
+        .send({ versionId, body: 'Please cool down the color grading on the product shot.' });
+      const timed = await request(app)
+        .post(`/api/v1/projects/${projectId}/comments`)
+        .set(auth())
+        .send({ versionId, body: 'Can we tighten the audio sync at 0:42?', timecode: 42 });
       expect(timed.statusCode).toBe(201);
       expect(timed.body.data.timecode).toBe(42);
 
-      const summarize = await request(app).post(`/api/v1/projects/${projectId}/reviews/summarize`).set(auth()).send({ versionId });
+      const summarize = await request(app)
+        .post(`/api/v1/projects/${projectId}/reviews/summarize`)
+        .set(auth())
+        .send({ versionId });
       expect(summarize.statusCode).toBe(200);
       expect(summarize.body.data.totalComments).toBe(2);
       expect(summarize.body.data.actionItems.length).toBeGreaterThanOrEqual(2);
 
-      const lock = await request(app).post(`/api/v1/projects/${projectId}/reviews/lock`).set(auth()).send({ versionId });
+      const lock = await request(app)
+        .post(`/api/v1/projects/${projectId}/reviews/lock`)
+        .set(auth())
+        .send({ versionId });
       expect(lock.statusCode).toBe(201);
       expect(lock.body.data.lockedCommentCount).toBe(2);
       expect(lock.body.data.revision.source).toBe('review_lock');
@@ -118,13 +168,18 @@ describe('Fluit-aligned features', () => {
       expect(lock.body.data.revision.reason).toContain('Action items');
 
       // locking feedback moves the project into "Revision requested"
-      const proj = await request(app).get(`/api/v1/projects/${projectId}?organizationId=${orgId}`).set(auth());
+      const proj = await request(app)
+        .get(`/api/v1/projects/${projectId}?organizationId=${orgId}`)
+        .set(auth());
       expect(proj.body.data.status).toBe('REVISION_REQUESTED');
       expect(proj.body.data.revisionCount).toBe(1);
     });
 
     test('lock fails when there is no unresolved feedback', async () => {
-      const res = await request(app).post(`/api/v1/projects/${projectId}/reviews/lock`).set(auth()).send({ versionId });
+      const res = await request(app)
+        .post(`/api/v1/projects/${projectId}/reviews/lock`)
+        .set(auth())
+        .send({ versionId });
       expect(res.statusCode).toBe(400);
       expect(res.body.error.code).toBe('no_feedback');
     });
@@ -132,11 +187,17 @@ describe('Fluit-aligned features', () => {
 
   describe('Project chat', () => {
     test('create channel, post message and threaded reply', async () => {
-      const channel = await request(app).post(`/api/v1/projects/${projectId}/channels`).set(auth()).send({ name: 'feedback' });
+      const channel = await request(app)
+        .post(`/api/v1/projects/${projectId}/channels`)
+        .set(auth())
+        .send({ name: 'feedback' });
       expect(channel.statusCode).toBe(201);
       const channelId = channel.body.data._id;
 
-      const msg = await request(app).post(`/api/v1/projects/${projectId}/channels/${channelId}/messages`).set(auth()).send({ body: 'Opening shot feels right.' });
+      const msg = await request(app)
+        .post(`/api/v1/projects/${projectId}/channels/${channelId}/messages`)
+        .set(auth())
+        .send({ body: 'Opening shot feels right.' });
       expect(msg.statusCode).toBe(201);
 
       const reply = await request(app)
@@ -147,7 +208,9 @@ describe('Fluit-aligned features', () => {
       expect(reply.body.data.parentId).toBe(msg.body.data._id);
 
       // top-level listing excludes thread replies
-      const list = await request(app).get(`/api/v1/projects/${projectId}/channels/${channelId}/messages`).set(auth());
+      const list = await request(app)
+        .get(`/api/v1/projects/${projectId}/channels/${channelId}/messages`)
+        .set(auth());
       expect(list.statusCode).toBe(200);
       expect(list.body.data.total).toBe(1);
 
@@ -167,16 +230,26 @@ describe('Fluit-aligned features', () => {
       const create = await request(app)
         .post(`/api/v1/organizations/${orgId}/contracts`)
         .set(auth())
-        .send({ title: 'Production Agreement', amount: 4800, currency: 'USD', terms: 'Standard terms', projectId });
+        .send({
+          title: 'Production Agreement',
+          amount: 4800,
+          currency: 'USD',
+          terms: 'Standard terms',
+          projectId,
+        });
       expect(create.statusCode).toBe(201);
       expect(create.body.data.status).toBe('draft');
       const contractId = create.body.data._id;
 
-      const send = await request(app).post(`/api/v1/organizations/${orgId}/contracts/${contractId}/send`).set(auth());
+      const send = await request(app)
+        .post(`/api/v1/organizations/${orgId}/contracts/${contractId}/send`)
+        .set(auth());
       expect(send.statusCode).toBe(200);
       expect(send.body.data.status).toBe('sent');
 
-      const view = await request(app).post(`/api/v1/organizations/${orgId}/contracts/${contractId}/view`).set(auth());
+      const view = await request(app)
+        .post(`/api/v1/organizations/${orgId}/contracts/${contractId}/view`)
+        .set(auth());
       expect(view.statusCode).toBe(200);
       expect(view.body.data.status).toBe('viewed');
 
@@ -190,10 +263,19 @@ describe('Fluit-aligned features', () => {
     });
 
     test('cannot edit a signed contract', async () => {
-      const create = await request(app).post(`/api/v1/organizations/${orgId}/contracts`).set(auth()).send({ title: 'Locked Terms' });
+      const create = await request(app)
+        .post(`/api/v1/organizations/${orgId}/contracts`)
+        .set(auth())
+        .send({ title: 'Locked Terms' });
       const contractId = create.body.data._id;
-      await request(app).post(`/api/v1/organizations/${orgId}/contracts/${contractId}/sign`).set(auth()).send({ signerName: 'A', signerEmail: 'a@b.co' });
-      const edit = await request(app).patch(`/api/v1/organizations/${orgId}/contracts/${contractId}`).set(auth()).send({ amount: 1 });
+      await request(app)
+        .post(`/api/v1/organizations/${orgId}/contracts/${contractId}/sign`)
+        .set(auth())
+        .send({ signerName: 'A', signerEmail: 'a@b.co' });
+      const edit = await request(app)
+        .patch(`/api/v1/organizations/${orgId}/contracts/${contractId}`)
+        .set(auth())
+        .send({ amount: 1 });
       expect(edit.statusCode).toBe(400);
       expect(edit.body.error.code).toBe('contract_not_editable');
     });
@@ -206,11 +288,18 @@ describe('Fluit-aligned features', () => {
       expect(create.statusCode).toBe(201);
       expect(create.body.data.sentTo).toBe('client@brand.co');
       const contractId = create.body.data._id;
-      await request(app).post(`/api/v1/organizations/${orgId}/contracts/${contractId}/sign`).set(auth()).send({ signerName: 'A', signerEmail: 'a@b.co' });
-      const resend = await request(app).post(`/api/v1/organizations/${orgId}/contracts/${contractId}/send`).set(auth());
+      await request(app)
+        .post(`/api/v1/organizations/${orgId}/contracts/${contractId}/sign`)
+        .set(auth())
+        .send({ signerName: 'A', signerEmail: 'a@b.co' });
+      const resend = await request(app)
+        .post(`/api/v1/organizations/${orgId}/contracts/${contractId}/send`)
+        .set(auth());
       expect(resend.statusCode).toBe(400);
       expect(resend.body.error.code).toBe('already_signed');
-      const after = await request(app).get(`/api/v1/organizations/${orgId}/contracts/${contractId}`).set(auth());
+      const after = await request(app)
+        .get(`/api/v1/organizations/${orgId}/contracts/${contractId}`)
+        .set(auth());
       expect(after.body.data.status).toBe('signed');
     });
   });
@@ -224,19 +313,28 @@ describe('Fluit-aligned features', () => {
       expect(create.statusCode).toBe(201);
       const invoiceId = create.body.data._id;
 
-      const send = await request(app).post(`/api/v1/organizations/${orgId}/invoices/${invoiceId}/send`).set(auth());
+      const send = await request(app)
+        .post(`/api/v1/organizations/${orgId}/invoices/${invoiceId}/send`)
+        .set(auth());
       expect(send.statusCode).toBe(200);
       expect(send.body.data.status).toBe('sent');
 
-      const outstanding = await request(app).get(`/api/v1/organizations/${orgId}/invoices/outstanding`).set(auth());
+      const outstanding = await request(app)
+        .get(`/api/v1/organizations/${orgId}/invoices/outstanding`)
+        .set(auth());
       expect(outstanding.statusCode).toBe(200);
       expect(outstanding.body.data.totalOutstanding).toBe(1500);
 
-      const pay = await request(app).post(`/api/v1/organizations/${orgId}/invoices/${invoiceId}/pay`).set(auth()).send({ paymentMethod: 'stripe' });
+      const pay = await request(app)
+        .post(`/api/v1/organizations/${orgId}/invoices/${invoiceId}/pay`)
+        .set(auth())
+        .send({ paymentMethod: 'stripe' });
       expect(pay.statusCode).toBe(200);
       expect(pay.body.data.status).toBe('paid');
 
-      const after = await request(app).get(`/api/v1/organizations/${orgId}/invoices/outstanding`).set(auth());
+      const after = await request(app)
+        .get(`/api/v1/organizations/${orgId}/invoices/outstanding`)
+        .set(auth());
       expect(after.body.data.totalOutstanding).toBe(0);
     });
   });
@@ -271,10 +369,15 @@ describe('Fluit-aligned features', () => {
       expect(res.body.error.code).toBe('validation_error');
     });
 
-    test('PATCH /users/me cannot take another user\'s email (409)', async () => {
+    test("PATCH /users/me cannot take another user's email (409)", async () => {
       const otherEmail = 'featother@example.com';
-      await request(app).post('/api/v1/auth/register').send({ name: 'Other', email: otherEmail, password: 'P@ssw0rd' });
-      const res = await request(app).patch('/api/v1/users/me').set(auth()).send({ email: otherEmail });
+      await request(app)
+        .post('/api/v1/auth/register')
+        .send({ name: 'Other', email: otherEmail, password: 'P@ssw0rd' });
+      const res = await request(app)
+        .patch('/api/v1/users/me')
+        .set(auth())
+        .send({ email: otherEmail });
       expect(res.statusCode).toBe(409);
       expect(res.body.error.code).toBe('email_in_use');
     });

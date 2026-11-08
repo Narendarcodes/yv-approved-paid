@@ -18,6 +18,7 @@ const app = require('../src/app');
 const Project = require('../src/models/project.model');
 const Membership = require('../src/models/membership.model');
 const { seedDefaultRoles, DEFAULT_ROLES } = require('../src/seed/roles');
+const { meetGates, addPost } = require('./helpers/gates');
 const {
   TRANSITIONS,
   ALLOWED_TRANSITIONS,
@@ -53,6 +54,8 @@ async function newProject(by = U.editor, title = 'batch-a') {
     .set(auth(by))
     .send({ organizationId: orgId, title });
   expect(r.statusCode).toBe(201);
+  // stage gates: concept, brief, editor, signed + held deal with checks
+  await meetGates(r.body.data._id, { assigneeId: U.editor.userId });
   return r.body.data._id;
 }
 
@@ -92,7 +95,11 @@ describe('M1 lifecycle table (unit)', () => {
   });
 
   test('approval, scheduling and publishing edges need their own permissions', () => {
-    const need = { APPROVED: 'project.approve', SCHEDULED: 'project.schedule', PUBLISHED: 'project.publish' };
+    const need = {
+      APPROVED: 'project.approve',
+      SCHEDULED: 'project.schedule',
+      PUBLISHED: 'project.publish',
+    };
     const gated = edges.filter((e) => need[e.to]);
     expect(gated.length).toBe(4); // UNDER_REVIEW/REVISION_SUBMITTED->APPROVED, ->SCHEDULED, ->PUBLISHED
     for (const e of gated) expect(e.rule.permission).toBe(need[e.to]);
@@ -123,7 +130,12 @@ describe('M1 lifecycle table (unit)', () => {
   test('transitionProject refuses to run without caller permissions', async () => {
     const pid = await newProject();
     await expect(
-      transitionProject({ projectId: pid, organizationId: orgId, newStatus: 'ASSIGNED', actorId: U.editor.userId }),
+      transitionProject({
+        projectId: pid,
+        organizationId: orgId,
+        newStatus: 'ASSIGNED',
+        actorId: U.editor.userId,
+      }),
     ).rejects.toMatchObject({ status: 500, code: 'access_unresolved' });
   });
 });
@@ -164,8 +176,14 @@ describe('M1 /transition route', () => {
     expect(noVersion.statusCode).toBe(400);
     expect(noVersion.body.error.code).toBe('no_version');
 
-    const v1 = await request(app).post(`/api/v1/projects/${pid}/versions`).set(auth(U.editor)).send({ changeSummary: 'v1' });
-    const v2 = await request(app).post(`/api/v1/projects/${pid}/versions`).set(auth(U.editor)).send({ changeSummary: 'v2' });
+    const v1 = await request(app)
+      .post(`/api/v1/projects/${pid}/versions`)
+      .set(auth(U.editor))
+      .send({ changeSummary: 'v1' });
+    const v2 = await request(app)
+      .post(`/api/v1/projects/${pid}/versions`)
+      .set(auth(U.editor))
+      .send({ changeSummary: 'v2' });
     expect(v1.statusCode).toBe(201);
     expect(v2.statusCode).toBe(201);
 
@@ -180,6 +198,7 @@ describe('M1 /transition route', () => {
 
     // publisher schedules and publishes once there is an approved version
     expect((await transition(U.publisher, pid, 'SCHEDULED')).statusCode).toBe(200);
+    await addPost(pid); // Publish -> Live gate: a post is scheduled
     const pub = await transition(U.publisher, pid, 'PUBLISHED');
     expect(pub.statusCode).toBe(200);
     expect(pub.body.data.status).toBe('PUBLISHED');
@@ -207,7 +226,11 @@ describe('M1 /transition route', () => {
     // publisher has no project.transition
     expect((await transition(U.publisher, pid, 'ASSIGNED')).statusCode).toBe(403);
     await walk(U.admin, pid, TO_REVIEW);
-    await request(app).post(`/api/v1/projects/${pid}/versions`).set(auth(U.admin)).send({ changeSummary: 'v1' });
+    await request(app)
+      .post(`/api/v1/projects/${pid}/versions`)
+      .set(auth(U.admin))
+      .send({ changeSummary: 'v1' });
+    await addPost(pid); // Publish -> Live gate: a post is scheduled
     await walk(U.admin, pid, ['APPROVED', 'SCHEDULED', 'PUBLISHED', 'CLOSED']);
   });
 
@@ -246,7 +269,10 @@ describe('M2 concept approve / decline', () => {
     return r.body.data.id;
   }
   const decide = (u, id, action) =>
-    request(app).patch(`/api/v1/organizations/${orgId}/concepts/${id}/${action}`).set(auth(u)).send({});
+    request(app)
+      .patch(`/api/v1/organizations/${orgId}/concepts/${id}/${action}`)
+      .set(auth(u))
+      .send({});
 
   test('editor and publisher cannot approve or decline', async () => {
     const id = await propose(U.editor);
@@ -280,7 +306,9 @@ describe('M2 concept approve / decline', () => {
     const id = await propose(U.editor, 'Decided');
     expect((await decide(U.reviewer, id, 'approve')).statusCode).toBe(200);
     expect((await decide(U.reviewer, id, 'decline')).statusCode).toBe(409);
-    expect((await decide(U.reviewer, new mongoose.Types.ObjectId(), 'decline')).statusCode).toBe(404);
+    expect((await decide(U.reviewer, new mongoose.Types.ObjectId(), 'decline')).statusCode).toBe(
+      404,
+    );
   });
 });
 
@@ -372,7 +400,11 @@ describe('L1 member update: validation + last-admin guard', () => {
     ]);
     // Depending on interleaving the loser gets 409 (guard) or 403 (already demoted).
     expect(r1.statusCode === 200 && r2.statusCode === 200).toBe(false);
-    const admins = await Membership.countDocuments({ organizationId: org2, role: 'admin', disabled: { $ne: true } });
+    const admins = await Membership.countDocuments({
+      organizationId: org2,
+      role: 'admin',
+      disabled: { $ne: true },
+    });
     expect(admins).toBeGreaterThanOrEqual(1);
   });
 
