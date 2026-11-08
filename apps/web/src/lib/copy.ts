@@ -57,3 +57,7 @@ export const EMPTY_LINE = {
   moneyTrail: 'Every hold, capture and payout will be listed here.',
   published: 'Published posts and their numbers show here.',
 } as const
+
+/** Channels, Compose and Calendar while social publishing is in build. */
+export const PUBLISHING_IN_BUILD = 'Social publishing is in build. Accounts connect on our side.'
+export const PUBLISHING_PREVIEW = 'Preview: drafts and slots are saved, nothing posts yet.'
