@@ -171,7 +171,7 @@ export function EmptyState({
 }: {
   icon: ReactNode
   title: string
-  description: string
+  description?: string
   action?: ReactNode
 }) {
   return (
@@ -180,7 +180,9 @@ export function EmptyState({
         {icon}
       </div>
       <h3 className="t-title">{title}</h3>
-      <p className="mt-1.5 max-w-[42ch] text-sm leading-relaxed text-umber">{description}</p>
+      {description && (
+        <p className="mt-1.5 max-w-[42ch] text-sm leading-relaxed text-umber">{description}</p>
+      )}
       {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   )

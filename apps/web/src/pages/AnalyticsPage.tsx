@@ -160,7 +160,6 @@ export default function AnalyticsPage() {
         <EmptyState
           icon={<BarChart3 size={22} strokeWidth={1.5} />}
           title="No performance data yet"
-          description="Analytics fill in automatically once an approved project is published. Next step: schedule something from the composer."
           action={
             <Link to="/publishing/compose" className="btn-primary">
               <Send size={14} strokeWidth={1.75} /> Schedule a post
@@ -341,20 +340,25 @@ export default function AnalyticsPage() {
                     </span>
                   )}
                 </div>
-                <p className="mb-3 text-xs text-umber">
-                  {heat?.posts ?? 0} posts, {heat?.timezone}
-                </p>
                 <div className="overflow-x-auto">
                   <table
                     className="border-separate border-spacing-[3px]"
                     aria-label="Engagement by weekday and hour"
+                    title={`${heat?.posts ?? 0} posts · ${heat?.timezone ?? ''}`}
                   >
                     <thead>
                       <tr>
                         <th />
                         {Array.from({ length: 24 }, (_, h) => (
-                          <th key={h} className="w-5 font-mono text-xs font-normal text-label">
-                            {h % 6 === 0 ? h : ''}
+                          <th
+                            key={h}
+                            className="relative h-4 w-5 font-mono text-xs font-normal text-label"
+                          >
+                            {h % 6 === 0 && (
+                              <span className="absolute left-0 top-0 whitespace-nowrap">
+                                {String(h).padStart(2, '0')}:00
+                              </span>
+                            )}
                           </th>
                         ))}
                       </tr>
@@ -390,9 +394,11 @@ export default function AnalyticsPage() {
                   </table>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <span className="t-meta">Darker = higher engagement rate</span>
+                  <span className="t-meta">
+                    Hour of day{heat?.timezone ? ` (${heat.timezone})` : ''}
+                  </span>
                   <RampLegend
-                    low="Low"
+                    low="0%"
                     high={heatGrid.max > 0.0001 ? `${pctText(heatGrid.max)}` : 'High'}
                   />
                 </div>

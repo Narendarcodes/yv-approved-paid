@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trophy, ArrowRight } from 'lucide-react'
+import { Plus, ArrowRight } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import Chip, { Modal, PageHeader } from '../components/primitives'
 import Avatar from '../components/ui'
@@ -194,50 +194,51 @@ export default function ConceptsPage() {
         <>
           {top && top.items.length > 0 && (
             <section className="card p-5" data-testid="top-performers">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <Trophy size={16} strokeWidth={1.75} className="text-teal" />
-                <h2 className="card-title">What worked in {top.label}</h2>
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <h2 className="card-title">Best of {top.label}</h2>
                 <SimulatedBadge show={!!top.simulated} />
-                <Link
-                  to="/analytics"
-                  className="ml-auto text-xs font-medium text-teal hover:underline"
-                >
-                  All analytics →
+                <Link to="/analytics" className="card-link ml-auto">
+                  Analytics →
                 </Link>
               </div>
-              <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {top.items.map((t, i) => (
-                  <li key={t.projectId} className="rounded-[10px] border border-line p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink text-xs text-white">
-                        {i + 1}
-                      </span>
-                      <Link
-                        to={`/projects/${t.projectId}`}
-                        className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-teal"
-                      >
-                        {t.title}
-                      </Link>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      {t.platforms.map((p) => (
-                        <PlatformIcon key={p} platform={p} size="sm" />
-                      ))}
-                      <span className="ml-auto font-mono text-xs text-ink">
-                        {compact(t.views)} views
-                      </span>
-                      <span className="font-mono text-xs font-medium text-teal">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-line text-umber">
+                    <th className="w-8 py-2 font-normal">#</th>
+                    <th className="py-2 font-normal">Post</th>
+                    <th className="hidden py-2 font-normal sm:table-cell">Platforms</th>
+                    <th className="py-2 text-right font-normal">Views</th>
+                    <th className="py-2 text-right font-normal">Engagement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {top.items.map((t, i) => (
+                    <tr key={t.projectId} className="border-b border-line last:border-0">
+                      <td className="t-num py-2.5 text-umber">{i + 1}</td>
+                      <td className="max-w-0 py-2.5 pr-3">
+                        <Link
+                          to={`/projects/${t.projectId}`}
+                          className="block truncate text-ink hover:text-teal"
+                          title={t.concept ? `From concept: ${t.concept.title}` : t.title}
+                        >
+                          {t.title}
+                        </Link>
+                      </td>
+                      <td className="hidden py-2.5 sm:table-cell">
+                        <span className="flex gap-1.5">
+                          {t.platforms.map((p) => (
+                            <PlatformIcon key={p} platform={p} size="sm" />
+                          ))}
+                        </span>
+                      </td>
+                      <td className="t-num py-2.5 text-right">{compact(t.views)}</td>
+                      <td className="t-num py-2.5 text-right text-teal">
                         {pctText(t.engagementRate)}
-                      </span>
-                    </div>
-                    {t.concept && (
-                      <p className="mt-1.5 truncate text-xs text-umber">
-                        From concept: {t.concept.title}
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ol>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           )}
 
