@@ -133,7 +133,6 @@ export default function ContractsPage() {
         <EmptyState
           icon={<FileSignature size={22} strokeWidth={1.75} />}
           title="No contracts yet"
-          description="Draft a scope of work, send it to your client and capture their signature here."
         />
       ) : (
         <div className="space-y-3">

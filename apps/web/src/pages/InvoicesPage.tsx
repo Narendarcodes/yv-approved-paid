@@ -368,7 +368,6 @@ export default function InvoicesPage() {
         <EmptyState
           icon={<Receipt size={22} strokeWidth={1.75} />}
           title="No invoices yet"
-          description="Create one when a project is delivered. When a client accepts a change order on a deal, its PayPal invoice shows up here too."
           action={
             <button className="btn-primary" onClick={openNew}>
               New invoice

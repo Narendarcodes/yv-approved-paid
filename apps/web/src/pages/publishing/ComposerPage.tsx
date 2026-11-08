@@ -222,7 +222,6 @@ export default function ComposerPage() {
         <EmptyState
           icon={<FileText size={22} strokeWidth={1.5} />}
           title="No approved projects yet"
-          description="A project can be scheduled once a reviewer approves its final version."
           action={
             <Link to="/projects" className="btn-primary">
               Go to projects

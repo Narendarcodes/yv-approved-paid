@@ -435,7 +435,6 @@ export default function CalendarPage() {
               ? 'Nothing on the calendar this week'
               : 'Nothing on the calendar this month'
           }
-          description="Next step: schedule an approved project from the composer - it shows up here and goes live on time."
           action={
             canManage ? (
               <Link to="/publishing/compose" className="btn-primary">
