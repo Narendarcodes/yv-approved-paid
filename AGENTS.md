@@ -7,18 +7,18 @@ yv. turns a signed content deal into a payday the code keeps: brands fund each m
 | Group | Route | Page (`apps/web/src/pages`) | API |
 | --- | --- | --- | --- |
 | Home | `/dashboard` | `DashboardPage` | `routes/projects`, `routes/organizations` |
-| Create | `/projects`, `/projects/:id`, `/projects/:id/review` | `ProjectsPage`, `ProjectDetailPage`, `ReviewWorkspacePage` | `routes/projects`, tasks, reviews, brief |
-| Create | `/concepts` | `ConceptsPage` | concepts |
-| Create | `/review` | `ReviewPage` | reviews |
-| Create | `/brand-brain` | `BrandBrainPage` | brand brain |
-| Publish | `/publishing/calendar`, `/publishing/compose`, `/publishing/channels` | `pages/publishing/*` | publishing |
-| Publish | `/analytics`, `/reports/performance` | `AnalyticsPage`, `PerformanceReportPage` | analytics |
+| Create | `/projects`, `/projects/:id`, `/projects/:id/review` | `ProjectsPage`, `ProjectDetailPage`, `ReviewWorkspacePage` | `routes/projects` (tasks, reviews, brief) |
+| Create | `/concepts` | `ConceptsPage` | `routes/concepts` |
+| Create | `/review` | `ReviewPage` | `routes/projects` (reviews) |
+| Create | `/brand-brain` | `BrandBrainPage` | `routes/agent` + Socket.IO |
+| Publish | `/publishing/calendar`, `/publishing/compose`, `/publishing/channels` | `pages/publishing/*` | `routes/scheduling` |
+| Publish | `/analytics`, `/reports/performance` | `AnalyticsPage`, `PerformanceReportPage` | `routes/analytics` |
 | Money | `/deals`, `/deals/:dealId`, `/deals/:dealId/fund/:key` | `DealsPage`, `DealPage` | `modules/deals` |
 | Money | `/payables` | `PayablesPage` (AG Grid, lazy) | `modules/deals/payables` |
 | Money | `/my-money` | `MyMoneyPage` (lazy) | `modules/deals/team` |
-| Money | `/invoices`, `/contracts` | `InvoicesPage`, `ContractsPage` | invoices, contracts |
-| Team | `/my-work`, `/chat`, `/members` (admin) | `MyWorkPage`, `ChatPage`, `MembersPage` | tasks, chat, users |
-| Top bar / avatar menu | `/notifications`, `/profile`, `/settings` (admin) | `NotificationsPage`, `ProfilePage`, `SettingsPage` | notifications, users, organizations |
+| Money | `/invoices`, `/contracts` | `InvoicesPage`, `ContractsPage` | `routes/invoices`, `routes/contracts` |
+| Team | `/my-work`, `/chat`, `/members` (admin) | `MyWorkPage`, `ChatPage`, `MembersPage` | `routes/projects` (tasks, chat), `routes/users` |
+| Top bar / avatar menu | `/notifications`, `/profile`, `/settings` (admin) | `NotificationsPage`, `ProfilePage`, `SettingsPage` | `routes/notifications`, `routes/users`, `routes/organizations` |
 | Public | `/`, `/login`, `/register`, `/forgot-password` | `LandingPage`, `LoginPage`, … | `routes/auth` |
 
 Nav lives in `apps/web/src/layouts/AppShell.tsx` (grouped by job, role-gated). Design tokens: `apps/web/src/styles/tokens.css` only. The deal copilot is `services/agent` (FastAPI). The clock workflow is `workflows/fair-clock`.
