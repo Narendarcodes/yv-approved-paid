@@ -259,7 +259,7 @@ export function Composer({
       className={`${sticky ? 'sticky bottom-0 z-20' : ''} bg-canvas pb-[max(12px,env(safe-area-inset-bottom))] pt-2`}
     >
       <form
-        className="flex items-end gap-2 rounded-[16px] border border-line-strong bg-surface px-3 py-2 focus-within:border-teal/50"
+        className="flex items-end gap-2 rounded-[16px] border border-line-strong bg-surface px-3 py-2 focus-within:border-teal"
         onSubmit={(e) => {
           e.preventDefault()
           if (can) onSend()
@@ -280,7 +280,7 @@ export function Composer({
           disabled={disabled}
           aria-label={label}
           enterKeyHint="send"
-          className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[15px] leading-6 text-ink outline-none placeholder:text-umber/70 sm:text-[14px]"
+          className="composer-input max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1 text-[15px] leading-6 text-ink outline-none placeholder:text-umber/70 sm:text-[14px]"
         />
         <button
           type="submit"
