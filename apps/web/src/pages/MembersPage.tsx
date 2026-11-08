@@ -76,7 +76,9 @@ export default function MembersPage() {
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="t-display">Members</h1>
-          <p className="mt-1 text-sm text-umber">{members.length} people in {org?.name ?? 'your workspace'}</p>
+          <p className="mt-1 text-sm text-umber">
+            {members.length} people in {org?.name ?? 'your workspace'}
+          </p>
         </div>
         {canInvite && (
           <button onClick={() => setInviteOpen(true)} className="btn-primary">
@@ -87,8 +89,17 @@ export default function MembersPage() {
       </header>
 
       <div className="relative mb-5 w-64">
-        <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-label" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search members…" className="input !pl-9 !h-9" />
+        <Search
+          size={15}
+          strokeWidth={1.75}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-label"
+        />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search members…"
+          className="input !pl-9 !h-9"
+        />
       </div>
 
       <div className="card overflow-hidden p-0">
@@ -99,17 +110,16 @@ export default function MembersPage() {
                 <Users size={18} strokeWidth={1.75} />
               </span>
               <p className="text-sm font-medium text-ink">No members yet</p>
-              <p className="text-[13px] text-umber">Invite someone to get the team started.</p>
             </div>
           ) : (
             <>
-              <table className="w-full min-w-[680px] text-left">
+              <table className="w-full text-left sm:min-w-[680px]">
                 <thead>
                   <tr className="border-b border-line">
                     <th className="table-head">Member</th>
-                    <th className="table-head">Email</th>
+                    <th className="table-head hidden sm:table-cell">Email</th>
                     <th className="table-head">Role</th>
-                    <th className="table-head">Last active</th>
+                    <th className="table-head hidden sm:table-cell">Last active</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -117,18 +127,31 @@ export default function MembersPage() {
                     <tr key={m.id} className="table-row">
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <Avatar initials={m.initials} size="md" tone={m.role === 'Admin' ? 'ink' : 'tint'} />
-                          <span className="font-medium text-ink">{m.name}</span>
+                          <Avatar
+                            initials={m.initials}
+                            size="md"
+                            tone={m.role === 'Admin' ? 'ink' : 'tint'}
+                          />
+                          <span className="min-w-0">
+                            <span className="block font-medium text-ink">{m.name}</span>
+                            <span className="block truncate text-xs text-umber sm:hidden">
+                              {m.email}
+                            </span>
+                          </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-umber">{m.email}</td>
+                      <td className="hidden px-5 py-3.5 text-sm text-umber sm:table-cell">
+                        {m.email}
+                      </td>
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-1.5">
                           <Chip label={m.role} tone={roleTone[m.role] ?? 'neutral'} />
                           {m.pending && <Chip label="Pending" tone="warning" />}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[11px] text-label">{m.lastActive}</td>
+                      <td className="hidden px-5 py-3.5 font-mono text-xs text-label sm:table-cell">
+                        {m.lastActive}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -139,7 +162,6 @@ export default function MembersPage() {
                     <Users size={18} strokeWidth={1.75} />
                   </span>
                   <p className="text-sm font-medium text-ink">No members match “{query}”</p>
-                  <p className="text-[13px] text-umber">Try a different name, or clear the search.</p>
                   <button onClick={() => setQuery('')} className="btn-ghost mt-1 text-teal">
                     Clear search
                   </button>
@@ -154,7 +176,9 @@ export default function MembersPage() {
       <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite a member">
         <form onSubmit={sendInvite} className="space-y-4 px-6 py-5">
           <div>
-            <label htmlFor="invite-email" className="label">Email address</label>
+            <label htmlFor="invite-email" className="label">
+              Email address
+            </label>
             <input
               id="invite-email"
               type="email"
@@ -168,12 +192,15 @@ export default function MembersPage() {
               autoFocus
             />
             {inviteError && <p className="mt-1.5 text-xs text-danger">{inviteError}</p>}
-            <p className="mt-1.5 text-[11.5px] text-label">
-              No email is sent. On the public demo only example.com addresses can be added; they show as pending until they sign up.
+            <p className="mt-1.5 text-xs text-label">
+              No email is sent. On the public demo only example.com addresses can be added; they
+              show as pending until they sign up.
             </p>
           </div>
           <div>
-            <label htmlFor="invite-role" className="label">Role</label>
+            <label htmlFor="invite-role" className="label">
+              Role
+            </label>
             <select
               id="invite-role"
               value={inviteRole}
@@ -181,7 +208,9 @@ export default function MembersPage() {
               className="input"
             >
               {ROLE_OPTIONS.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>
+                  {r}
+                </option>
               ))}
             </select>
           </div>

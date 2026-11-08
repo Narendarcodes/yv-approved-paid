@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutGrid,
@@ -15,8 +15,7 @@ import {
   Users,
   Settings,
   Search,
-  ChevronsUpDown,
-  ChevronRight,
+  UserRound,
   LogOut,
   FileSignature,
   Receipt,
@@ -36,7 +35,8 @@ import CommandPalette from '../components/CommandPalette'
 import BrandLogo from '../components/BrandLogo'
 import { API_ORIGIN } from '../services/api'
 
-const iconProps = { size: 17, strokeWidth: 1.75 }
+// one icon size and stroke across the shell
+const iconProps = { size: 16, strokeWidth: 1.5 }
 
 type NavItem = {
   to: string
@@ -45,12 +45,11 @@ type NavItem = {
   end?: boolean
   badge?: number
   roles?: string[]
-  tag?: string
 }
 
 const CRUMBS: Record<string, string> = {
-  '': 'Pipeline',
-  dashboard: 'Pipeline',
+  '': 'Dashboard',
+  dashboard: 'Dashboard',
   reports: 'Report',
   projects: 'Projects',
   'my-work': 'My work',
@@ -73,7 +72,7 @@ const CRUMBS: Record<string, string> = {
   invoices: 'Invoices',
   deals: 'Deals',
   payables: 'Payables',
-  'my-money': "Where's my money",
+  'my-money': 'My money',
 }
 
 export default function AppShell() {
@@ -85,21 +84,9 @@ export default function AppShell() {
   const { projects } = useProjects()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [navOpen, setNavOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  // collapsed-by-default groups (More); remembered per browser
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('yv.nav.open') || '{}')
-    } catch {
-      return {}
-    }
-  })
-  const toggleGroup = (section: string) =>
-    setOpenGroups((g) => {
-      const next = { ...g, [section]: !g[section] }
-      localStorage.setItem('yv.nav.open', JSON.stringify(next))
-      return next
-    })
+  const menuRef = useRef<HTMLDivElement>(null)
   const segments = location.pathname.split('/').filter(Boolean)
   const crumb = CRUMBS[segments[0] ?? ''] ?? 'Overview'
 
@@ -110,14 +97,26 @@ export default function AppShell() {
         e.preventDefault()
         setPaletteOpen((v) => !v)
       }
+      if (e.key === 'Escape') setMenuOpen(false)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Close the mobile drawer whenever the route changes
+  // Close the avatar menu on an outside click
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [menuOpen])
+
+  // Close the mobile drawer and avatar menu whenever the route changes
   useEffect(() => {
     setNavOpen(false)
+    setMenuOpen(false)
   }, [location.pathname])
 
   // Fetch notifications from the backend on mount
@@ -130,7 +129,7 @@ export default function AppShell() {
   if (!viewer) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas">
-        <p className="text-sm text-umber">Loading your workspace…</p>
+        <p className="text-sm text-umber">Loading…</p>
       </div>
     )
   }
@@ -150,127 +149,53 @@ export default function AppShell() {
 
   const groups = visibleGroups.map((g) => ({
     ...g,
-    items: g.items.map((i) => {
-      if (i.to === '/review') return { ...i, badge: reviewCount }
-      if (i.to === '/notifications') return { ...i, badge: unreadCount }
-      return i
-    }),
+    items: g.items.map((i) => (i.to === '/review' ? { ...i, badge: reviewCount } : i)),
   }))
+
+  const avatarSrc = (viewer as any).photoUrl || (viewer as any).profileImage
+  const avatarUrl = avatarSrc
+    ? avatarSrc.startsWith('http')
+      ? avatarSrc
+      : `${API_ORIGIN}${avatarSrc}`
+    : null
 
   const sidebar = (
     <>
       {/* Brand */}
-      <div className="flex items-center gap-3 px-4 pt-5 pb-4">
-        <BrandLogo to="/deals" size={36} />
+      <div className="flex items-center px-4 pt-5 pb-4">
+        <BrandLogo to="/deals" size={32} />
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
-        {groups.map((group) => {
-          const containsActive = group.items.some(
-            (i) => location.pathname === i.to || location.pathname.startsWith(`${i.to}/`),
-          )
-          const expanded = !group.collapsible || openGroups[group.section] || containsActive
-          const hiddenBadge = group.items.reduce((a, i) => a + (i.badge || 0), 0)
-          return (
-            <div key={group.section} data-testid={`nav-group-${group.section.toLowerCase()}`}>
-              {group.collapsible ? (
-                <button
-                  className="nav-section flex w-full items-center gap-1 text-left hover:text-ink"
-                  onClick={() => toggleGroup(group.section)}
-                  aria-expanded={expanded}
-                  data-testid={`nav-toggle-${group.section.toLowerCase()}`}
-                >
-                  <ChevronRight
-                    size={12}
-                    strokeWidth={2}
-                    className={`transition-transform ${expanded ? 'rotate-90' : ''}`}
-                  />
-                  <span className="flex-1">{group.section}</span>
-                  {!expanded && hiddenBadge > 0 && (
-                    <span
-                      className="flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-teal px-1 font-mono text-[9.5px] font-medium normal-case text-on-accent"
-                      data-testid={`nav-badge-${group.section.toLowerCase()}`}
-                      aria-label={`${hiddenBadge} new`}
-                    >
-                      {hiddenBadge}
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <p className="nav-section">{group.section}</p>
-              )}
-              {expanded && (
-                <div className="space-y-0.5">
-                  {group.items.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                    >
-                      <item.icon />
-                      <span className="flex-1">{item.label}</span>
-                      {item.tag && (
-                        <span className="rounded-full bg-warning/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide text-warning">
-                          {item.tag}
-                        </span>
-                      )}
-                      {item.badge ? (
-                        <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-teal px-1 font-mono text-[10px] font-medium text-on-accent shadow-[0_1px_2px_rgba(15,118,110,0.35)]">
-                          {item.badge}
-                        </span>
-                      ) : null}
-                    </NavLink>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </nav>
-
-      {/* User footer */}
-      <div className="border-t border-line p-3">
-        <button
-          onClick={() => navigate('/profile')}
-          className="group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-ink/4"
-        >
-          {(() => {
-            const src = (viewer as any).photoUrl || (viewer as any).profileImage
-            const url = src ? (src.startsWith('http') ? src : `${API_ORIGIN}${src}`) : null
-            return <Avatar initials={viewer.initials} size="md" tone="ink" src={url} />
-          })()}
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-sm font-medium text-ink">{viewer.name}</p>
-            <p className="truncate text-[11px] text-umber">{viewer.title}</p>
-          </div>
-          <ChevronsUpDown
-            size={14}
-            strokeWidth={2}
-            className="text-umber/40 transition-transform group-hover:text-label"
-          />
-        </button>
-        <div className="mt-1.5 flex items-center gap-2 border-t border-line px-2 pt-2.5">
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="micro-label !text-[10px]">Signed in as</p>
-            <p className="truncate text-[11px] text-ink/70">
-              {session?.user.email ?? viewer.email}
-            </p>
-          </div>
-          <button
-            onClick={async () => {
-              await logout()
-              navigate('/login', { replace: true })
-            }}
-            className="icon-btn icon-btn-sm"
-            aria-label="Sign out"
-            title="Sign out"
+      {/* Nav, grouped by job */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        {groups.map((group, gi) => (
+          <div
+            key={group.section}
+            className={gi ? 'mt-5' : ''}
+            data-testid={`nav-group-${group.section.toLowerCase()}`}
           >
-            <LogOut size={15} strokeWidth={1.75} />
-          </button>
-        </div>
-      </div>
+            {group.section !== 'Home' && <p className="nav-section">{group.section}</p>}
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <item.icon />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge ? (
+                    <span className="nav-badge" aria-label={`${item.badge} waiting`}>
+                      {item.badge}
+                    </span>
+                  ) : null}
+                </NavLink>
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
     </>
   )
 
@@ -278,7 +203,7 @@ export default function AppShell() {
     <div className="flex min-h-screen bg-canvas">
       {/* ---------- Sidebar ---------- */}
       <aside
-        className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-canvas lg:flex"
+        className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-canvas lg:flex"
         data-testid="sidebar"
       >
         {sidebar}
@@ -293,7 +218,7 @@ export default function AppShell() {
           aria-label="Navigation"
         >
           <div
-            className="fade-in absolute inset-0 bg-ink/40 backdrop-blur-[2px]"
+            className="fade-in absolute inset-0 bg-ink/40"
             onClick={() => setNavOpen(false)}
             aria-hidden="true"
           />
@@ -306,7 +231,7 @@ export default function AppShell() {
               onClick={() => setNavOpen(false)}
               aria-label="Close navigation"
             >
-              <X size={16} strokeWidth={2} />
+              <X {...iconProps} />
             </button>
             {sidebar}
           </aside>
@@ -316,7 +241,7 @@ export default function AppShell() {
       {/* ---------- Main ---------- */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-canvas/85 px-4 backdrop-blur-md sm:gap-4 md:px-8">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-line bg-canvas px-4 sm:gap-3 md:px-8">
           <button
             className="icon-btn -ml-1 lg:hidden"
             onClick={() => setNavOpen(true)}
@@ -324,27 +249,26 @@ export default function AppShell() {
             aria-expanded={navOpen}
             data-testid="nav-open"
           >
-            <Menu size={18} strokeWidth={1.75} />
+            <Menu {...iconProps} />
           </button>
           <span className="lg:hidden">
-            <BrandLogo to="/deals" size={26} />
+            <BrandLogo to="/deals" size={24} />
           </span>
-          <p className="micro-label hidden items-center lg:flex">{crumb}</p>
+          <p className="hidden text-sm text-umber lg:block">{crumb}</p>
           <button
             className="icon-btn ml-auto sm:hidden"
             onClick={() => setPaletteOpen(true)}
             aria-label="Search"
           >
-            <Search size={17} strokeWidth={1.75} />
+            <Search {...iconProps} />
           </button>
           <div className="relative ml-auto hidden w-64 sm:block">
             <Search
-              size={15}
-              strokeWidth={1.75}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-label"
+              {...iconProps}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-umber"
             />
             <input
-              placeholder="Search projects…"
+              placeholder="Search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value)
@@ -366,42 +290,83 @@ export default function AppShell() {
               autoComplete="off"
               spellCheck={false}
               inputMode="search"
-              className="input !h-9 !pl-9 cursor-text touch-manipulation focus-visible:ring-2 focus-visible:ring-teal/20 focus-visible:ring-offset-0"
+              className="input !h-9 !pl-9 cursor-text touch-manipulation"
               aria-label="Search projects"
               aria-expanded={paletteOpen}
               aria-haspopup="dialog"
             />
-            <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md border border-line bg-canvas px-1.5 py-0.5 font-mono text-[9px] text-label">
+            <kbd className="kbd pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
               ⌘K
             </kbd>
           </div>
-          <button
-            onClick={() => navigate('/notifications')}
-            className="icon-btn touch-manipulation focus-visible:ring-2 focus-visible:ring-teal/20"
-            aria-label="Notifications"
+          <NavLink
+            to="/notifications"
+            className={({ isActive }) =>
+              `icon-btn relative touch-manipulation ${isActive ? 'text-ink' : ''}`
+            }
+            aria-label={unreadCount ? `Notifications, ${unreadCount} unread` : 'Notifications'}
             data-testid="notifications-button"
           >
-            <span className="relative inline-flex">
-              <Bell size={17} strokeWidth={1.75} aria-hidden="true" />
-              {unreadCount > 0 && (
-                <span
-                  className="ping-dot absolute right-[-2px] top-[-2px] h-2 w-2 rounded-full bg-danger"
-                  aria-hidden="true"
-                />
-              )}
-            </span>
-          </button>
-          <button
-            onClick={() => navigate('/profile')}
-            className="rounded-full ring-2 ring-transparent transition-[box-shadow,transform] hover:ring-teal/40 active:scale-95 touch-manipulation focus-visible:ring-2 focus-visible:ring-teal/20"
-            aria-label="Profile"
-          >
-            {(() => {
-              const src = (viewer as any).photoUrl || (viewer as any).profileImage
-              const url = src ? (src.startsWith('http') ? src : `${API_ORIGIN}${src}`) : null
-              return <Avatar initials={viewer.initials} size="sm" tone="ink" src={url} />
-            })()}
-          </button>
+            <Bell {...iconProps} aria-hidden="true" />
+            {unreadCount > 0 && (
+              <span className="nav-badge absolute -right-0.5 -top-0.5" aria-hidden="true">
+                {unreadCount}
+              </span>
+            )}
+          </NavLink>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="rounded-full touch-manipulation"
+              aria-label="Account menu"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              data-testid="avatar-menu-button"
+            >
+              <Avatar initials={viewer.initials} size="sm" tone="ink" src={avatarUrl} />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                className="fade-in absolute right-0 top-11 z-40 w-60 rounded-xl border border-line bg-surface p-1 shadow-pop"
+                data-testid="avatar-menu"
+              >
+                <div className="px-3 py-2">
+                  <p className="truncate text-sm font-medium text-ink">{viewer.name}</p>
+                  <p className="truncate text-xs text-umber">
+                    {session?.user.email ?? viewer.email}
+                  </p>
+                </div>
+                <div className="my-1 border-t border-line" />
+                <button role="menuitem" className="menu-item" onClick={() => navigate('/profile')}>
+                  <UserRound {...iconProps} />
+                  Profile
+                </button>
+                {viewer.role === 'admin' && (
+                  <button
+                    role="menuitem"
+                    className="menu-item"
+                    onClick={() => navigate('/settings')}
+                  >
+                    <Settings {...iconProps} />
+                    Settings
+                  </button>
+                )}
+                <div className="my-1 border-t border-line" />
+                <button
+                  role="menuitem"
+                  className="menu-item"
+                  onClick={async () => {
+                    await logout()
+                    navigate('/login', { replace: true })
+                  }}
+                >
+                  <LogOut {...iconProps} />
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Page content */}
@@ -426,47 +391,12 @@ export default function AppShell() {
 }
 
 /**
- * Sidebar: the deal flow first (Deals, Projects, Review, Invoices), everything
- * else under a collapsible "More" that opens itself on its own pages and shows
- * the badges it hides. No page is removed; every route is still one click away.
+ * Sidebar grouped by job. Every route stays one click away; notifications sit
+ * in the top bar, settings and profile in the avatar menu.
  */
-const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] = [
+const navGroups: { section: string; items: NavItem[] }[] = [
   {
-    section: 'Workspace',
-    items: [
-      { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
-      {
-        // brands approve (admin, reviewer); editors manage deals (deal.manage)
-        to: '/payables',
-        label: 'Payables',
-        icon: () => <Landmark {...iconProps} />,
-        roles: ['admin', 'reviewer', 'editor'],
-      },
-      {
-        // crew members: anyone who can be named on a deal's team
-        to: '/my-money',
-        label: "Where's my money",
-        icon: () => <Wallet {...iconProps} />,
-        roles: ['admin', 'editor', 'designer', 'publisher', 'member'],
-      },
-      { to: '/projects', label: 'Projects', icon: () => <FolderKanban {...iconProps} /> },
-      {
-        to: '/review',
-        label: 'Review',
-        icon: () => <MessageSquare {...iconProps} />,
-        roles: ['admin', 'reviewer'],
-      },
-      {
-        to: '/invoices',
-        label: 'Invoices',
-        icon: () => <Receipt {...iconProps} />,
-        roles: ['admin', 'editor'],
-      },
-    ],
-  },
-  {
-    section: 'More',
-    collapsible: true,
+    section: 'Home',
     items: [
       {
         to: '/dashboard',
@@ -474,13 +404,30 @@ const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] 
         icon: () => <LayoutGrid {...iconProps} />,
         end: true,
       },
+    ],
+  },
+  {
+    section: 'Create',
+    items: [
+      { to: '/projects', label: 'Projects', icon: () => <FolderKanban {...iconProps} /> },
       {
         to: '/concepts',
         label: 'Concepts',
         icon: () => <Lightbulb {...iconProps} />,
         roles: ['admin', 'editor', 'designer', 'reviewer'],
       },
-      { to: '/my-work', label: 'My work', icon: () => <ListTodo {...iconProps} /> },
+      {
+        to: '/review',
+        label: 'Review',
+        icon: () => <MessageSquare {...iconProps} />,
+        roles: ['admin', 'reviewer'],
+      },
+      { to: '/brand-brain', label: 'Brand Brain', icon: () => <Brain {...iconProps} /> },
+    ],
+  },
+  {
+    section: 'Publish',
+    items: [
       {
         to: '/publishing/calendar',
         label: 'Calendar',
@@ -500,22 +447,46 @@ const navGroups: { section: string; items: NavItem[]; collapsible?: boolean }[] 
         roles: ['admin', 'publisher', 'editor'],
       },
       { to: '/analytics', label: 'Analytics', icon: () => <BarChart3 {...iconProps} /> },
-      { to: '/brand-brain', label: 'Brand Brain', icon: () => <Brain {...iconProps} /> },
-      { to: '/notifications', label: 'Notifications', icon: () => <Bell {...iconProps} /> },
-      { to: '/chat', label: 'Team chat', icon: () => <MessageCircle {...iconProps} /> },
+    ],
+  },
+  {
+    section: 'Money',
+    items: [
+      { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
+      {
+        // brands approve (admin, reviewer); editors manage deals (deal.manage)
+        to: '/payables',
+        label: 'Payables',
+        icon: () => <Landmark {...iconProps} />,
+        roles: ['admin', 'reviewer', 'editor'],
+      },
+      {
+        // crew members: anyone who can be named on a deal's team
+        to: '/my-money',
+        label: 'My money',
+        icon: () => <Wallet {...iconProps} />,
+        roles: ['admin', 'editor', 'designer', 'publisher', 'member'],
+      },
+      {
+        to: '/invoices',
+        label: 'Invoices',
+        icon: () => <Receipt {...iconProps} />,
+        roles: ['admin', 'editor'],
+      },
       {
         to: '/contracts',
         label: 'Contracts',
         icon: () => <FileSignature {...iconProps} />,
         roles: ['admin', 'editor'],
       },
+    ],
+  },
+  {
+    section: 'Team',
+    items: [
+      { to: '/my-work', label: 'My work', icon: () => <ListTodo {...iconProps} /> },
+      { to: '/chat', label: 'Team chat', icon: () => <MessageCircle {...iconProps} /> },
       { to: '/members', label: 'Members', icon: () => <Users {...iconProps} />, roles: ['admin'] },
-      {
-        to: '/settings',
-        label: 'Settings',
-        icon: () => <Settings {...iconProps} />,
-        roles: ['admin'],
-      },
     ],
   },
 ]

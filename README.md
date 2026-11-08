@@ -12,6 +12,16 @@ Built for **brands and their content-ops teams**, and for the **editors and desi
 
 ---
 
+## Architecture
+
+1. `apps/web` (React + Vite) is the app: nav grouped by job in `layouts/AppShell.tsx`, every design value in `styles/tokens.css`.
+2. `apps/api` (Node + Express) is the only writer to MongoDB; money lives in `src/modules/deals`.
+3. Every money move is dry-run through policy rules P1 to P9; the AI never sets an amount or a verdict.
+4. PayPal holds (Orders v2), captures, Invoicing v2 and Payouts sit behind one adapter; the ledger is hash-chained.
+5. `services/agent` is the deal copilot (read-only cards); `workflows/fair-clock` advances review clocks. Agents start at [AGENTS.md](AGENTS.md).
+
+---
+
 ## Problems we solve
 
 **1. Late or missing pay.**
@@ -722,6 +732,10 @@ MVP backend + frontend are functional, and Approved = Paid runs on real PayPal s
 This repo: `github.com/Narendarcodes/yv-approved-paid` (the PayPal AI Hackathon build of yv.).
 
 ---
+
+## Credits
+
+Illustrations: [unDraw](https://undraw.co) by Katerina Limpitsouni (free licence, no attribution required), recoloured to the yv. teal.
 
 ## License
 

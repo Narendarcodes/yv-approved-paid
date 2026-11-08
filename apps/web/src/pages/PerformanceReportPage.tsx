@@ -33,7 +33,7 @@ export default function PerformanceReportPage() {
 
   const title = data
     ? data.period.kind === 'project'
-      ? data.projects[0]?.title ?? 'Project report'
+      ? (data.projects[0]?.title ?? 'Project report')
       : `${data.client ? `${data.client} · ` : ''}${data.period.label}`
     : 'Performance report'
 
@@ -44,20 +44,37 @@ export default function PerformanceReportPage() {
           <Link to={projectId ? `/projects/${projectId}` : '/analytics'} className="btn-ghost">
             <ArrowLeft size={14} strokeWidth={1.75} /> Back
           </Link>
-          <button className="btn-primary" onClick={() => window.print()} disabled={!data} data-testid="report-print">
+          <button
+            className="btn-primary"
+            onClick={() => window.print()}
+            disabled={!data}
+            data-testid="report-print"
+          >
             <Printer size={14} strokeWidth={1.75} /> Print / save as PDF
           </button>
         </div>
 
-        <article className="rounded-2xl border border-line bg-surface p-10 shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none" data-testid="report">
+        <article
+          className="rounded-2xl border border-line bg-surface p-10 shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none"
+          data-testid="report"
+        >
           <header className="flex items-start justify-between border-b border-line pb-6">
             <div>
               <p className="micro-label">Performance report</p>
-              <h1 className="mt-1 font-headline text-3xl font-semibold tracking-tight text-ink">{title}</h1>
+              <h1 className="mt-1 font-headline text-3xl font-semibold tracking-tight text-ink">
+                {title}
+              </h1>
               {data && (
                 <p className="mt-1 text-sm text-umber">
-                  {data.period.kind === 'project' ? data.period.label : `Posts published in ${data.period.label}`} · generated{' '}
-                  {new Date(data.generatedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {data.period.kind === 'project'
+                    ? data.period.label
+                    : `Posts published in ${data.period.label}`}{' '}
+                  · generated{' '}
+                  {new Date(data.generatedAt).toLocaleDateString(undefined, {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
                 </p>
               )}
             </div>
@@ -70,7 +87,10 @@ export default function PerformanceReportPage() {
           {data && (
             <>
               {data.simulated && (
-                <p className="mt-6 rounded-lg border border-dashed border-warning/60 bg-warning/10 px-4 py-2 text-xs text-warning" data-testid="report-simulated">
+                <p
+                  className="mt-6 rounded-lg border border-dashed border-warning/60 bg-warning/10 px-4 py-2 text-xs text-warning"
+                  data-testid="report-simulated"
+                >
                   Demo workspace: these figures are simulated, not real platform data.
                 </p>
               )}
@@ -85,7 +105,10 @@ export default function PerformanceReportPage() {
                       ['Likes', compact(data.totals.likes)],
                       ['Posts', String(data.totals.posts)],
                     ].map(([k, v]) => (
-                      <div key={k} className="rounded-xl bg-canvas px-4 py-3 print:border print:border-line">
+                      <div
+                        key={k}
+                        className="rounded-xl bg-canvas px-4 py-3 print:border print:border-line"
+                      >
                         <p className="micro-label">{k}</p>
                         <p className="mt-1 font-headline text-2xl font-semibold text-ink">{v}</p>
                       </div>
@@ -117,8 +140,12 @@ export default function PerformanceReportPage() {
                           <tr key={p.platform} className="border-b border-line/70">
                             <td className="py-2 text-ink">{p.label}</td>
                             <td className="py-2 text-right font-mono">{p.posts}</td>
-                            <td className="py-2 text-right font-mono">{compact(p.metrics.views)}</td>
-                            <td className="py-2 text-right font-mono text-teal">{pct(p.engagementRate)}</td>
+                            <td className="py-2 text-right font-mono">
+                              {compact(p.metrics.views)}
+                            </td>
+                            <td className="py-2 text-right font-mono text-teal">
+                              {pct(p.engagementRate)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -156,11 +183,21 @@ export default function PerformanceReportPage() {
                                 )}
                               </p>
                             </td>
-                            <td className="py-2 text-xs text-umber">{fmtDateTime(p.publishedAt)}</td>
-                            <td className="py-2 text-right font-mono">{compact(p.metrics.views)}</td>
-                            <td className="py-2 text-right font-mono">{compact(p.metrics.likes)}</td>
-                            <td className="py-2 text-right font-mono">{compact(p.metrics.comments)}</td>
-                            <td className="py-2 text-right font-mono text-teal">{pct(p.engagementRate)}</td>
+                            <td className="py-2 text-xs text-umber">
+                              {fmtDateTime(p.publishedAt)}
+                            </td>
+                            <td className="py-2 text-right font-mono">
+                              {compact(p.metrics.views)}
+                            </td>
+                            <td className="py-2 text-right font-mono">
+                              {compact(p.metrics.likes)}
+                            </td>
+                            <td className="py-2 text-right font-mono">
+                              {compact(p.metrics.comments)}
+                            </td>
+                            <td className="py-2 text-right font-mono text-teal">
+                              {pct(p.engagementRate)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -168,8 +205,9 @@ export default function PerformanceReportPage() {
                   </section>
                 </>
               )}
-              <footer className="mt-10 border-t border-line pt-4 text-[11px] text-umber">
-                Engagement rate = (likes + comments + shares + saves) ÷ views. Figures as of {new Date(data.generatedAt).toLocaleString()}.
+              <footer className="mt-10 border-t border-line pt-4 text-xs text-umber">
+                Engagement rate = (likes + comments + shares + saves) ÷ views. Figures as of{' '}
+                {new Date(data.generatedAt).toLocaleString()}.
               </footer>
             </>
           )}

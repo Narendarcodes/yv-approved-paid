@@ -33,10 +33,29 @@ export default function Chip({
 
 export function statusTone(status: string): keyof typeof tones {
   const s = status.toLowerCase()
-  if (['approved', 'published', 'live', 'received', 'done', 'closed', 'inputs ready', 'current'].some((k) => s.includes(k))) return 'teal'
-  if (['review', 'scheduled', 'revision', 'waiting', 'in progress', 'production', 'submitted', 'pending'].some((k) => s.includes(k))) return 'warning'
-  if (['blocked', 'overdue', 'cancelled', 'missing', 'expired'].some((k) => s.includes(k))) return 'danger'
-  if (['idea', 'assigned', 'backlog', 'draft', 'concept'].some((k) => s.includes(k))) return 'neutral'
+  if (
+    ['approved', 'published', 'live', 'received', 'done', 'closed', 'inputs ready', 'current'].some(
+      (k) => s.includes(k),
+    )
+  )
+    return 'teal'
+  if (
+    [
+      'review',
+      'scheduled',
+      'revision',
+      'waiting',
+      'in progress',
+      'production',
+      'submitted',
+      'pending',
+    ].some((k) => s.includes(k))
+  )
+    return 'warning'
+  if (['blocked', 'overdue', 'cancelled', 'missing', 'expired'].some((k) => s.includes(k)))
+    return 'danger'
+  if (['idea', 'assigned', 'backlog', 'draft', 'concept'].some((k) => s.includes(k)))
+    return 'neutral'
   return 'success'
 }
 
@@ -66,7 +85,7 @@ export function Tabs({
           {t.label}
           {t.count !== undefined && (
             <span
-              className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] ${
+              className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs ${
                 active === t.id ? 'bg-tint text-teal' : 'bg-ink/5 text-umber'
               }`}
             >
@@ -120,7 +139,11 @@ export function Modal({
   // block -> backdrop/modal clipped to the content column.
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[8vh]">
-      <div className="fixed inset-0 bg-ink/45 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-ink/45 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div
         className={`modal-in relative w-full ${width} rounded-2xl border border-line bg-surface shadow-pop`}
         role="dialog"
@@ -129,11 +152,7 @@ export function Modal({
       >
         <header className="flex items-center justify-between border-b border-line px-6 py-4">
           <h2 className="font-headline text-lg font-semibold tracking-tight text-ink">{title}</h2>
-          <button
-            onClick={onClose}
-            className="icon-btn icon-btn-sm"
-            aria-label="Close"
-          >
+          <button onClick={onClose} className="icon-btn icon-btn-sm" aria-label="Close">
             <X size={16} strokeWidth={2} />
           </button>
         </header>
@@ -152,14 +171,18 @@ export function EmptyState({
 }: {
   icon: ReactNode
   title: string
-  description: string
+  description?: string
   action?: ReactNode
 }) {
   return (
     <div className="fade-in flex flex-col items-center justify-center rounded-[var(--radius-lg)] border border-line bg-surface px-6 py-14 text-center shadow-card">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-canvas text-umber [&_svg]:h-5 [&_svg]:w-5">{icon}</div>
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-canvas text-umber [&_svg]:h-5 [&_svg]:w-5">
+        {icon}
+      </div>
       <h3 className="t-title">{title}</h3>
-      <p className="mt-1.5 max-w-[42ch] text-sm leading-relaxed text-umber">{description}</p>
+      {description && (
+        <p className="mt-1.5 max-w-[42ch] text-sm leading-relaxed text-umber">{description}</p>
+      )}
       {action && <div className="mt-5 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   )
@@ -193,7 +216,9 @@ export function StatCard({
           <p className="micro-label">{label}</p>
           <p className="t-num mt-2 text-[30px] leading-none">{value}</p>
         </div>
-        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>{icon}</span>
+        <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tones[tone]}`}>
+          {icon}
+        </span>
       </div>
     </div>
   )

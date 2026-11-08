@@ -43,7 +43,9 @@ export default function PolicyBlockedChip({
           </li>
         ))}
       </ul>
-      {showFooter && !moved && <p className="font-mono text-[11px] text-label">Blocked by policy. No money moved.</p>}
+      {showFooter && !moved && (
+        <p className="font-mono text-xs text-label">Blocked by policy. No money moved.</p>
+      )}
     </div>
   )
 }

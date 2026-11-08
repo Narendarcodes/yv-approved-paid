@@ -19,8 +19,24 @@ const memberOf = (id: string) => teamRef.find((m) => m.id === id)
 
 const PHASES: { id: string; label: string; match: (p: Project) => boolean }[] = [
   { id: 'all', label: 'All', match: () => true },
-  { id: 'active', label: 'In production', match: (p) => ['ASSIGNED', 'WAITING_FOR_INPUTS', 'INPUTS_READY', 'IN_PROGRESS'].includes(p.status) },
-  { id: 'review', label: 'In review', match: (p) => ['FIRST_DRAFT_SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'REVISION_IN_PROGRESS', 'REVISION_SUBMITTED'].includes(p.status) },
+  {
+    id: 'active',
+    label: 'In production',
+    match: (p) =>
+      ['ASSIGNED', 'WAITING_FOR_INPUTS', 'INPUTS_READY', 'IN_PROGRESS'].includes(p.status),
+  },
+  {
+    id: 'review',
+    label: 'In review',
+    match: (p) =>
+      [
+        'FIRST_DRAFT_SUBMITTED',
+        'UNDER_REVIEW',
+        'REVISION_REQUESTED',
+        'REVISION_IN_PROGRESS',
+        'REVISION_SUBMITTED',
+      ].includes(p.status),
+  },
   { id: 'approved', label: 'Approved', match: (p) => ['APPROVED', 'SCHEDULED'].includes(p.status) },
   { id: 'published', label: 'Published', match: (p) => ['PUBLISHED', 'CLOSED'].includes(p.status) },
 ]
@@ -29,13 +45,25 @@ type View = 'list' | 'board'
 const VIEW_KEY = 'yv.projects.view'
 
 // dashboard stage links (/projects?stage=brief|production|review) map onto phases
-const STAGE_TAB: Record<string, string> = { brief: 'active', production: 'active', review: 'review', publish: 'approved', live: 'published' }
+const STAGE_TAB: Record<string, string> = {
+  brief: 'active',
+  production: 'active',
+  review: 'review',
+  publish: 'approved',
+  live: 'published',
+}
 
 export default function ProjectsPage() {
-  const [tab, setTab] = useState(() => STAGE_TAB[new URLSearchParams(window.location.search).get('stage') || ''] || 'all')
+  const [tab, setTab] = useState(
+    () => STAGE_TAB[new URLSearchParams(window.location.search).get('stage') || ''] || 'all',
+  )
   const [query, setQuery] = useState('')
   const [view, setView] = useState<View>(() => {
-    try { return (localStorage.getItem(VIEW_KEY) as View) || 'list' } catch { return 'list' }
+    try {
+      return (localStorage.getItem(VIEW_KEY) as View) || 'list'
+    } catch {
+      return 'list'
+    }
   })
   const phase = PHASES.find((x) => x.id === tab)!
   const toast = useToast()
@@ -45,27 +73,43 @@ export default function ProjectsPage() {
   setTeamRef(team)
 
   useEffect(() => {
-    try { localStorage.setItem(VIEW_KEY, view) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(VIEW_KEY, view)
+    } catch {
+      /* ignore */
+    }
   }, [view])
 
-  const filtered = useMemo(() => projects.filter((p) => {
-    const inTab = phase.match(p)
-    const q = query.trim().toLowerCase()
-    const inQuery = !q || p.title.toLowerCase().includes(q) || p.type.toLowerCase().includes(q) || (memberOf(p.assignee)?.name.toLowerCase().includes(q) ?? false)
-    return inTab && inQuery
-  }), [projects, phase, query])
+  const filtered = useMemo(
+    () =>
+      projects.filter((p) => {
+        const inTab = phase.match(p)
+        const q = query.trim().toLowerCase()
+        const inQuery =
+          !q ||
+          p.title.toLowerCase().includes(q) ||
+          p.type.toLowerCase().includes(q) ||
+          (memberOf(p.assignee)?.name.toLowerCase().includes(q) ?? false)
+        return inTab && inQuery
+      }),
+    [projects, phase, query],
+  )
 
-  const counts = (id: string) => projects.filter((p) => PHASES.find((x) => x.id === id)!.match(p)).length
+  const counts = (id: string) =>
+    projects.filter((p) => PHASES.find((x) => x.id === id)!.match(p)).length
 
   return (
     <div className="fade-in">
       <PageHeader
         title="Projects"
-        subtitle="Every content project, from production through published."
         actions={
           <div className="flex items-center gap-2">
             {/* View toggle — the Asana pattern: same data, two lenses */}
-            <div className="flex rounded-[8px] border border-line bg-surface p-0.5" role="tablist" aria-label="View">
+            <div
+              className="flex rounded-[8px] border border-line bg-surface p-0.5"
+              role="tablist"
+              aria-label="View"
+            >
               <button
                 role="tab"
                 aria-selected={view === 'list'}
@@ -97,7 +141,10 @@ export default function ProjectsPage() {
 
       {/* Toolbar: phase tabs + search — shared by both views */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto border-b border-line" role="tablist">
+        <div
+          className="flex min-w-0 flex-1 gap-1 overflow-x-auto border-b border-line"
+          role="tablist"
+        >
           {PHASES.map((x) => (
             <button
               key={x.id}
@@ -105,18 +152,27 @@ export default function ProjectsPage() {
               aria-selected={tab === x.id}
               onClick={() => setTab(x.id)}
               className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-                tab === x.id ? 'border-teal text-ink' : 'border-transparent text-umber hover:text-ink'
+                tab === x.id
+                  ? 'border-teal text-ink'
+                  : 'border-transparent text-umber hover:text-ink'
               }`}
             >
               {x.label}
-              <span className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] ${tab === x.id ? 'bg-tint text-teal' : 'bg-ink/5 text-umber'}`}>
+              <span
+                className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs ${tab === x.id ? 'bg-tint text-teal' : 'bg-ink/5 text-umber'}`}
+              >
                 {counts(x.id)}
               </span>
             </button>
           ))}
         </div>
-        <div className="relative w-56">
-          <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-label" aria-hidden="true" />
+        <div className="relative w-full sm:w-56">
+          <Search
+            size={15}
+            strokeWidth={1.75}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-label"
+            aria-hidden="true"
+          />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -131,7 +187,13 @@ export default function ProjectsPage() {
       </div>
 
       {view === 'list' ? (
-        <ProjectListView projects={filtered} allProjects={projects} loading={loading} error={error} query={query} />
+        <ProjectListView
+          projects={filtered}
+          allProjects={projects}
+          loading={loading}
+          error={error}
+          query={query}
+        />
       ) : (
         <BoardView phase={phase} query={query} toast={toast} />
       )}
@@ -166,13 +228,13 @@ function ProjectListView({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left">
+          <table className="w-full text-left sm:min-w-[680px]">
             <thead>
               <tr className="border-b border-line">
                 <th className="table-head">Project</th>
                 <th className="table-head">Status</th>
-                <th className="table-head">Assignee</th>
-                <th className="table-head">Updated</th>
+                <th className="table-head hidden sm:table-cell">Assignee</th>
+                <th className="table-head hidden sm:table-cell">Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -182,9 +244,14 @@ function ProjectListView({
                     <Link to={`/projects/${p.id}`} className="font-medium text-ink hover:text-teal">
                       {p.title}
                     </Link>
-                    <span className="ml-2 text-xs text-label">{p.type}</span>
+                    <span className="block text-xs text-label sm:ml-2 sm:inline">{p.type}</span>
                     {p.status === 'PUBLISHED' && p.postUrl && (
-                      <a href={p.postUrl} target="_blank" rel="noreferrer" className="mt-0.5 block text-xs text-teal hover:underline">
+                      <a
+                        href={p.postUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-0.5 block text-xs text-teal hover:underline"
+                      >
                         View live post
                       </a>
                     )}
@@ -192,13 +259,17 @@ function ProjectListView({
                   <td className="px-5 py-3.5">
                     <StatusChip status={p.status} label={projectStatusLabel(p)} />
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="hidden px-5 py-3.5 sm:table-cell">
                     <span className="flex items-center gap-2">
                       <AssigneeAvatar member={memberOf(p.assignee)} size="xs" />
-                      {memberOf(p.assignee) && <span className="text-sm text-ink/80">{memberOf(p.assignee)?.name}</span>}
+                      {memberOf(p.assignee) && (
+                        <span className="text-sm text-ink/80">{memberOf(p.assignee)?.name}</span>
+                      )}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 font-mono text-[11px] text-label">{p.updated}</td>
+                  <td className="hidden px-5 py-3.5 font-mono text-xs text-label sm:table-cell">
+                    {p.updated}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -210,7 +281,7 @@ function ProjectListView({
           {allProjects.length === 0 ? (
             <EmptyState
               title="No projects yet"
-              hint="Start from a concept to create your first project."
+              illustration="team"
               action={
                 <Link to="/concepts" className="btn-primary !h-9 text-[13px]">
                   <Plus size={14} strokeWidth={2} aria-hidden="true" />
@@ -219,7 +290,9 @@ function ProjectListView({
               }
             />
           ) : (
-            <p className="text-sm text-umber">No projects match this view{query ? ` or “${query}”` : ''}. Try another phase or search term.</p>
+            <p className="text-sm text-umber">
+              No projects match this view{query ? ` or “${query}”` : ''}
+            </p>
           )}
         </div>
       )}
@@ -249,7 +322,15 @@ const priorityTone: Record<string, string> = {
   low: 'bg-ink/5 text-umber',
 }
 
-function BoardView({ phase, query, toast }: { phase: { match: (p: Project) => boolean }; query: string; toast: ReturnType<typeof useToast> }) {
+function BoardView({
+  phase,
+  query,
+  toast,
+}: {
+  phase: { match: (p: Project) => boolean }
+  query: string
+  toast: ReturnType<typeof useToast>
+}) {
   const { tasks, loading, error } = useBoard()
   const { projects } = useProjects()
   const [localTasks, setLocalTasks] = useState<BoardTask[] | null>(null)
@@ -270,7 +351,9 @@ function BoardView({ phase, query, toast }: { phase: { match: (p: Project) => bo
   const visible = tasks2.filter((t) => visibleProjectIds.has(t.projectId))
 
   // Drop local optimistic copy once the server round-trips fresh data
-  useEffect(() => { setLocalTasks(null) }, [tasks])
+  useEffect(() => {
+    setLocalTasks(null)
+  }, [tasks])
 
   const onDrop = async (status: BoardTask['status']) => {
     const task = dragTask.current
@@ -283,14 +366,21 @@ function BoardView({ phase, query, toast }: { phase: { match: (p: Project) => bo
       await setTaskStatus(task.projectId, task.id, status)
       // Drop the cached board so the move survives navigating away and back.
       invalidateProjectData(task.projectId)
-      toast('success', 'Task moved', `“${task.title}” → ${BOARD_COLUMNS.find((c) => c.key === status)?.column}`)
+      toast(
+        'success',
+        'Task moved',
+        `“${task.title}” → ${BOARD_COLUMNS.find((c) => c.key === status)?.column}`,
+      )
     } catch (err: any) {
       setLocalTasks(prev) // revert — no inconsistency between UI and DB
       toast('danger', 'Move failed', err?.message || 'The task is back where it was.')
     }
   }
 
-  const grouped = BOARD_COLUMNS.map((c) => ({ ...c, cards: visible.filter((t) => t.status === c.key) }))
+  const grouped = BOARD_COLUMNS.map((c) => ({
+    ...c,
+    cards: visible.filter((t) => t.status === c.key),
+  }))
 
   return (
     <div>
@@ -314,26 +404,45 @@ function BoardView({ phase, query, toast }: { phase: { match: (p: Project) => bo
               onDrop={() => void onDrop(col.key)}
             >
               <header className="flex items-center justify-between border-b border-line px-4 py-3">
-                <span className={`flex items-center gap-2 rounded-full px-2.5 py-1 font-mono text-[11px] font-medium ${accentText[col.accent]}`}>
-                  <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />
+                <span
+                  className={`flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${accentText[col.accent]}`}
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full bg-current opacity-70"
+                    aria-hidden="true"
+                  />
                   {col.column}
                 </span>
-                <span className="font-mono text-[11px] text-label" aria-label={`${col.cards.length} tasks`}>{col.cards.length}</span>
+                <span
+                  className="font-mono text-xs text-label"
+                  aria-label={`${col.cards.length} tasks`}
+                >
+                  {col.cards.length}
+                </span>
               </header>
               <div className="flex-1 space-y-2.5 p-3">
                 {col.cards.map((card) => (
                   <div
                     key={card.id}
                     draggable
-                    onDragStart={() => { dragTask.current = card }}
+                    onDragStart={() => {
+                      dragTask.current = card
+                    }}
                     className={`cursor-grab rounded-[8px] border border-line bg-surface p-3.5 transition-shadow hover:shadow-pop active:cursor-grabbing ${card.status === col.key ? '' : 'opacity-60'}`}
                     aria-label={`${card.title} — drag to move`}
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <Link to={`/projects/${card.projectId}`} className="micro-label hover:text-teal">
+                      <Link
+                        to={`/projects/${card.projectId}`}
+                        className="micro-label hover:text-teal"
+                      >
                         {card.projectTitle}
                       </Link>
-                      <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${priorityTone[card.priority]}`}>{card.priority}</span>
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-xs ${priorityTone[card.priority]}`}
+                      >
+                        {card.priority}
+                      </span>
                     </div>
                     <p className="text-sm font-medium leading-snug text-ink">{card.title}</p>
                     <div className="mt-3 flex items-center justify-between">
@@ -356,8 +465,10 @@ function BoardView({ phase, query, toast }: { phase: { match: (p: Project) => bo
       )}
       {visible.length === 0 && !loading && (
         <div className="card px-5 py-12 text-center">
-          <p className="text-sm text-umber">No tasks in this phase yet. Tasks live inside projects — create one from a concept.</p>
-          <Link to="/concepts" className="btn-secondary mt-4">Start from a concept</Link>
+          <p className="text-sm text-umber">No tasks in this phase</p>
+          <Link to="/concepts" className="btn-secondary mt-4">
+            Start from a concept
+          </Link>
         </div>
       )}
     </div>

@@ -51,7 +51,8 @@ function loadPrefs(): Prefs {
     if (!raw || typeof raw !== 'object') return DEFAULT_PREFS
     return {
       notifEmail: typeof raw.notifEmail === 'boolean' ? raw.notifEmail : DEFAULT_PREFS.notifEmail,
-      notifDigest: typeof raw.notifDigest === 'boolean' ? raw.notifDigest : DEFAULT_PREFS.notifDigest,
+      notifDigest:
+        typeof raw.notifDigest === 'boolean' ? raw.notifDigest : DEFAULT_PREFS.notifDigest,
       mentions: typeof raw.mentions === 'boolean' ? raw.mentions : DEFAULT_PREFS.mentions,
     }
   } catch {
@@ -72,7 +73,11 @@ export default function SettingsPage() {
     try {
       localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
       setSaved(prefs)
-      toast('success', 'Saved on this browser', 'Your notification preferences are kept on this device.')
+      toast(
+        'success',
+        'Saved on this browser',
+        'Your notification preferences are kept on this device.',
+      )
     } catch {
       toast('danger', 'Could not save', 'This browser does not allow local storage.')
     }
@@ -82,7 +87,6 @@ export default function SettingsPage() {
     <div className="fade-in mx-auto max-w-2xl">
       <header className="mb-6">
         <h1 className="t-display">Settings</h1>
-        <p className="mt-1 text-sm text-umber">Manage your workspace and notifications</p>
       </header>
 
       <div className="space-y-6">
@@ -99,11 +103,14 @@ export default function SettingsPage() {
                 className="input bg-canvas/60 text-umber"
                 data-testid="org-name"
               />
-              <p className="mt-1 text-[12px] text-label">Set when the workspace was created.</p>
             </div>
             <div>
               <label className="label">Workspace slug</label>
-              <input value={org?.slug ?? ''} readOnly className="input bg-canvas/60 font-mono text-umber" />
+              <input
+                value={org?.slug ?? ''}
+                readOnly
+                className="input bg-canvas/60 font-mono text-umber"
+              />
             </div>
           </div>
         </section>
@@ -112,18 +119,20 @@ export default function SettingsPage() {
         <section className="card overflow-hidden">
           <header className="border-b border-line px-6 py-4">
             <h2 className="card-title">Roles & permissions</h2>
-            <p className="mt-0.5 text-[13px] text-umber">
-              What each role can do in this workspace - this mirrors the permissions the backend enforces.
-            </p>
           </header>
           <div className="divide-y divide-line">
             {ROLES.map((r) => (
-              <div key={r.role} className={`px-6 py-5 transition-colors ${r.role === viewer.role ? 'bg-tint/40' : 'hover:bg-canvas/40'}`}>
+              <div
+                key={r.role}
+                className={`px-6 py-5 transition-colors ${r.role === viewer.role ? 'bg-tint/40' : 'hover:bg-canvas/40'}`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="font-headline text-sm font-semibold tracking-[-0.01em] text-ink">{r.label}</span>
+                    <span className="font-headline text-sm font-semibold tracking-[-0.01em] text-ink">
+                      {r.label}
+                    </span>
                     {r.role === viewer.role && (
-                      <span className="rounded-full bg-teal/10 px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-teal">
+                      <span className="rounded-full bg-teal/10 px-2 py-0.5 text-xs font-medium text-teal">
                         You
                       </span>
                     )}
@@ -150,7 +159,7 @@ export default function SettingsPage() {
         <section className="card p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="card-title">Notifications</h2>
-            <span className="font-mono text-[10.5px] uppercase text-label" data-testid="prefs-scope">
+            <span className=" text-xs text-label" data-testid="prefs-scope">
               Saved on this browser
             </span>
           </div>

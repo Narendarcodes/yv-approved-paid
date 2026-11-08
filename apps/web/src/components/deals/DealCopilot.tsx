@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, Send, Sparkles } from 'lucide-react'
+import { Bot, Send } from 'lucide-react'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
 import {
@@ -31,7 +31,7 @@ import {
   useDealRefresh,
 } from '../../lib/deals'
 import { Skeleton } from '../states'
-import { DealCardShell, Motto } from './common'
+import { DealCardShell } from './common'
 import DealCard from './DealCard'
 import LiveChecksCard from './LiveChecksCard'
 import ReviewMergeCard from './ReviewMergeCard'
@@ -39,6 +39,11 @@ import MoneyTimeline from './MoneyTimeline'
 import ChangeOrderCard from './ChangeOrderCard'
 import DisputeSplitCard from './DisputeSplitCard'
 import PolicyBlockedChip from './PolicyBlockedChip'
+
+// three starters, shown only before the first message: where the money is, the dispute split, and a money ask policy blocks
+const STARTERS = ['Money timeline', 'Dispute split', 'Capture $450']
+  .map((l) => SUGGESTIONS.find((s) => s.label === l))
+  .filter((s): s is (typeof SUGGESTIONS)[number] => !!s)
 
 type Mode =
   | { kind: 'live'; provider: string | null; model: string | null; cached: boolean }
@@ -61,12 +66,11 @@ const STICKY_OFFLINE = new Set(['agent_disabled', 'not_found'])
 
 function ModeLabel({ mode }: { mode?: Mode }) {
   if (!mode) return null
-  if (mode.kind === 'thinking')
-    return <p className="font-mono text-[10px] uppercase text-label">asking live AI…</p>
+  if (mode.kind === 'thinking') return <p className=" text-xs text-label">asking live AI…</p>
   if (mode.kind === 'policy')
     return (
       <p
-        className="font-mono text-[10px] uppercase text-label"
+        className=" text-xs text-label"
         title="A money ask with an amount or a version is dry-run straight through the policy engine; no model call"
         data-testid="copilot-mode"
       >
@@ -75,18 +79,14 @@ function ModeLabel({ mode }: { mode?: Mode }) {
     )
   if (mode.kind === 'live')
     return (
-      <p
-        className="font-mono text-[10px] uppercase text-teal"
-        title={mode.model ?? undefined}
-        data-testid="copilot-mode"
-      >
+      <p className=" text-xs text-teal" title={mode.model ?? undefined} data-testid="copilot-mode">
         live AI{mode.provider ? ` · ${mode.provider}` : ''}
         {mode.cached ? ' · cached' : ''}
       </p>
     )
   return (
     <p
-      className="font-mono text-[10px] uppercase text-label"
+      className=" text-xs text-label"
       title={
         mode.reason
           ? `Live AI unavailable (${mode.reason}); matched offline from your words, no model call`
@@ -190,7 +190,10 @@ function CaptureProposal({
               </p>
             ) : (
               <>
-                <p className="mb-2 text-[13px] font-medium text-danger" data-testid="dry-run-headline">
+                <p
+                  className="mb-2 text-[13px] font-medium text-danger"
+                  data-testid="dry-run-headline"
+                >
                   Blocked, no money moved
                   {(() => {
                     const ids = groupViolations(q.data?.violations ?? [], cur).map((g) => g.id)
@@ -276,8 +279,7 @@ function Rendered({
     default:
       return (
         <p className="text-[13px] text-umber">
-          I answer with cards: ask about the deal, the checks, the review notes, the money, a change
-          order or the dispute split.
+          Ask about the deal, checks, notes, money, a change order or the split
         </p>
       )
   }
@@ -420,15 +422,15 @@ export default function DealCopilot({
           <h2 className="card-title">Deal copilot</h2>
         </div>
         <span
-          className={`font-mono text-[10px] uppercase ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
+          className={` text-xs ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
           title={
             lastMode === 'live'
               ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)'
               : lastMode === 'policy'
                 ? 'The last answer was a policy dry-run of a money ask; no model call'
                 : lastMode === 'offline'
-                ? 'The last answer was matched offline from your words; no model call. Live AI is used when the agent is on.'
-                : 'Ask about this deal: the live AI answers when the agent is on, otherwise an offline replay does'
+                  ? 'The last answer was matched offline from your words; no model call. Live AI is used when the agent is on.'
+                  : 'Ask about this deal: the live AI answers when the agent is on, otherwise an offline replay does'
           }
           data-testid="copilot-badge"
         >
@@ -442,12 +444,19 @@ export default function DealCopilot({
         </span>
       </div>
       <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
-        <Motto />
         {turns.length === 0 && (
-          <p className="text-[13px] text-umber">
-            Ask about this deal. Answers come back as cards; proposals are dry-run through policy
-            and never move money.
-          </p>
+          <div className="flex flex-col items-start gap-1.5" data-testid="copilot-suggestions">
+            {STARTERS.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => void ask(s.prompt)}
+                className="rounded-md border border-line px-2.5 py-1.5 text-[13px] text-umber hover:border-line-strong hover:text-ink"
+              >
+                {s.prompt}
+              </button>
+            ))}
+          </div>
         )}
         {turns.map((t) =>
           t.role === 'user' ? (
@@ -478,19 +487,6 @@ export default function DealCopilot({
         <div ref={end} />
       </div>
       <div className="border-t border-line p-3">
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s.label}
-              type="button"
-              onClick={() => void ask(s.prompt)}
-              className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] text-umber hover:border-teal hover:text-teal"
-            >
-              <Sparkles size={11} strokeWidth={2} />
-              {s.label}
-            </button>
-          ))}
-        </div>
         <form onSubmit={submit} className="flex gap-2">
           <input
             value={text}

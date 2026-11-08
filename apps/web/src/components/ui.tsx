@@ -23,8 +23,8 @@ export default function Avatar({
   src?: string | null
 }) {
   const sizes = {
-    xs: 'h-6 w-6 text-[9px]',
-    sm: 'h-8 w-8 text-[10px]',
+    xs: 'h-6 w-6 text-xs',
+    sm: 'h-8 w-8 text-xs',
     md: 'h-9 w-9 text-xs',
     lg: 'h-11 w-11 text-sm',
     xl: 'h-20 w-20 text-2xl',
@@ -63,7 +63,7 @@ export default function Avatar({
   }
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-mono font-medium ${sizes[size]} ${tones[tone]} ${className} touch-manipulation`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-medium ${sizes[size]} ${tones[tone]} ${className} touch-manipulation`}
       aria-hidden="true"
     >
       {initials}
@@ -77,12 +77,16 @@ export function AvatarStack({ initials, max = 3 }: { initials: string[]; max?: n
   return (
     <span className="flex -space-x-1.5">
       {shown.map((ini, i) => (
-        <span key={i} className="relative rounded-full ring-2 ring-surface transition-transform hover:z-10 hover:-translate-y-0.5" style={{ zIndex: shown.length - i }}>
+        <span
+          key={i}
+          className="relative rounded-full ring-2 ring-surface transition-transform hover:z-10 hover:-translate-y-0.5"
+          style={{ zIndex: shown.length - i }}
+        >
           <Avatar initials={ini} size="sm" tone={i % 2 === 0 ? 'teal' : 'tint'} />
         </span>
       ))}
       {extra > 0 && (
-        <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-canvas font-mono text-[10px] text-umber ring-2 ring-surface">
+        <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-xs text-umber ring-2 ring-surface">
           +{extra}
         </span>
       )}
@@ -98,27 +102,23 @@ export function StatusDot({ tone = 'teal' }: { tone?: string }) {
     danger: 'bg-danger',
     neutral: 'bg-umber/50',
   }
-  return <span className={`inline-block h-1.5 w-1.5 rounded-full ${color[tone] ?? color.teal}`} aria-hidden="true" />
+  return (
+    <span
+      className={`inline-block h-1.5 w-1.5 rounded-full ${color[tone] ?? color.teal}`}
+      aria-hidden="true"
+    />
+  )
 }
 
 export function Spacer({ h = 4 }: { h?: number }) {
   return <div style={{ height: `${h * 4}px` }} aria-hidden="true" />
 }
 
-export function PageHeader({
-  title,
-  subtitle,
-  actions,
-}: {
-  title: string
-  subtitle?: string
-  actions?: ReactNode
-}) {
+export function PageHeader({ title, actions }: { title: string; actions?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0 flex-1 basis-[320px]">
         <h1 className="t-display">{title}</h1>
-        {subtitle && <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-umber">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
@@ -126,13 +126,7 @@ export function PageHeader({
 }
 
 /** Section heading used inside cards - consistent editorial rhythm */
-export function SectionHeading({
-  title,
-  action,
-}: {
-  title: string
-  action?: ReactNode
-}) {
+export function SectionHeading({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div className="card-head justify-between">
       <h2 className="card-title">{title}</h2>
@@ -169,7 +163,7 @@ export function UnassignedChip({
   }
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full border border-dashed border-umber/50 px-2.5 ${h} font-mono text-[11px] uppercase tracking-wider text-umber ${className}`}
+      className={`inline-flex shrink-0 items-center rounded-full border border-dashed border-umber/50 px-2.5 ${h} text-xs text-umber ${className}`}
       data-testid="unassigned-chip"
     >
       Unassigned

@@ -1,96 +1,6 @@
 @import 'tailwindcss';
-
-/* ============================================================
-   yv. Design System — Tailwind v4 theme tokens
-   Derived from Stitch DESIGN.md (assets/5404831274793666282)
-   ============================================================ */
-@theme {
-  /* Surfaces */
-  --color-canvas: #f7f5f2;        /* Canvas Paper — app background */
-  --color-surface: #ffffff;       /* Pure Surface — cards/panels */
-  --color-cream: #efebe3;         /* Warm cream — brand panels, thumbnails */
-  --color-ink: #171310;           /* yv. ink — primary text */
-  --color-umber: #6b645e;         /* Muted Umber — secondary text (AA on canvas) */
-  --color-label: #57534e;         /* micro-labels: 7.1:1 on canvas, 7.6:1 on white */
-  --color-line: rgba(28, 25, 23, 0.10); /* Whisper Line — borders */
-  --color-line-strong: rgba(28, 25, 23, 0.16);
-
-  /* Accent */
-  --color-teal: #035e5e;          /* yv. teal — single accent */
-  --color-teal-press: #024a4a;    /* yv. teal press/hover */
-  --color-on-accent: #ffffff;
-  --color-tint: #e6f2f0;          /* Soft Tint — selected rows */
-
-  /* Semantics */
-  --color-success: #15803d;
-  --color-warning: #b45309;
-  --color-danger: #b42318;
-
-  /* Typography */
-  --font-headline: 'Outfit', sans-serif;
-  --font-body: 'Figtree', sans-serif;
-  --font-display: 'Instrument Serif', Georgia, serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  /* Status palette - one semantic colour per pipeline state.
-     fg on bg >= 4.5:1 (WCAG AA) for every pair; dot uses fg. */
-  --color-st-idea: #57534e;
-  --color-st-idea-bg: #f0eeea;
-  --color-st-brief: #2f5784;
-  --color-st-brief-bg: #e9f0f7;
-  --color-st-production: #8a4b0c;
-  --color-st-production-bg: #fbf0e1;
-  --color-st-review: #6b3fa0;
-  --color-st-review-bg: #f2edf9;
-  --color-st-scheduled: #035e5e;
-  --color-st-scheduled-bg: #e6f2f0;
-  --color-st-live: #2f6b1e;
-  --color-st-live-bg: #ecf5e4;
-  --color-st-failed: #b42318;
-  --color-st-failed-bg: #fdecea;
-
-  /* Teal ramp - charts, heatmap, sparklines (light -> dark) */
-  --color-ramp-0: #eef1ef;
-  --color-ramp-1: #cfe5e1;
-  --color-ramp-2: #9ccbc4;
-  --color-ramp-3: #5fa69d;
-  --color-ramp-4: #2a7f78;
-  --color-ramp-5: #035e5e;
-
-  /* Radii */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-card: 12px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
-
-  /* Shadows - two levels only. 1 = resting surface, 2 = floating (popovers,
-     toasts, modals, hovered cards). */
-  --shadow-1: 0 1px 2px rgba(28, 25, 23, 0.04);
-  --shadow-2: 0 2px 6px rgba(28, 25, 23, 0.05), 0 12px 32px rgba(28, 25, 23, 0.09);
-  --shadow-card: var(--shadow-1);
-  --shadow-card-hover: 0 1px 2px rgba(28, 25, 23, 0.05), 0 6px 18px rgba(28, 25, 23, 0.07);
-  --shadow-pop: var(--shadow-2);
-  --shadow-scrim: 0 0 0 9999px rgba(28, 25, 23, 0.45);
-
-  /* Motion — custom easing (never ease-in for UI) */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);      /* enter / feedback — starts fast */
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);   /* on-screen movement */
-  --ease-press: cubic-bezier(0.3, 0, 0.2, 1);
-}
-
-/* Spacing scale (4px base). Tailwind's own spacing utilities sit on the same
-   4px grid; these names are for hand-written CSS and inline styles. */
-:root {
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-12: 48px;
-}
+/* Every colour, type, space and radius value lives in one file. */
+@import './styles/tokens.css';
 
 /* ---------- Base ---------- */
 html {
@@ -138,7 +48,7 @@ body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(120, 113, 108, 0.30);
+  background: rgba(120, 113, 108, 0.3);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
@@ -151,14 +61,10 @@ body {
 
 /* ---------- Component recipes ---------- */
 @layer components {
-  /* Mono micro-labels (VERSION, TEAM, SCHEDULE...) - 11px, solid colour that
-     passes WCAG AA (>= 4.5:1) on surface and canvas. */
+  /* Small labels: sentence case, body font, secondary text step */
   .micro-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.35;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 12px;
+    line-height: 16px;
     color: var(--color-label);
   }
   .card {
@@ -166,7 +72,10 @@ body {
     border: 1px solid var(--color-line);
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-1);
-    transition: box-shadow 0.2s var(--ease-out), border-color 0.2s var(--ease-out), background-color 0.2s var(--ease-out);
+    transition:
+      box-shadow 0.2s var(--ease-out),
+      border-color 0.2s var(--ease-out),
+      background-color 0.2s var(--ease-out);
   }
   /* Interactive card: calm lift via border + shadow (no jumpy translate) */
   .card-hover {
@@ -193,7 +102,7 @@ body {
   .card-title {
     font-family: var(--font-headline);
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.01em;
     line-height: 1.3;
     color: var(--color-ink);
@@ -229,18 +138,17 @@ body {
   /* Type scale: display (page titles), title (card/section), body, meta */
   .t-display {
     font-family: var(--font-headline);
-    font-size: 28px;
-    line-height: 1.15;
-    font-weight: 600;
-    letter-spacing: -0.03em;
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
     color: var(--color-ink);
   }
   .t-title {
     font-family: var(--font-headline);
     font-size: 15px;
     line-height: 1.3;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 500;
     color: var(--color-ink);
   }
   .t-body {
@@ -256,7 +164,7 @@ body {
   /* Big numbers (KPIs, stage counts) - tabular figures so columns don't jitter */
   .t-num {
     font-family: var(--font-headline);
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
@@ -277,7 +185,10 @@ body {
     padding: 5px 12px;
     font-size: 12px;
     color: var(--color-umber);
-    transition: background-color 0.18s var(--ease-out), color 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out);
+    transition:
+      background-color 0.18s var(--ease-out),
+      color 0.18s var(--ease-out),
+      box-shadow 0.18s var(--ease-out);
   }
   .seg > button:hover {
     color: var(--color-ink);
@@ -302,9 +213,9 @@ body {
     gap: 6px;
     height: 22px;
     padding: 0 8px;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-sm);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1;
     white-space: nowrap;
   }
@@ -339,8 +250,12 @@ body {
     user-select: none;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: background-color 0.15s var(--ease-out), border-color 0.15s var(--ease-out),
-      color 0.15s var(--ease-out), transform 0.12s var(--ease-press), box-shadow 0.15s var(--ease-out);
+    transition:
+      background-color 0.15s var(--ease-out),
+      border-color 0.15s var(--ease-out),
+      color 0.15s var(--ease-out),
+      transform 0.12s var(--ease-press),
+      box-shadow 0.15s var(--ease-out);
   }
   /* One standard icon size + alignment inside every button - no per-instance guessing */
   .btn svg,
@@ -370,14 +285,16 @@ body {
   .btn-primary {
     background: var(--color-teal);
     color: var(--color-on-accent);
-    box-shadow: 0 1px 2px rgba(15, 118, 110, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
   .btn-primary:hover {
     background: var(--color-teal-press);
-    box-shadow: 0 2px 8px rgba(15, 118, 110, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 2px 8px rgba(15, 118, 110, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
   .btn-primary:active {
-    box-shadow: inset 0 2px 4px rgba(15, 118, 110, 0.40);
+    box-shadow: inset 0 2px 4px rgba(15, 118, 110, 0.4);
   }
   .btn-secondary {
     background: var(--color-surface);
@@ -401,11 +318,15 @@ body {
   .btn-danger {
     background: var(--color-danger);
     color: #fff;
-    box-shadow: 0 1px 2px rgba(220, 38, 38, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    box-shadow:
+      0 1px 2px rgba(220, 38, 38, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
   .btn-danger:hover {
     background: #912018;
-    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 2px 8px rgba(220, 38, 38, 0.32),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
 
   /* Size scale — replaces ad-hoc !h-* overrides so heights stay consistent */
@@ -452,7 +373,10 @@ body {
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: background-color 0.15s var(--ease-out), color 0.15s var(--ease-out), transform 0.12s var(--ease-press);
+    transition:
+      background-color 0.15s var(--ease-out),
+      color 0.15s var(--ease-out),
+      transform 0.12s var(--ease-press);
   }
   .icon-btn svg {
     width: 18px;
@@ -487,7 +411,10 @@ body {
     font-size: 14px;
     color: var(--color-ink);
     outline: none;
-    transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out), background-color 0.15s var(--ease-out);
+    transition:
+      border-color 0.15s var(--ease-out),
+      box-shadow 0.15s var(--ease-out),
+      background-color 0.15s var(--ease-out);
   }
   .input::placeholder {
     color: #78716c;
@@ -502,15 +429,13 @@ body {
   }
   .input-error {
     border-color: var(--color-danger);
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
   }
 
   .label {
     display: block;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 13px;
+    line-height: 20px;
     color: var(--color-umber);
     margin-bottom: 6px;
   }
@@ -519,76 +444,118 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     padding: 0 10px;
-    height: 24px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 500;
+    height: 22px;
+    font-size: 12px;
+    font-weight: 400;
   }
-  .chip-teal { background: var(--color-tint); color: var(--color-teal); }
-  .chip-neutral { background: rgba(28, 25, 23, 0.05); color: var(--color-umber); }
-  .chip-success { background: rgba(21, 128, 61, 0.10); color: var(--color-success); }
-  .chip-warning { background: rgba(180, 83, 9, 0.10); color: var(--color-warning); }
-  .chip-danger { background: rgba(220, 38, 38, 0.10); color: var(--color-danger); }
+  .chip-teal {
+    background: var(--color-tint);
+    color: var(--color-teal);
+  }
+  .chip-neutral {
+    background: rgba(28, 25, 23, 0.05);
+    color: var(--color-umber);
+  }
+  .chip-success {
+    background: rgba(21, 128, 61, 0.1);
+    color: var(--color-success);
+  }
+  .chip-warning {
+    background: rgba(180, 83, 9, 0.1);
+    color: var(--color-warning);
+  }
+  .chip-danger {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--color-danger);
+  }
 
   .nav-item {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 12px;
-    border-radius: 10px;
+    gap: 10px;
+    border-radius: var(--radius-md);
     padding: 0 12px;
-    height: 38px;
+    height: 34px;
     font-family: var(--font-body);
     font-size: 14px;
-    font-weight: 500;
-    color: rgba(28, 25, 23, 0.72);
-    transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+    font-weight: 400;
+    color: var(--color-umber);
+    transition:
+      background-color 0.16s var(--ease-out),
+      color 0.16s var(--ease-out);
     text-decoration: none;
   }
   .nav-item:hover {
     color: var(--color-ink);
     background: rgba(28, 25, 23, 0.045);
   }
+  /* Active row: one surface step, not the accent */
   .nav-item.active {
-    background: var(--color-tint);
-    color: var(--color-teal-press);
-    font-weight: 600;
-  }
-  /* Active rail — quiet 2px accent that makes the active row read at a glance */
-  .nav-item.active::before {
-    content: '';
-    position: absolute;
-    left: -12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 18px;
-    border-radius: 999px;
-    background: var(--color-teal);
+    background: var(--color-cream);
+    color: var(--color-ink);
   }
   .nav-item svg {
-    transition: transform 0.16s var(--ease-out);
+    color: var(--color-umber);
   }
-  .nav-item:hover svg {
-    transform: translateX(1px);
+  .nav-item.active svg {
+    color: var(--color-ink);
   }
 
+  /* Group header: quiet sentence-case text, no tracked caps */
   .nav-section {
-    padding: 0 12px 6px;
-    font-family: var(--font-mono);
+    padding: 0 12px 4px;
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+    color: var(--color-umber);
+  }
+  .nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--color-teal);
+    color: var(--color-on-accent);
     font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--color-label);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--color-ink);
+    text-align: left;
+    transition: background-color 0.15s var(--ease-out);
+  }
+  .menu-item:hover {
+    background: rgba(28, 25, 23, 0.045);
+  }
+  .menu-item svg {
+    color: var(--color-umber);
+  }
+  .kbd {
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    padding: 0 4px;
+    font-size: 11px;
+    line-height: 16px;
+    color: var(--color-umber);
   }
 
   .table-head {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 12px;
     color: var(--color-label);
     font-weight: 500;
     padding: 12px 20px;
@@ -603,17 +570,31 @@ body {
 
   .skeleton {
     border-radius: var(--radius-sm);
-    background: linear-gradient(90deg, rgba(28, 25, 23, 0.055) 0%, rgba(28, 25, 23, 0.09) 50%, rgba(28, 25, 23, 0.055) 100%);
+    background: linear-gradient(
+      90deg,
+      rgba(28, 25, 23, 0.055) 0%,
+      rgba(28, 25, 23, 0.09) 50%,
+      rgba(28, 25, 23, 0.055) 100%
+    );
     background-size: 200% 100%;
     animation: shimmer 1.4s ease-in-out infinite;
   }
   @keyframes shimmer {
-    0% { background-position: 100% 0; }
-    100% { background-position: -100% 0; }
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: -100% 0;
+    }
   }
   @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
   }
 }
 
@@ -633,14 +614,30 @@ body {
   .stagger > * {
     animation: rise-in 0.4s var(--ease-out) both;
   }
-  .stagger > *:nth-child(1) { animation-delay: 0.02s; }
-  .stagger > *:nth-child(2) { animation-delay: 0.06s; }
-  .stagger > *:nth-child(3) { animation-delay: 0.10s; }
-  .stagger > *:nth-child(4) { animation-delay: 0.14s; }
-  .stagger > *:nth-child(5) { animation-delay: 0.18s; }
-  .stagger > *:nth-child(6) { animation-delay: 0.22s; }
-  .stagger > *:nth-child(7) { animation-delay: 0.26s; }
-  .stagger > *:nth-child(8) { animation-delay: 0.30s; }
+  .stagger > *:nth-child(1) {
+    animation-delay: 0.02s;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 0.06s;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 0.14s;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 0.18s;
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: 0.22s;
+  }
+  .stagger > *:nth-child(7) {
+    animation-delay: 0.26s;
+  }
+  .stagger > *:nth-child(8) {
+    animation-delay: 0.3s;
+  }
 
   /* Page-level entrance: fade + a short upward drift */
   .page-enter {
@@ -659,44 +656,100 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stagger > *, .page-enter, .rise-in, .fade-in, .modal-in, .toast-in, .skeleton { animation: none; }
+  .stagger > *,
+  .page-enter,
+  .rise-in,
+  .fade-in,
+  .modal-in,
+  .toast-in,
+  .skeleton {
+    animation: none;
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .toast-in { animation: toast-in 0.24s var(--ease-out) both; }
-  .toast-out { animation: toast-out 0.2s var(--ease-out) both; }
-  .drawer-in { animation: drawer-in 0.26s var(--ease-out) both; }
+  .toast-in {
+    animation: toast-in 0.24s var(--ease-out) both;
+  }
+  .toast-out {
+    animation: toast-out 0.2s var(--ease-out) both;
+  }
+  .drawer-in {
+    animation: drawer-in 0.26s var(--ease-out) both;
+  }
 }
 @keyframes toast-out {
-  to { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
 }
 @keyframes drawer-in {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes modal-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 @keyframes page-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(12px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 @keyframes ping {
-  0% { transform: scale(1); opacity: 0.7; }
-  70%, 100% { transform: scale(2.4); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 
 /* Brand mark — the yv. monogram */
@@ -708,9 +761,7 @@ body {
   background: var(--color-teal);
   color: var(--color-on-accent);
   font-family: var(--font-headline);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  box-shadow: 0 1px 3px rgba(15, 118, 110, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  font-weight: 500;
 }
 
 /* Hero accent underline for the auth pages */
@@ -747,7 +798,7 @@ body {
 
 /* Cursor-spotlight dot grid (hero-15) */
 .dot-grid {
-  background-image: radial-gradient(circle, rgba(28, 25, 23, 0.10) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(28, 25, 23, 0.1) 1px, transparent 1px);
   background-size: 26px 26px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent 75%);
 }
@@ -760,8 +811,12 @@ body {
   position: relative;
   border-radius: 26px;
   padding: 1px;
-  background:
-    linear-gradient(160deg, rgba(15, 118, 110, 0.45), rgba(28, 25, 23, 0.08) 40%, rgba(15, 118, 110, 0.30));
+  background: linear-gradient(
+    160deg,
+    rgba(15, 118, 110, 0.45),
+    rgba(28, 25, 23, 0.08) 40%,
+    rgba(15, 118, 110, 0.3)
+  );
 }
 
 /* Teal accent-glow button shadow (CoinCompass recipe, re-tinted) */
@@ -784,26 +839,32 @@ body {
   animation: marquee-scroll 32s linear infinite;
 }
 @keyframes marquee-scroll {
-  to { transform: translateX(-50%); }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 /* Floating nav compact state */
-.landing-nav .rounded-full { transition: box-shadow 0.3s ease; }
+.landing-nav .rounded-full {
+  transition: box-shadow 0.3s ease;
+}
 .landing-nav.is-compact .rounded-full {
   box-shadow: var(--shadow-pop);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .marquee-track { animation: none; }
-  .landing * { transition-duration: 0.01ms !important; }
+  .marquee-track {
+    animation: none;
+  }
+  .landing * {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* AG Grid money grids (/payables, /my-money): theme params live in components/grid/agGrid.ts;
    only the header's mono micro-label (DESIGN.md .table-head) needs CSS. */
 .yv-grid .ag-header-cell-text {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 400;
 }
 .yv-grid .ag-root-wrapper {
   box-shadow: var(--shadow-1);
@@ -811,4 +872,11 @@ body {
 /* autoHeight grids keep a ~150px minimum body for overlays; ours render their own empty state */
 .yv-grid .ag-grid-scrolling-rows.ag-layout-auto-height {
   min-height: 0 !important;
+}
+
+/* One icon size and stroke across the app (lucide). The landing page keeps its own. */
+svg.lucide:not(.landing svg) {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
 }

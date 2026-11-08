@@ -8,7 +8,6 @@ import {
   Inbox,
   Megaphone,
   MessageSquare,
-  Shield,
 } from 'lucide-react'
 import Chip from '../components/primitives'
 import { AssigneeAvatar } from '../components/ui'
@@ -17,7 +16,6 @@ import { PipelineOverview } from '../components/PipelineOverview'
 import { type Project } from '../lib/types'
 import { projectStatusLabel, statusLabel } from '../lib/format'
 import { useViewer } from '../lib/viewer'
-import { roleOf } from '../lib/roles'
 import { useTeam, useProjects, primaryOrgId } from '../lib/data'
 import { listOrgActivity, listScheduledPosts, type ScheduledPost } from '../services/api'
 import { Skeleton } from '../components/states'
@@ -88,14 +86,10 @@ function ProjectRow({ p, icon }: { p: Project; icon: ReactNode }) {
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-ink/[0.04] text-umber transition-colors group-hover:bg-tint group-hover:text-teal">
           {icon}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">{p.title}</p>
-          <p className="truncate text-xs text-umber">
-            {[assignee?.name ?? 'Unassigned', p.approvedVersion, p.updated]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        </div>
+        <p className="min-w-0 flex-1 truncate text-sm text-ink">{p.title}</p>
+        <span className="hidden truncate text-[13px] text-umber sm:inline">
+          {assignee?.name ?? 'Unassigned'}
+        </span>
         <StatusChip status={p.status} label={projectStatusLabel(p)} />
         <ArrowRight
           size={15}
@@ -283,7 +277,7 @@ function ScheduledCard({ items, className }: { items: Project[]; className?: str
         </ul>
       ) : (
         <InlineEmpty
-          text="Nothing scheduled yet. Approved work lands here once it has a time."
+          text="Nothing scheduled"
           action={
             <Link to="/publishing/compose" className="card-link">
               Compose a post <ArrowRight size={13} strokeWidth={2} />
@@ -365,7 +359,13 @@ function groupActivity(events: any[]) {
   return out
 }
 
-function ActivityCard({ className = '' }: { className?: string }) {
+function ActivityCard({
+  className = '',
+  hideEmpty = false,
+}: {
+  className?: string
+  hideEmpty?: boolean
+}) {
   // REAL events from the org-wide feed (/organizations/:id/activity), not
   // notifications. Team Chat chatter is excluded - this is a work log.
   const [events, setEvents] = useState<any[]>([])
@@ -399,6 +399,7 @@ function ActivityCard({ className = '' }: { className?: string }) {
   )
   const grouped = groupActivity(work)
   const shown = showAll ? grouped.slice(0, 30) : grouped.slice(0, ACTIVITY_CAP)
+  if (hideEmpty && !loading && !shown.length) return null
 
   return (
     <div className={`card flex flex-col overflow-hidden ${className}`} data-testid="activity-card">
@@ -448,7 +449,7 @@ function ActivityCard({ className = '' }: { className?: string }) {
                   <p className="text-sm leading-snug text-ink">
                     <span className="font-medium">{actor}</span> {describeAction(e)}
                     {count > 1 && (
-                      <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 font-mono text-[11px] text-umber">
+                      <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 text-xs text-umber">
                         ×{count}
                       </span>
                     )}
@@ -475,7 +476,7 @@ function ActivityCard({ className = '' }: { className?: string }) {
           })}
         </ul>
       ) : (
-        <InlineEmpty text="No project activity yet. Moves, uploads and approvals show up here." />
+        <InlineEmpty text="No project activity yet" />
       )}
     </div>
   )
@@ -515,8 +516,6 @@ function PublishedCard({ p }: { p: Project }) {
 
 export default function DashboardPage() {
   const viewer = useViewer()
-  const firstName = viewer.name.split(' ')[0]
-  const info = roleOf(viewer)
 
   const { projects, error: projectsError } = useProjects()
   const { team } = useTeam()
@@ -549,60 +548,24 @@ export default function DashboardPage() {
   // Published work is no longer waiting to go out - only SCHEDULED counts here.
   const scheduled = projects.filter((p) => p.status === 'SCHEDULED')
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-
   return (
     <div className="space-y-8">
-      {/* Greeting + role identity */}
-      <div className="stagger flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="t-display">
-            {greeting}, {firstName}
-          </h1>
-          <p className="mt-2 text-sm text-umber">
-            {viewer.role === 'admin'
-              ? 'Here’s what the team is working on across your organization today.'
-              : `Your ${info.desk.toLowerCase()} - ${info.blurb}`}
-          </p>
-        </div>
-        <Link
-          to="/profile"
-          className="group flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 shadow-card transition-colors hover:border-line-strong"
-        >
-          <Shield size={13} strokeWidth={1.75} className="text-teal" />
-          <span className="micro-label">Viewing as</span>
-          <span className="text-xs font-semibold text-ink">{info.label}</span>
-          <ArrowRight
-            size={12}
-            strokeWidth={1.75}
-            className="text-umber/40 transition-transform group-hover:translate-x-0.5"
-          />
-        </Link>
-      </div>
+      <h1 className="t-display">Dashboard</h1>
 
       {/* Pipeline: stage strip, waiting on, going live today, last week's best */}
       {projectsError ? (
         <ErrorBanner onRetry={() => window.location.reload()} />
       ) : (
-        <PipelineOverview />
+        <PipelineOverview
+          review={viewer.role === 'admin' ? allInReview : undefined}
+          scheduled={viewer.role === 'admin' ? scheduled : undefined}
+        />
       )}
 
       {/* ---------------- Admin: team overview ---------------- */}
       {viewer.role === 'admin' && (
         <>
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="admin-row">
-            <ProjectListCard
-              title="Awaiting review"
-              to="/review"
-              action="Open review"
-              icon={<MessageSquare {...iconProps} />}
-              items={allInReview}
-              empty="Nothing waiting on review right now."
-            />
-            <ScheduledCard items={scheduled} />
-          </section>
-          <ActivityCard />
+          <ActivityCard hideEmpty />
           {myWork.length > 0 && (
             <section>
               <header className="mb-3 flex items-center justify-between">

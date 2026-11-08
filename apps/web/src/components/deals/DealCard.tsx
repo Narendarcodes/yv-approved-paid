@@ -16,6 +16,31 @@ import type { DealView } from '../../contracts/types'
 import { money, roleWord, shortHash, when } from '../../lib/deals'
 import { DealCardShell } from './common'
 
+/** Start the PayPal hold for one milestone (opens PayPal's approve page). Shared by the terms table and the reel's next action. */
+export function useFundMilestone(deal: DealView, orgId: string, onChanged?: () => void) {
+  const toast = useToast()
+  const [funding, setFunding] = useState<string | null>(null)
+  const fund = async (key: string) => {
+    setFunding(key)
+    try {
+      const d = await api.fundMilestone(orgId, deal.id, key)
+      const url = d.milestones.find((m) => m.key === key)?.funding?.approveUrl
+      if (url) window.open(url, '_blank', 'noopener')
+      toast(
+        'info',
+        'PayPal hold started',
+        'Approve the hold on PayPal; nothing is charged until the work is approved.',
+      )
+      onChanged?.()
+    } catch (e: any) {
+      toast('danger', 'Could not start funding', e?.message || 'Try again')
+    } finally {
+      setFunding(null)
+    }
+  }
+  return { fund, funding }
+}
+
 export default function DealCard({
   deal,
   orgId,
@@ -45,20 +70,7 @@ export default function DealCard({
     }
   }
 
-  const fund = async (key: string) => {
-    setBusy(`fund:${key}`)
-    try {
-      const d = await api.fundMilestone(orgId, deal.id, key)
-      const url = d.milestones.find((m) => m.key === key)?.funding?.approveUrl
-      if (url) window.open(url, '_blank', 'noopener')
-      toast('info', 'PayPal hold started', 'Approve the hold on PayPal; nothing is charged until the work is approved.')
-      onChanged?.()
-    } catch (e: any) {
-      toast('danger', 'Could not start funding', e?.message || 'Try again')
-    } finally {
-      setBusy(null)
-    }
-  }
+  const { fund, funding } = useFundMilestone(deal, orgId, onChanged)
 
   return (
     <DealCardShell
@@ -66,19 +78,25 @@ export default function DealCard({
       label="Deal"
       title={deal.terms.title}
       meta={
-        <span className="font-mono text-[11px] text-label" title={deal.termsHash || deal.termsHashNow}>
-          TERMS {shortHash(deal.termsHash || deal.termsHashNow)}
+        <span className="font-mono text-xs text-label" title={deal.termsHash || deal.termsHashNow}>
+          Terms {shortHash(deal.termsHash || deal.termsHashNow)}
         </span>
       }
       footer={
         deal.me && !iSigned && !locked ? (
           <>
-            <button className="btn-primary" disabled={busy === 'sign' || (deal.problems?.length ?? 0) > 0} onClick={sign}>
+            <button
+              className="btn-primary"
+              disabled={busy === 'sign' || (deal.problems?.length ?? 0) > 0}
+              onClick={sign}
+            >
               <PenLine size={15} strokeWidth={2} />
               Sign terms {shortHash(deal.termsHashNow, 8)}
             </button>
             {(deal.problems?.length ?? 0) > 0 && (
-              <span className="text-[13px] text-danger">Fix before signing: {deal.problems?.join('; ')}</span>
+              <span className="text-[13px] text-danger">
+                Fix before signing: {deal.problems?.join('; ')}
+              </span>
             )}
           </>
         ) : undefined
@@ -90,14 +108,20 @@ export default function DealCard({
             {signed(p) ? (
               <Check size={14} strokeWidth={2.25} className="text-teal" aria-label="signed" />
             ) : (
-              <CircleDashed size={14} strokeWidth={2} className="text-label" aria-label="not signed" />
+              <CircleDashed
+                size={14}
+                strokeWidth={2}
+                className="text-label"
+                aria-label="not signed"
+              />
             )}
             {roleWord(p)}
             {deal.me === p && <span className="text-umber">(you)</span>}
           </span>
         ))}
         <span className="text-umber">
-          {locked ? 'Signed by both, terms locked' : 'Draft: not locked yet'} · Kill fee {(deal.terms.killFeeBp / 100).toFixed(0)}%
+          {locked ? 'Signed by both, terms locked' : 'Draft: not locked yet'} · Kill fee{' '}
+          {(deal.terms.killFeeBp / 100).toFixed(0)}%
         </span>
       </div>
 
@@ -105,9 +129,13 @@ export default function DealCard({
         <table className="w-full min-w-[560px] text-left text-[13px]">
           <thead>
             <tr className="border-b border-line">
-              {['Milestone', 'Amount', 'Due (+grace)', 'Review', 'Rounds left', 'State', ''].map((h) => (
-                <th key={h} className="micro-label py-2 pr-3 font-normal">{h}</th>
-              ))}
+              {['Milestone', 'Amount', 'Due (+grace)', 'Review', 'Rounds left', 'State', ''].map(
+                (h) => (
+                  <th key={h} className="micro-label py-2 pr-3 font-normal">
+                    {h}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
@@ -129,7 +157,11 @@ export default function DealCard({
                   <td className="py-2.5 pr-3">{r && <StatusChip status={r.state} />}</td>
                   <td className="py-2.5 text-right">
                     {canFund && (
-                      <button className="btn-secondary !h-8 text-[12px]" disabled={busy === `fund:${t.key}`} onClick={() => fund(t.key)}>
+                      <button
+                        className="btn-secondary !h-8 text-[12px]"
+                        disabled={funding === t.key}
+                        onClick={() => fund(t.key)}
+                      >
                         <Wallet size={13} strokeWidth={2} />
                         Fund with PayPal
                         <ExternalLink size={12} strokeWidth={2} />

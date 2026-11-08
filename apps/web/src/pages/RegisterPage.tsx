@@ -1,12 +1,31 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, ArrowRight, Building2, Check, ChevronDown, Hash,
-  Lock, Mail, Plus, Trash2, User as UserIcon, UserPlus, Eye, EyeOff,
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  Check,
+  ChevronDown,
+  Hash,
+  Lock,
+  Mail,
+  Plus,
+  Trash2,
+  User as UserIcon,
+  UserPlus,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useToast } from '../components/toast'
-import { login as apiLogin, register as apiRegister, createOrg as apiCreateOrg, addMember as apiAddMember, checkOrgAvailability } from '../services/api'
+import {
+  login as apiLogin,
+  register as apiRegister,
+  createOrg as apiCreateOrg,
+  addMember as apiAddMember,
+  checkOrgAvailability,
+} from '../services/api'
 import BrandLogo from '../components/BrandLogo'
+import AuthPanel from '../components/AuthPanel'
 
 /* ------------------------------------------------------------------ */
 /* Organization signup - three steps: Organization → Admin → Team     */
@@ -23,14 +42,14 @@ const ROLE_OPTIONS = [
   { value: 'member', label: 'Member' },
 ]
 
-const STEPS = [
-  { label: 'Organization' },
-  { label: 'Admin' },
-  { label: 'Team' },
-]
+const STEPS = [{ label: 'Organization' }, { label: 'Admin' }, { label: 'Team' }]
 
 const slugify = (s: string) =>
-  s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -77,7 +96,10 @@ export default function RegisterPage() {
   const orgValid = orgName.trim().length > 0 && slugOk
   const passwordsMatch = confirmPassword.length > 0 && adminPassword === confirmPassword
   const adminValid =
-    adminName.trim().length > 0 && EMAIL_RE.test(adminEmail) && adminPassword.length >= 8 && passwordsMatch
+    adminName.trim().length > 0 &&
+    EMAIL_RE.test(adminEmail) &&
+    adminPassword.length >= 8 &&
+    passwordsMatch
 
   const onOrgName = (v: string) => {
     setOrgName(v)
@@ -179,59 +201,7 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left branding panel */}
-      <div className="relative hidden w-[44%] flex-col justify-between overflow-hidden bg-cream p-12 lg:flex">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            backgroundImage: 'radial-gradient(ellipse 80% 60% at 20% 0%, rgba(15,118,110,0.10), transparent 60%), radial-gradient(ellipse 60% 50% at 90% 100%, rgba(15,118,110,0.08), transparent 55%)',
-          }}
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.35]"
-          style={{ backgroundImage: 'radial-gradient(rgba(28,25,23,0.14) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
-          aria-hidden="true"
-        />
-
-        <div className="relative z-10 flex items-center gap-3">
-          <BrandLogo to="/" size={40} />
-        </div>
-
-        <div className="relative z-10">
-          <span className="auth-rule mb-5 block h-1 w-10" aria-hidden="true" />
-          <h1 className="max-w-md font-headline text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] text-ink">
-            One calm home for your team&apos;s concepts, reviews and published work
-          </h1>
-          <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-umber">
-            Set up your organization, add your team, and keep every decision in one calm workspace.
-          </p>
-
-          {/* Live preview of the workspace being created */}
-          <div className="card card-hover mt-10 max-w-sm p-4">
-            <div className="flex items-center gap-3">
-              <span className="brand-mark h-9 w-9 text-xs">
-                {orgName.trim() ? orgName.trim().slice(0, 2).toUpperCase() : 'yv'}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-ink">
-                  {orgName.trim() || 'Your organization'}
-                </p>
-                <p className="font-mono text-[11px] text-umber">
-                  yv.app/{orgSlug || 'your-workspace'}
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-label">Being set up</span>
-              <span className="font-mono text-[10px] text-teal">
-                {step === 4 ? 'Ready' : `Step ${Math.min(step, 3)} of 3`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-      </div>
+      <AuthPanel illustration="team" />
 
       {/* Right form panel */}
       <div className="flex flex-1 items-center justify-center bg-surface px-6 py-12">
@@ -268,7 +238,10 @@ export default function RegisterPage() {
                     {s.label}
                   </span>
                   {n < STEPS.length && (
-                    <span className={`h-px flex-1 ${done ? 'bg-teal/25' : 'bg-ink/10'}`} aria-hidden="true" />
+                    <span
+                      className={`h-px flex-1 ${done ? 'bg-teal/25' : 'bg-ink/10'}`}
+                      aria-hidden="true"
+                    />
                   )}
                 </li>
               )
@@ -278,13 +251,13 @@ export default function RegisterPage() {
           <div key={step} className="rise-in mt-9">
             {step === 1 && (
               <div>
-                <h2 className="t-display">
-                  Name your organization
-                </h2>
-                <p className="mt-2 text-sm text-umber">Your team, projects and content history will live here.</p>
+                <h2 className="t-display">Name your organization</h2>
 
                 {existingWorkspace && (
-                  <div className="mt-5 rounded-[10px] border border-warning/30 bg-warning/8 px-4 py-3" role="alert">
+                  <div
+                    className="mt-5 rounded-[10px] border border-warning/30 bg-warning/8 px-4 py-3"
+                    role="alert"
+                  >
                     <p className="text-sm font-medium text-ink">This workspace already exists</p>
                     <p className="mt-0.5 text-[13px] text-umber">
                       <span className="font-medium text-ink">{existingWorkspace}</span> is already
@@ -297,14 +270,23 @@ export default function RegisterPage() {
                 )}
 
                 <form
-                  onSubmit={(e) => { e.preventDefault(); void nextFromOrg() }}
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void nextFromOrg()
+                  }}
                   className="mt-7 space-y-5"
                   noValidate
                 >
                   <div>
-                    <label htmlFor="orgName" className="label">Organization name</label>
+                    <label htmlFor="orgName" className="label">
+                      Organization name
+                    </label>
                     <div className="relative">
-                      <Building2 size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                      <Building2
+                        size={16}
+                        strokeWidth={1.75}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                      />
                       <input
                         id="orgName"
                         value={orgName}
@@ -314,32 +296,58 @@ export default function RegisterPage() {
                       />
                     </div>
                     {tried && !orgName.trim() && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">Name your organization</p>
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
+                        Name your organization
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label htmlFor="orgSlug" className="label">Workspace URL</label>
+                    <label htmlFor="orgSlug" className="label">
+                      Workspace URL
+                    </label>
                     <div className="relative">
-                      <Hash size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                      <Hash
+                        size={16}
+                        strokeWidth={1.75}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                      />
                       <input
                         id="orgSlug"
                         value={orgSlug}
-                        onChange={(e) => { setSlugTouched(true); setExistingWorkspace(null); setOrgSlug(slugify(e.target.value)) }}
+                        onChange={(e) => {
+                          setSlugTouched(true)
+                          setExistingWorkspace(null)
+                          setOrgSlug(slugify(e.target.value))
+                        }}
                         placeholder="demo-studio"
                         className={`input !pl-10 font-mono text-[13px] ${tried && !slugOk ? 'input-error' : ''}`}
                       />
                     </div>
-                    <p className="mt-1.5 font-mono text-[11px] text-label">yv.app/{orgSlug || 'your-workspace'}</p>
+                    <p className="mt-1.5 font-mono text-xs text-label">
+                      yv.app/{orgSlug || 'your-workspace'}
+                    </p>
                     {tried && !slugOk && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">Use lowercase letters, numbers and dashes</p>
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
+                        Use lowercase letters, numbers and dashes
+                      </p>
                     )}
                   </div>
 
                   <div className="flex items-center gap-3 pt-2">
-                    <button type="submit" disabled={checkingOrg} className="btn-primary group flex-1 btn-lg">
+                    <button
+                      type="submit"
+                      disabled={checkingOrg}
+                      className="btn-primary group flex-1 btn-lg"
+                    >
                       {checkingOrg ? 'Checking…' : 'Continue'}
-                      {!checkingOrg && <ArrowRight size={16} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />}
+                      {!checkingOrg && (
+                        <ArrowRight
+                          size={16}
+                          strokeWidth={2}
+                          className="transition-transform group-hover:translate-x-0.5"
+                        />
+                      )}
                     </button>
                   </div>
                 </form>
@@ -348,10 +356,7 @@ export default function RegisterPage() {
 
             {step === 2 && (
               <div>
-                <h2 className="t-display">
-                  Create the admin account
-                </h2>
-                <p className="mt-2 text-sm text-umber">You&apos;ll own the workspace and manage your team.</p>
+                <h2 className="t-display">Create the admin account</h2>
 
                 {existingAccount && (
                   <div
@@ -372,14 +377,23 @@ export default function RegisterPage() {
                 )}
 
                 <form
-                  onSubmit={(e) => { e.preventDefault(); next() }}
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    next()
+                  }}
                   className="mt-7 space-y-5"
                   noValidate
                 >
                   <div>
-                    <label htmlFor="adminName" className="label">Full name</label>
+                    <label htmlFor="adminName" className="label">
+                      Full name
+                    </label>
                     <div className="relative">
-                      <UserIcon size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                      <UserIcon
+                        size={16}
+                        strokeWidth={1.75}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                      />
                       <input
                         id="adminName"
                         value={adminName}
@@ -389,14 +403,22 @@ export default function RegisterPage() {
                       />
                     </div>
                     {tried && !adminName.trim() && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">Enter your full name</p>
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
+                        Enter your full name
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label htmlFor="adminEmail" className="label">Work email</label>
+                    <label htmlFor="adminEmail" className="label">
+                      Work email
+                    </label>
                     <div className="relative">
-                      <Mail size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                      <Mail
+                        size={16}
+                        strokeWidth={1.75}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                      />
                       <input
                         id="adminEmail"
                         type="email"
@@ -407,14 +429,22 @@ export default function RegisterPage() {
                       />
                     </div>
                     {tried && !EMAIL_RE.test(adminEmail) && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">Enter a valid work email</p>
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
+                        Enter a valid work email
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label htmlFor="adminPassword" className="label">Password</label>
+                    <label htmlFor="adminPassword" className="label">
+                      Password
+                    </label>
                     <div className="relative">
-                      <Lock size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                      <Lock
+                        size={16}
+                        strokeWidth={1.75}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                      />
                       <input
                         id="adminPassword"
                         type={showPassword ? 'text' : 'password'}
@@ -429,26 +459,41 @@ export default function RegisterPage() {
                         className="icon-btn icon-btn-sm absolute right-1.5 top-1/2 -translate-y-1/2"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {showPassword ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
+                        {showPassword ? (
+                          <EyeOff size={15} strokeWidth={1.75} />
+                        ) : (
+                          <Eye size={15} strokeWidth={1.75} />
+                        )}
                       </button>
                     </div>
                     {adminPassword && (
                       <div className="mt-2.5">
                         <div className="h-1 w-full overflow-hidden rounded-full bg-ink/6">
-                          <div className={`h-full rounded-full transition-[width] duration-300 ${meter.tone}`} style={{ width: `${meter.pct}%` }} />
+                          <div
+                            className={`h-full rounded-full transition-[width] duration-300 ${meter.tone}`}
+                            style={{ width: `${meter.pct}%` }}
+                          />
                         </div>
-                        <p className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-label">{meter.label}</p>
+                        <p className="mt-1.5 text-xs text-label">{meter.label}</p>
                       </div>
                     )}
                     {tried && adminPassword.length < 8 && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">Use at least 8 characters</p>
+                      <p className="mt-1.5 text-xs text-danger" role="alert">
+                        Use at least 8 characters
+                      </p>
                     )}
                   </div>
 
                   <div>
-                    <label htmlFor="confirmPassword" className="label">Confirm password</label>
+                    <label htmlFor="confirmPassword" className="label">
+                      Confirm password
+                    </label>
                     <div className="relative">
-                      <Lock size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                      <Lock
+                        size={16}
+                        strokeWidth={1.75}
+                        className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                      />
                       <input
                         id="confirmPassword"
                         type={showPassword ? 'text' : 'password'}
@@ -459,7 +504,9 @@ export default function RegisterPage() {
                       />
                     </div>
                     {confirmPassword.length > 0 && !passwordsMatch && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">Passwords don&apos;t match yet</p>
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
+                        Passwords don&apos;t match yet
+                      </p>
                     )}
                   </div>
 
@@ -470,7 +517,11 @@ export default function RegisterPage() {
                     </button>
                     <button type="submit" className="btn-primary group flex-1 btn-lg">
                       Continue
-                      <ArrowRight size={16} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />
+                      <ArrowRight
+                        size={16}
+                        strokeWidth={2}
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
                     </button>
                   </div>
                 </form>
@@ -479,10 +530,7 @@ export default function RegisterPage() {
 
             {step === 3 && (
               <div>
-                <h2 className="t-display">
-                  Invite your team
-                </h2>
-                <p className="mt-2 text-sm text-umber">Add your editors, reviewers and publishers, or skip for now.</p>
+                <h2 className="t-display">Invite your team</h2>
 
                 <div className="mt-7 space-y-3">
                   {members.length === 0 && (
@@ -491,7 +539,6 @@ export default function RegisterPage() {
                         <UserPlus size={17} strokeWidth={1.75} />
                       </span>
                       <p className="text-sm font-medium text-ink">No members yet</p>
-                      <p className="mt-1 text-xs text-umber">You can invite them anytime from Settings.</p>
                     </div>
                   )}
 
@@ -499,7 +546,11 @@ export default function RegisterPage() {
                     <div key={m.id} className="card p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="relative min-w-0 flex-1 basis-40">
-                          <UserIcon size={14} strokeWidth={1.75} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-label" />
+                          <UserIcon
+                            size={14}
+                            strokeWidth={1.75}
+                            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-label"
+                          />
                           <input
                             value={m.name}
                             onChange={(e) => patchMember(m.id, { name: e.target.value })}
@@ -509,7 +560,11 @@ export default function RegisterPage() {
                           />
                         </div>
                         <div className="relative min-w-0 flex-1 basis-48">
-                          <Mail size={14} strokeWidth={1.75} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-label" />
+                          <Mail
+                            size={14}
+                            strokeWidth={1.75}
+                            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-label"
+                          />
                           <input
                             type="email"
                             value={m.email}
@@ -527,10 +582,16 @@ export default function RegisterPage() {
                             aria-label="Member role"
                           >
                             {ROLE_OPTIONS.map((r) => (
-                              <option key={r.value} value={r.value}>{r.label}</option>
+                              <option key={r.value} value={r.value}>
+                                {r.label}
+                              </option>
                             ))}
                           </select>
-                          <ChevronDown size={14} strokeWidth={1.75} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-label" />
+                          <ChevronDown
+                            size={14}
+                            strokeWidth={1.75}
+                            className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-label"
+                          />
                         </div>
                         <button
                           type="button"
@@ -551,16 +612,29 @@ export default function RegisterPage() {
                 </div>
 
                 <form
-                  onSubmit={(e) => { e.preventDefault(); void createWorkspace() }}
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void createWorkspace()
+                  }}
                   className="mt-6 flex items-center gap-3"
                 >
                   <button type="button" onClick={back} className="btn-secondary btn-lg">
                     <ArrowLeft size={15} strokeWidth={2} />
                     Back
                   </button>
-                  <button type="submit" disabled={creating} className="btn-primary group flex-1 btn-lg">
+                  <button
+                    type="submit"
+                    disabled={creating}
+                    className="btn-primary group flex-1 btn-lg"
+                  >
                     {creating ? 'Creating…' : 'Create workspace'}
-                    {!creating && <ArrowRight size={16} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />}
+                    {!creating && (
+                      <ArrowRight
+                        size={16}
+                        strokeWidth={2}
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
+                    )}
                   </button>
                 </form>
                 <button
@@ -582,24 +656,27 @@ export default function RegisterPage() {
                   Your workspace is ready
                 </h2>
                 <p className="mt-2 text-sm text-umber">
-                  {orgName.trim()} is set up{adminName.trim() ? `, and ${adminName.trim().split(' ')[0]} is its admin` : ''}.
+                  {orgName.trim()} is set up
+                  {adminName.trim() ? `, and ${adminName.trim().split(' ')[0]} is its admin` : ''}.
                 </p>
 
                 <div className="card mt-8 divide-y divide-line text-left">
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-label">Organization</span>
-                    <span className="truncate pl-4 text-sm font-medium text-ink">{orgName.trim()}</span>
+                    <span className=" text-xs text-label">Organization</span>
+                    <span className="truncate pl-4 text-sm font-medium text-ink">
+                      {orgName.trim()}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-label">Workspace</span>
+                    <span className=" text-xs text-label">Workspace</span>
                     <span className="font-mono text-[13px] text-ink">yv.app/{orgSlug}</span>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-label">Admin</span>
+                    <span className=" text-xs text-label">Admin</span>
                     <span className="truncate pl-4 text-sm text-ink">{adminEmail}</span>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-label">Teammates</span>
+                    <span className=" text-xs text-label">Teammates</span>
                     <span className="text-sm text-ink">{invitedCount} invited</span>
                   </div>
                 </div>
@@ -610,7 +687,11 @@ export default function RegisterPage() {
                   className="btn-primary group mt-8 w-full btn-lg"
                 >
                   Go to your workspace
-                  <ArrowRight size={16} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />
+                  <ArrowRight
+                    size={16}
+                    strokeWidth={2}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
                 </button>
               </div>
             )}
@@ -619,7 +700,10 @@ export default function RegisterPage() {
           {step < 4 && (
             <p className="mt-8 text-center text-sm text-umber">
               Already have an account?{' '}
-              <Link to="/login" className="font-medium text-teal transition-opacity hover:opacity-80">
+              <Link
+                to="/login"
+                className="font-medium text-teal transition-opacity hover:opacity-80"
+              >
                 Sign in
               </Link>
             </p>
