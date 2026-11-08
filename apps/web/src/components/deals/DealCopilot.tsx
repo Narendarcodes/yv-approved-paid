@@ -40,6 +40,11 @@ import ChangeOrderCard from './ChangeOrderCard'
 import DisputeSplitCard from './DisputeSplitCard'
 import PolicyBlockedChip from './PolicyBlockedChip'
 
+// three starters, shown only before the first message: where the money is, the dispute split, and a money ask policy blocks
+const STARTERS = ['Money timeline', 'Dispute split', 'Capture $450']
+  .map((l) => SUGGESTIONS.find((s) => s.label === l))
+  .filter((s): s is (typeof SUGGESTIONS)[number] => !!s)
+
 type Mode =
   | { kind: 'live'; provider: string | null; model: string | null; cached: boolean }
   | { kind: 'offline'; reason?: string }
@@ -439,7 +444,20 @@ export default function DealCopilot({
         </span>
       </div>
       <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
-        {turns.length === 0 && <p className="text-[13px] text-umber">Ask about this deal.</p>}
+        {turns.length === 0 && (
+          <div className="flex flex-col items-start gap-1.5" data-testid="copilot-suggestions">
+            {STARTERS.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => void ask(s.prompt)}
+                className="rounded-md border border-line px-2.5 py-1.5 text-[13px] text-umber hover:border-line-strong hover:text-ink"
+              >
+                {s.prompt}
+              </button>
+            ))}
+          </div>
+        )}
         {turns.map((t) =>
           t.role === 'user' ? (
             <p
@@ -469,18 +487,6 @@ export default function DealCopilot({
         <div ref={end} />
       </div>
       <div className="border-t border-line p-3">
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s.label}
-              type="button"
-              onClick={() => void ask(s.prompt)}
-              className="inline-flex items-center rounded-md border border-line px-2 py-1 text-xs text-umber hover:border-line-strong hover:text-ink"
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
         <form onSubmit={submit} className="flex gap-2">
           <input
             value={text}

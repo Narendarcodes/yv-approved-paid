@@ -3,11 +3,11 @@
  * AI checks facts, people own taste, the deal decides the money.
  */
 import { Link } from 'react-router-dom'
-import { ArrowRight, Handshake } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { PageHeader } from '../components/ui'
 import { EmptyState, ErrorBanner, ListSkeleton } from '../components/states'
-import { StatusChip } from '../components/status'
-import { money, roleWord, useDeals } from '../lib/deals'
+import { StatusChip, StatusDot, stageOf } from '../components/status'
+import { money, useDeals } from '../lib/deals'
 
 export default function DealsPage() {
   const { data: deals, isLoading, isError, refetch } = useDeals()
@@ -21,7 +21,7 @@ export default function DealsPage() {
       ) : !deals?.length ? (
         <EmptyState title="No deals yet" illustration="deal" />
       ) : (
-        <ul className="space-y-3" data-testid="deals-list">
+        <ul className="card divide-y divide-line overflow-hidden" data-testid="deals-list">
           {deals.map((d) => {
             const total = d.terms.milestones.reduce((a, m) => a + m.amountMinor, 0)
             const captured = d.milestones.reduce((a, m) => a + (m.capturedMinor || 0), 0)
@@ -29,34 +29,27 @@ export default function DealsPage() {
               <li key={d.id}>
                 <Link
                   to={`/deals/${encodeURIComponent(d.id)}`}
-                  className="card card-hover flex flex-wrap items-center gap-4 px-5 py-4"
+                  className="row-link flex items-center gap-4 px-5 py-3.5"
                 >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-canvas text-teal">
-                    <Handshake size={18} strokeWidth={1.75} />
+                  <span className="min-w-0 flex-1 truncate text-[15px] text-ink">
+                    {d.terms.title}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="card-title">{d.terms.title}</p>
-                    <p className="mt-0.5 text-[12px] text-umber">
-                      You are the {roleWord(d.me).toLowerCase()} · {d.terms.milestones.length}{' '}
-                      milestone(s) · {d.termsHash ? 'signed by both' : 'draft'}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {d.milestones.map((m) => (
-                        <StatusChip
-                          key={m.key}
-                          status={m.state}
-                          label={`${m.key} · ${m.state.replace(/_/g, ' ').toLowerCase()}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="micro-label">Captured / signed</p>
-                    <p className="t-num text-[16px]">
-                      {money(captured, d.terms.currency)} / {money(total, d.terms.currency)}
-                    </p>
-                  </div>
-                  <ArrowRight size={16} strokeWidth={2} className="text-label" />
+                  {!d.termsHash && <StatusChip status="DRAFT" label="Draft" />}
+                  <span className="hidden items-center gap-1 sm:flex" aria-label="Reels">
+                    {d.milestones.map((m) => (
+                      <span
+                        key={m.key}
+                        title={`${m.key}: ${m.state.replace(/_/g, ' ').toLowerCase()}`}
+                      >
+                        <StatusDot stage={stageOf(m.state)} className="!h-2 !w-2" />
+                      </span>
+                    ))}
+                  </span>
+                  <span className="t-num w-[170px] text-right text-[14px] text-umber">
+                    <span className="text-ink">{money(captured, d.terms.currency)}</span> of{' '}
+                    {money(total, d.terms.currency)}
+                  </span>
+                  <ArrowRight size={16} strokeWidth={1.5} className="text-label" />
                 </Link>
               </li>
             )
