@@ -25,6 +25,7 @@ import {
   checkOrgAvailability,
 } from '../services/api'
 import BrandLogo from '../components/BrandLogo'
+import AuthPanel from '../components/AuthPanel'
 
 /* ------------------------------------------------------------------ */
 /* Organization signup - three steps: Organization → Admin → Team     */
@@ -200,57 +201,7 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left branding panel */}
-      <div className="relative hidden w-[44%] flex-col justify-between overflow-hidden bg-cream p-12 lg:flex">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-60"
-          style={{
-            backgroundImage:
-              'radial-gradient(ellipse 80% 60% at 20% 0%, rgba(15,118,110,0.10), transparent 60%), radial-gradient(ellipse 60% 50% at 90% 100%, rgba(15,118,110,0.08), transparent 55%)',
-          }}
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.35]"
-          style={{
-            backgroundImage: 'radial-gradient(rgba(28,25,23,0.14) 1px, transparent 1px)',
-            backgroundSize: '22px 22px',
-          }}
-          aria-hidden="true"
-        />
-
-        <div className="relative z-10 flex items-center gap-3">
-          <BrandLogo to="/" size={40} />
-        </div>
-
-        <div className="relative z-10">
-          <span className="auth-rule mb-5 block h-1 w-10" aria-hidden="true" />
-          <h1 className="max-w-md text-[32px] font-medium leading-[1.15] tracking-[-0.01em] text-ink">
-            One calm home for your team&apos;s concepts, reviews and published work
-          </h1>
-
-          {/* Live preview of the workspace being created */}
-          <div className="card card-hover mt-10 max-w-sm p-4">
-            <div className="flex items-center gap-3">
-              <span className="brand-mark h-9 w-9 text-xs">
-                {orgName.trim() ? orgName.trim().slice(0, 2).toUpperCase() : 'yv'}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-ink">
-                  {orgName.trim() || 'Your organization'}
-                </p>
-                <p className=" text-xs text-umber">yv.app/{orgSlug || 'your-workspace'}</p>
-              </div>
-            </div>
-            <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-              <span className=" text-xs text-label">Being set up</span>
-              <span className=" text-xs text-teal">
-                {step === 4 ? 'Ready' : `Step ${Math.min(step, 3)} of 3`}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AuthPanel illustration="team" />
 
       {/* Right form panel */}
       <div className="flex flex-1 items-center justify-center bg-surface px-6 py-12">

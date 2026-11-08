@@ -1,20 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, Lock, Mail, PlayCircle } from 'lucide-react'
-import { StatusDot, type Stage } from '../components/status'
+import AuthPanel from '../components/AuthPanel'
 import { useToast } from '../components/toast'
 import { login as apiLogin, demoLogin, LoginError } from '../services/api'
 import { rememberDealOrg } from '../lib/deals'
 import BrandLogo from '../components/BrandLogo'
-
-const PIPE: { label: string; stage: Stage }[] = [
-  { label: 'Idea', stage: 'idea' },
-  { label: 'Brief', stage: 'brief' },
-  { label: 'Production', stage: 'production' },
-  { label: 'Review', stage: 'review' },
-  { label: 'Scheduled', stage: 'scheduled' },
-  { label: 'Live', stage: 'live' },
-]
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -53,6 +44,15 @@ export default function LoginPage() {
     }
   }
 
+  // /login?demo=1 (the landing page's "Try the demo"): start the demo once, straight away
+  const autoDemo = useRef(false)
+  useEffect(() => {
+    if (autoDemo.current || new URLSearchParams(location.search).get('demo') !== '1') return
+    autoDemo.current = true
+    void tryDemo()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search])
+
   const from = (location.state as { from?: string } | null)?.from ?? '/'
 
   const signIn = async (emailAddr: string, passwordVal: string) => {
@@ -90,33 +90,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      {/* Left: quiet typographic brand panel - no illustration */}
-      <div className="relative hidden w-[44%] max-w-[640px] flex-col justify-between border-r border-line bg-cream px-12 py-10 lg:flex">
-        <BrandLogo to="/" size={36} />
-
-        <div>
-          <h1 className=" max-w-md text-[32px] font-medium leading-[1.15] tracking-[-0.01em] text-ink">
-            From idea to live post, in one calm workspace.
-          </h1>
-
-          <ol
-            className="mt-10 max-w-sm divide-y divide-line border-y border-line"
-            aria-label="The yv. pipeline"
-          >
-            {PIPE.map((st, i) => (
-              <li key={st.label} className="flex items-center gap-3 py-2.5">
-                <span className="w-5 font-mono text-xs text-label">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <StatusDot stage={st.stage} />
-                <span className="text-sm font-medium text-ink">{st.label}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-
-        <span />
-      </div>
+      <AuthPanel illustration="payments" />
 
       {/* Right: form */}
       <div className="flex flex-1 items-center justify-center px-5 py-12 sm:px-8">
