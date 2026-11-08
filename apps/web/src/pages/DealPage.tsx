@@ -23,6 +23,7 @@ import ReelPanel, { type SectionId } from '../components/deals/ReelPanel'
 import * as api from '../services/api'
 import type { DealView } from '../contracts/types'
 import { DEMO_DEAL_PATH, money, useDeal, useDealRefresh } from '../lib/deals'
+import { SandboxChip } from '../components/Sponsors'
 
 const SECTIONS: SectionId[] = ['checks', 'payout', 'changes', 'money', 'terms']
 
@@ -168,6 +169,7 @@ export default function DealPage() {
                 <span className="t-num text-ink">{money(heldOf(deal), deal.terms.currency)}</span>{' '}
                 held
               </span>
+              <SandboxChip />
               <span aria-hidden="true">·</span>
               <button
                 type="button"

@@ -19,6 +19,7 @@ import type { DealView } from '../../contracts/types'
 import { money } from '../../lib/deals'
 import { initialsOf } from '../../lib/initials'
 import { DealCardShell } from './common'
+import { SandboxChip } from '../Sponsors'
 
 const pctText = (bp: number) => `${(bp / 100).toFixed(bp % 100 ? 2 : 0)}%`
 
@@ -167,17 +168,20 @@ export default function TeamPayoutCard({
       testId={`team-payout-${milestoneKey}`}
       meta={
         r && r.lines.length > 0 ? (
-          r.lines.every((l) => l.simulated) ? (
-            <SimulatedBadge
-              title={`No money left PayPal: the batch and every receipt are recorded. ${
-                r.batches.find((b) => b.simulated)?.reason ||
-                r.lines.find((l) => l.simulated && l.reason)?.reason ||
-                'PayPal Payouts is not available to this sandbox account.'
-              }`}
-            />
-          ) : (
-            <span className="status-chip bg-st-live-bg text-st-live">Paid</span>
-          )
+          <>
+            <SandboxChip />
+            {r.lines.every((l) => l.simulated) ? (
+              <SimulatedBadge
+                title={`No money left PayPal: the batch and every receipt are recorded. ${
+                  r.batches.find((b) => b.simulated)?.reason ||
+                  r.lines.find((l) => l.simulated && l.reason)?.reason ||
+                  'PayPal Payouts is not available to this sandbox account.'
+                }`}
+              />
+            ) : (
+              <span className="status-chip bg-st-live-bg text-st-live">Paid</span>
+            )}
+          </>
         ) : null
       }
     >

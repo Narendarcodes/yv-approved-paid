@@ -4,6 +4,7 @@
  */
 import BrandLogo from './BrandLogo'
 import Illustration, { type IllustrationName } from './Illustration'
+import { HackathonCredit } from './Sponsors'
 
 export default function AuthPanel({ illustration }: { illustration: IllustrationName }) {
   return (
@@ -12,6 +13,7 @@ export default function AuthPanel({ illustration }: { illustration: Illustration
       <div className="flex flex-1 items-center justify-center">
         <Illustration name={illustration} className="h-auto w-full max-w-[360px]" />
       </div>
+      <HackathonCredit />
     </div>
   )
 }

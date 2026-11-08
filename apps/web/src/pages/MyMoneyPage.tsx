@@ -20,6 +20,7 @@ import { money, useDealOrg } from '../lib/deals'
 import * as api from '../services/api'
 import type { MyMoneyRow } from '../services/api'
 import { PAGE_LINE, EMPTY_LINE, HINT } from '../lib/copy'
+import { SandboxChip } from '../components/Sponsors'
 
 const STATUS: Record<string, { label: string; stage: Stage }> = {
   paid: { label: 'Paid', stage: 'live' },
@@ -218,6 +219,7 @@ export default function MyMoneyPage() {
             >
               <span className="t-num text-ink">{money(summary.released, summary.cur)}</span> paid
             </p>
+            <SandboxChip className="self-center" />
             <p className="w-full text-[12px] text-umber" data-testid="decision-hint">
               {HINT.myMoney}
             </p>

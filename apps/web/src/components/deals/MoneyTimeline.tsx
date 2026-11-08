@@ -17,6 +17,7 @@ import { blockedSummary, invoiceSent, money, useDealLedger, when } from '../../l
 import { DealCardShell, PaypalId, PaypalInvoiceId, Stat } from './common'
 import PolicyBlockedChip from './PolicyBlockedChip'
 import { EMPTY_LINE } from '../../lib/copy'
+import { SandboxChip } from '../Sponsors'
 
 const LABEL: Record<DealLedgerEntry['type'], string> = {
   authorize: 'Held on PayPal',
@@ -90,6 +91,7 @@ export default function MoneyTimeline({
       title={deal.terms.title}
       meta={
         <>
+          <SandboxChip />
           {ledger.live && (
             <span
               className="inline-flex items-center gap-1 font-mono text-xs text-teal"
