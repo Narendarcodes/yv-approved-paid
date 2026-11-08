@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   ExternalLink,
   ShieldCheck,
+  ChevronRight,
 } from 'lucide-react'
 import Chip, { Modal } from '../../components/primitives'
 import { PageHeader } from '../../components/ui'
@@ -207,11 +208,27 @@ export default function ChannelsPage() {
               <h2 className="card-title">
                 {postiz ? 'Publishing through Postiz' : 'Demo mode - built-in scheduler'}
               </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-umber">
+              <p className="mt-1 max-w-2xl text-sm text-umber" data-testid="publishing-mode-line">
                 {postiz
-                  ? 'Posts are handed to your Postiz workspace, which publishes them and reports back the live link and analytics. Link the accounts you connected in Postiz below.'
-                  : 'No real accounts are touched. Demo channels are published by yv.\u2019s own scheduler at the chosen time, with a demo link and simulated metrics, so the whole flow works without tokens. Set POSTIZ_API_URL and POSTIZ_API_KEY on the server to publish for real.'}
+                  ? 'Postiz publishes your posts and reports back the live link and analytics.'
+                  : 'No real accounts are touched: demo posts get a demo link and simulated metrics.'}
               </p>
+              <details className="group mt-1 max-w-2xl">
+                <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-[12px] font-medium text-teal hover:text-teal-press [&::-webkit-details-marker]:hidden">
+                  <ChevronRight
+                    size={12}
+                    strokeWidth={2}
+                    className="transition-transform group-open:rotate-90"
+                    aria-hidden="true"
+                  />
+                  Learn more
+                </summary>
+                <p className="mt-1 text-[12.5px] leading-relaxed text-umber">
+                  {postiz
+                    ? 'Posts are handed to your Postiz workspace, which holds the account tokens and does the publishing. Link the accounts you connected in Postiz below.'
+                    : 'Demo channels are published by yv.\u2019s own scheduler at the chosen time, so the whole flow works without tokens. Set POSTIZ_API_URL and POSTIZ_API_KEY on the server to publish for real.'}
+                </p>
+              </details>
             </div>
           </div>
           {canManage && (
