@@ -69,9 +69,7 @@ export default function ReviewMergeCard({
       label="Review merge"
       title={terms.title}
       meta={
-        p ? (
-          <span className="font-mono text-[11px] text-label">VERSION {p.versionId}</span>
-        ) : undefined
+        p ? <span className="font-mono text-xs text-label">VERSION {p.versionId}</span> : undefined
       }
       footer={
         canSend ? (

@@ -202,7 +202,7 @@ export default function CalendarPage() {
         actions={
           <>
             <Link to="/publishing/channels" className="btn-secondary">
-              Channels <span className="font-mono text-[11px] text-umber">{channels.length}</span>
+              Channels <span className="font-mono text-xs text-umber">{channels.length}</span>
             </Link>
             {canManage && (
               <Link to="/publishing/compose" className="btn-primary" data-testid="calendar-compose">
@@ -323,7 +323,7 @@ export default function CalendarPage() {
                     >
                       <div className="mb-1 flex justify-end">
                         <span
-                          className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 font-mono text-[11px] ${
+                          className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs ${
                             isToday
                               ? 'bg-[#171310] text-white'
                               : inMonth
@@ -339,12 +339,12 @@ export default function CalendarPage() {
                           <button
                             key={p.id}
                             onClick={() => setOpenId(p.id)}
-                            className={`block w-full rounded-md px-1.5 py-1 text-left text-[11px] leading-tight transition-opacity hover:opacity-85 ${pillClass(p.status)}`}
+                            className={`block w-full rounded-md px-1.5 py-1 text-left text-xs leading-tight transition-opacity hover:opacity-85 ${pillClass(p.status)}`}
                             data-testid="calendar-post"
                             data-status={p.status}
                             title={`${p.project?.title ?? ''} · ${p.channel?.name ?? p.platform}`}
                           >
-                            <span className="flex items-center gap-1 font-mono text-[10px] opacity-90">
+                            <span className="flex items-center gap-1 font-mono text-xs opacity-90">
                               <PlatformGlyph
                                 platform={p.channel?.platform || p.platform.toLowerCase()}
                                 size={10}
@@ -358,7 +358,7 @@ export default function CalendarPage() {
                           </button>
                         ))}
                         {list.length > 3 && (
-                          <p className="px-1 font-mono text-[10px] text-umber">
+                          <p className="px-1 font-mono text-xs text-umber">
                             +{list.length - 3} more
                           </p>
                         )}
@@ -560,7 +560,7 @@ function WeekGrid({
                 {d.toLocaleDateString(undefined, { weekday: 'short' })}
               </span>
               <span
-                className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 font-mono text-xs ${isToday ? 'bg-[#171310] text-white' : 'text-ink'}`}
+                className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs ${isToday ? 'bg-[#171310] text-white' : 'text-ink'}`}
               >
                 {d.getDate()}
               </span>
@@ -596,7 +596,7 @@ function WeekGrid({
                     <Thumb post={p} />
                     <span className="block px-2 py-1.5">
                       <span
-                        className="flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] text-umber"
+                        className="flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-umber"
                         title={POST_STATUS[p.status].label}
                       >
                         <StatusDot stage={stageOf(p.status)} className="!h-2 !w-2" />
@@ -611,7 +611,7 @@ function WeekGrid({
                 )
               })}
               {!list.length && (
-                <p className="pt-4 text-center text-[11px] text-label">{past ? '' : '—'}</p>
+                <p className="pt-4 text-center text-xs text-label">{past ? '' : '—'}</p>
               )}
             </div>
           </div>
@@ -642,7 +642,7 @@ function SideList({
         <h3 className="font-headline text-sm font-semibold tracking-tight text-[#171310]">
           {title}
         </h3>
-        <span className="font-mono text-[11px] text-label">{posts.length}</span>
+        <span className="font-mono text-xs text-label">{posts.length}</span>
       </header>
       <ul className="divide-y divide-line">
         {posts.map((p) => (
@@ -656,7 +656,7 @@ function SideList({
                 <span className="block truncate text-sm font-medium text-ink">
                   {p.project?.title}
                 </span>
-                <span className="block truncate font-mono text-[10.5px] text-umber">
+                <span className="block truncate font-mono text-xs text-umber">
                   {fmtDateTime(postTime(p))}
                   {showMetrics && p.metrics?.views !== undefined
                     ? ` · ${compact(p.metrics.views)} views`
@@ -813,9 +813,7 @@ function PostModal({
                 Metrics {post.metricsSimulated ? '(simulated in demo mode)' : ''}
               </p>
               {post.lastSyncedAt && (
-                <p className="font-mono text-[10px] text-label">
-                  synced {fmtTime(post.lastSyncedAt)}
-                </p>
+                <p className="font-mono text-xs text-label">synced {fmtTime(post.lastSyncedAt)}</p>
               )}
             </div>
             {metrics.length ? (
@@ -825,7 +823,7 @@ function PostModal({
                     <p className="font-headline text-lg font-semibold text-[#171310]">
                       {compact(v)}
                     </p>
-                    <p className="text-[11px] capitalize text-umber">{k}</p>
+                    <p className="text-xs capitalize text-umber">{k}</p>
                   </div>
                 ))}
               </div>

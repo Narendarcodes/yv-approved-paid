@@ -446,7 +446,7 @@ function ActivityCard({ className = '' }: { className?: string }) {
                   <p className="text-sm leading-snug text-ink">
                     <span className="font-medium">{actor}</span> {describeAction(e)}
                     {count > 1 && (
-                      <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 font-mono text-[11px] text-umber">
+                      <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 text-xs text-umber">
                         ×{count}
                       </span>
                     )}

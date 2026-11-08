@@ -209,7 +209,7 @@ export default function ConceptsPage() {
                 {top.items.map((t, i) => (
                   <li key={t.projectId} className="rounded-[10px] border border-line p-3">
                     <div className="flex items-center gap-2">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink font-mono text-[10px] text-white">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink text-xs text-white">
                         {i + 1}
                       </span>
                       <Link
@@ -231,7 +231,7 @@ export default function ConceptsPage() {
                       </span>
                     </div>
                     {t.concept && (
-                      <p className="mt-1.5 truncate text-[11px] text-umber">
+                      <p className="mt-1.5 truncate text-xs text-umber">
                         From concept: {t.concept.title}
                       </p>
                     )}

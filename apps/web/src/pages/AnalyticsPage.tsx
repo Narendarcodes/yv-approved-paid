@@ -201,7 +201,7 @@ export default function AnalyticsPage() {
                   <p className="t-num mt-2 text-[26px] leading-none">{t.v}</p>
                   <div className="mt-2 flex items-center gap-1.5">
                     <Delta value={t.d} suffix={t.suffix ?? '%'} />
-                    <span className="text-[11px] text-umber">vs prior {days}d</span>
+                    <span className="text-xs text-umber">vs prior {days}d</span>
                   </div>
                 </div>
               ))}
@@ -353,7 +353,7 @@ export default function AnalyticsPage() {
                       <tr>
                         <th />
                         {Array.from({ length: 24 }, (_, h) => (
-                          <th key={h} className="w-5 font-mono text-[10px] font-normal text-label">
+                          <th key={h} className="w-5 font-mono text-xs font-normal text-label">
                             {h % 6 === 0 ? h : ''}
                           </th>
                         ))}
@@ -362,7 +362,7 @@ export default function AnalyticsPage() {
                     <tbody>
                       {DAYS.map((d, row) => (
                         <tr key={d}>
-                          <th className="pr-2 text-left font-mono text-[11px] font-normal text-label">
+                          <th className="pr-2 text-left font-mono text-xs font-normal text-label">
                             {d}
                           </th>
                           {Array.from({ length: 24 }, (_, h) => {

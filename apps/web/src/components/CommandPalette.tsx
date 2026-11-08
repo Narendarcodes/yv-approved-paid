@@ -180,7 +180,7 @@ export default function CommandPalette({
                         <span className="block truncate font-headline text-[14px] font-medium leading-tight tracking-[-0.01em] text-ink">
                           {r.title}
                         </span>
-                        <span className="mt-0.5 block truncate font-mono text-[11px] leading-none text-label">
+                        <span className="mt-0.5 block truncate font-mono text-xs leading-none text-label">
                           {r.sub}
                         </span>
                       </span>
@@ -198,28 +198,28 @@ export default function CommandPalette({
         <div className="flex items-center justify-between gap-3 border-t border-line bg-canvas/30 px-4 py-2.5">
           <div className="micro-label flex items-center gap-3">
             <span className="hidden items-center gap-1.5 md:inline-flex">
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-xs shadow-sm">
                 ↑
               </kbd>
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-xs shadow-sm">
                 ↓
               </kbd>
               <span className="ml-1">Navigate</span>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-xs shadow-sm">
                 ↵
               </kbd>
               <span>Open</span>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 text-xs shadow-sm">
                 ESC
               </kbd>
               <span>Close</span>
             </span>
           </div>
-          <span className="font-mono text-[11px] text-label">{results.length} results</span>
+          <span className="font-mono text-xs text-label">{results.length} results</span>
         </div>
       </div>
     </div>,

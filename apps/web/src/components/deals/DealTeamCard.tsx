@@ -23,11 +23,18 @@ type Row = { userId: string; pct: string; label: string }
 
 // the API's splitCents: floor each share; the cents left over go to the lead (the deal's worker, else the first payee)
 const floorShare = (minor: number, bp: number) => Math.floor((minor * bp) / 10000)
-function splitPreview(minor: number, payees: { userId: string; shareBp: number }[], leadId: string): number[] {
+function splitPreview(
+  minor: number,
+  payees: { userId: string; shareBp: number }[],
+  leadId: string,
+): number[] {
   const out = payees.map((p) => floorShare(minor, p.shareBp))
   const total = payees.reduce((a, p) => a + p.shareBp, 0)
   if (total !== 10000 || !payees.length) return out
-  const lead = Math.max(0, payees.findIndex((p) => p.userId === leadId))
+  const lead = Math.max(
+    0,
+    payees.findIndex((p) => p.userId === leadId),
+  )
   out[lead] += minor - out.reduce((a, n) => a + n, 0)
   return out
 }
@@ -260,15 +267,13 @@ export default function DealTeamCard({
                         <p className="truncate text-[13px] font-medium text-ink">
                           {m?.name ?? p.displayName ?? 'Payee'}
                         </p>
-                        <p className="truncate text-[11.5px] text-umber">
+                        <p className="truncate text-xs text-umber">
                           {p.displayName || (m ? m.role : 'payee')}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="t-num text-[14px]">{pctText(p.shareBp)}</p>
-                        <p className="t-num text-[11.5px] text-umber">
-                          {money(amounts[i], cur)}
-                        </p>
+                        <p className="t-num text-xs text-umber">{money(amounts[i], cur)}</p>
                       </div>
                     </li>
                   )

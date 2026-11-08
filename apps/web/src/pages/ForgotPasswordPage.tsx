@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
                 {error && (
-                  <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">
+                  <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
                     Enter a valid work email
                   </p>
                 )}

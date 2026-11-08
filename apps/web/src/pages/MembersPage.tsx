@@ -142,9 +142,7 @@ export default function MembersPage() {
                           {m.pending && <Chip label="Pending" tone="warning" />}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[11px] text-label">
-                        {m.lastActive}
-                      </td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-label">{m.lastActive}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -185,7 +183,7 @@ export default function MembersPage() {
               autoFocus
             />
             {inviteError && <p className="mt-1.5 text-xs text-danger">{inviteError}</p>}
-            <p className="mt-1.5 text-[11.5px] text-label">
+            <p className="mt-1.5 text-xs text-label">
               No email is sent. On the public demo only example.com addresses can be added; they
               show as pending until they sign up.
             </p>

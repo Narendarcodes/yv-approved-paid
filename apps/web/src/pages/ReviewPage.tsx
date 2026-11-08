@@ -54,7 +54,7 @@ export default function ReviewPage() {
                 {/* Video thumbnail placeholder */}
                 <div className="relative flex h-36 items-center justify-center bg-ink text-on-accent/70">
                   <PlayCircle size={40} strokeWidth={1.25} />
-                  <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white">
+                  <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 font-mono text-xs text-white">
                     {thread.length
                       ? `${thread.length} comment${thread.length === 1 ? '' : 's'}`
                       : 'no draft'}

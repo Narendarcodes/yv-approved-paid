@@ -357,9 +357,7 @@ export default function ComposerPage() {
             <section className="card p-5">
               <div className="flex items-center justify-between">
                 <StepTitle n={4} title="Caption" />
-                <span
-                  className={`font-mono text-[11px] ${overLimit ? 'text-danger' : 'text-label'}`}
-                >
+                <span className={`font-mono text-xs ${overLimit ? 'text-danger' : 'text-label'}`}>
                   {caption.length}
                   {tightest ? ` / ${tightest.max} (${PLATFORMS[tightest.c.platform].label})` : ''}
                 </span>
@@ -473,7 +471,7 @@ export default function ComposerPage() {
                 <p className="line-clamp-5 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
                   {caption || <span className="text-label">Your caption appears here.</span>}
                 </p>
-                <p className="pt-1 font-mono text-[11px] text-[#035E5E]">
+                <p className="pt-1 font-mono text-xs text-[#035E5E]">
                   {inPast ? '-' : fmtDateTime(whenDate)}
                 </p>
               </div>
@@ -506,7 +504,7 @@ export default function ComposerPage() {
               </p>
             )}
             {status && (
-              <p className="text-center text-[11px] leading-relaxed text-umber">
+              <p className="text-center text-xs leading-relaxed text-umber">
                 {status.mode === 'postiz'
                   ? 'Postiz channels are handed to Postiz; demo channels use the built-in scheduler.'
                   : 'Demo mode: the built-in scheduler publishes at the chosen time with a demo link.'}
@@ -522,7 +520,7 @@ export default function ComposerPage() {
 function StepTitle({ n, title }: { n: number; title: string }) {
   return (
     <h2 className="card-title flex items-center gap-2">
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#035E5E] font-mono text-[10px] text-white">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#035E5E] text-xs text-white">
         {n}
       </span>
       {title}

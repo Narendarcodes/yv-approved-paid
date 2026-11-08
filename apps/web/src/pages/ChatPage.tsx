@@ -72,12 +72,12 @@ export default function ChatPage() {
       <button
         onClick={() => void createChannel()}
         disabled={!newChannelName.trim() || creatingChannel || chat.loading}
-        className="btn-primary mt-1.5 !h-7 w-full text-[11px]"
+        className="btn-primary mt-1.5 !h-7 w-full text-xs"
       >
         {chat.loading ? 'Loading…' : creatingChannel ? 'Creating…' : 'Create channel'}
       </button>
       {channelError && (
-        <p className="mt-1 font-mono text-[10px] text-danger" role="alert">
+        <p className="mt-1 font-mono text-xs text-danger" role="alert">
           {channelError}
         </p>
       )}
@@ -180,7 +180,7 @@ export default function ChatPage() {
               <h2 className="card-title">
                 {chat.loading ? 'Loading…' : (active?.name ?? 'No channel')}
               </h2>
-              {active && <p className="text-[11px] text-umber">Live · updates in real time</p>}
+              {active && <p className="text-xs text-umber">Live · updates in real time</p>}
             </div>
             <button
               onClick={() => setInfoOpen(true)}
@@ -236,12 +236,12 @@ export default function ChatPage() {
                         <span className="text-[13px] font-medium text-ink">
                           {mine ? 'You' : (author?.name ?? m.author)}
                         </span>
-                        <span className="font-mono text-[10px] text-label">{m.time}</span>
+                        <span className="font-mono text-xs text-label">{m.time}</span>
                         {m.pending && (
-                          <span className="font-mono text-[10px] text-label">sending…</span>
+                          <span className="font-mono text-xs text-label">sending…</span>
                         )}
                         {m.failed && (
-                          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-danger">
+                          <span className="inline-flex items-center gap-1 font-mono text-xs text-danger">
                             <WifiOff size={10} strokeWidth={2} /> failed
                           </span>
                         )}
@@ -315,7 +315,7 @@ export default function ChatPage() {
                       <h3 className="font-headline text-sm font-semibold text-ink">
                         {active?.name ?? 'Channel'}
                       </h3>
-                      <p className="font-mono text-[11px] text-label">
+                      <p className="font-mono text-xs text-label">
                         {active ? `Project ${active.projectId.slice(0, 8)}…` : ''}
                       </p>
                     </div>
@@ -357,9 +357,7 @@ export default function ChatPage() {
                           </li>
                         ))}
                         {team.length > 8 && (
-                          <li className="font-mono text-[11px] text-label">
-                            +{team.length - 8} more
-                          </li>
+                          <li className="font-mono text-xs text-label">+{team.length - 8} more</li>
                         )}
                       </ul>
                     )}
@@ -375,7 +373,7 @@ export default function ChatPage() {
                       </div>
                       <div className="flex justify-between gap-4">
                         <dt className="text-label">Channel ID</dt>
-                        <dd className="truncate font-mono text-[11px] text-ink/70">
+                        <dd className="truncate font-mono text-xs text-ink/70">
                           {active?.id ?? '—'}
                         </dd>
                       </div>

@@ -68,7 +68,7 @@ export default function MyWorkPage() {
                 <div className="mb-3 flex items-baseline gap-2.5">
                   <h2 className="card-title">{g.label}</h2>
                   <span className="micro-label">{g.hint}</span>
-                  <span className="ml-auto rounded-full bg-ink/5 px-2 py-0.5 font-mono text-[10px] text-umber">
+                  <span className="ml-auto rounded-full bg-ink/5 px-2 py-0.5 text-xs text-umber">
                     {list.length}
                   </span>
                 </div>

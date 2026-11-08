@@ -132,7 +132,7 @@ export function BarTrend({
       <div className="flex gap-3">
         {/* y axis */}
         <div
-          className="relative w-9 shrink-0 font-mono text-[11px] text-label"
+          className="relative w-9 shrink-0 font-mono text-xs text-label"
           style={{ height }}
           aria-hidden="true"
         >
@@ -192,7 +192,7 @@ export function BarTrend({
             })}
           </div>
           {/* x axis */}
-          <div className="relative mt-2 h-4 font-mono text-[11px] text-label" aria-hidden="true">
+          <div className="relative mt-2 h-4 font-mono text-xs text-label" aria-hidden="true">
             {data.map((d, i) =>
               i % every === 0 || i === data.length - 1 ? (
                 i === data.length - 1 && i % every !== 0 && i % every < every / 2 ? null : (
@@ -219,7 +219,7 @@ export function BarTrend({
               role="tooltip"
               data-testid="bar-tooltip"
             >
-              <p className="font-mono text-[11px] text-white/70">{h.date ?? h.label}</p>
+              <p className="font-mono text-xs text-white/70">{h.date ?? h.label}</p>
               <p className="text-sm font-semibold">
                 {h.value.toLocaleString()}{' '}
                 <span className="text-xs font-normal text-white/80">{unit}</span>
@@ -244,7 +244,7 @@ export function RampLegend({
 }) {
   return (
     <div
-      className={`flex items-center gap-1.5 font-mono text-[11px] text-label ${className}`}
+      className={`flex items-center gap-1.5 font-mono text-xs text-label ${className}`}
       data-testid="ramp-legend"
     >
       <span>{low}</span>
@@ -271,7 +271,7 @@ export function SimulatedBadge({ show }: { show: boolean }) {
   if (!show) return null
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-dashed border-st-production/40 bg-st-production-bg px-2 py-0.5 text-[11px] font-medium text-st-production"
+      className="inline-flex items-center gap-1 rounded-full border border-dashed border-st-production/40 bg-st-production-bg px-2 py-0.5 text-xs font-medium text-st-production"
       title="Demo mode: these numbers are generated, not real platform data"
       data-testid="simulated-badge"
     >

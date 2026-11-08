@@ -132,7 +132,7 @@ export default function SettingsPage() {
                       {r.label}
                     </span>
                     {r.role === viewer.role && (
-                      <span className="rounded-full bg-teal/10 px-2 py-0.5 text-[10px] font-medium text-teal">
+                      <span className="rounded-full bg-teal/10 px-2 py-0.5 text-xs font-medium text-teal">
                         You
                       </span>
                     )}
@@ -159,7 +159,7 @@ export default function SettingsPage() {
         <section className="card p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="card-title">Notifications</h2>
-            <span className=" text-[10.5px] text-label" data-testid="prefs-scope">
+            <span className=" text-xs text-label" data-testid="prefs-scope">
               Saved on this browser
             </span>
           </div>

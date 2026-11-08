@@ -159,7 +159,7 @@ export default function ProjectsPage() {
             >
               {x.label}
               <span
-                className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] ${tab === x.id ? 'bg-tint text-teal' : 'bg-ink/5 text-umber'}`}
+                className={`flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs ${tab === x.id ? 'bg-tint text-teal' : 'bg-ink/5 text-umber'}`}
               >
                 {counts(x.id)}
               </span>
@@ -267,7 +267,7 @@ function ProjectListView({
                       )}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 font-mono text-[11px] text-label">{p.updated}</td>
+                  <td className="px-5 py-3.5 font-mono text-xs text-label">{p.updated}</td>
                 </tr>
               ))}
             </tbody>
@@ -403,7 +403,7 @@ function BoardView({
             >
               <header className="flex items-center justify-between border-b border-line px-4 py-3">
                 <span
-                  className={`flex items-center gap-2 rounded-full px-2.5 py-1 font-mono text-[11px] font-medium ${accentText[col.accent]}`}
+                  className={`flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-medium ${accentText[col.accent]}`}
                 >
                   <span
                     className="h-1.5 w-1.5 rounded-full bg-current opacity-70"
@@ -412,7 +412,7 @@ function BoardView({
                   {col.column}
                 </span>
                 <span
-                  className="font-mono text-[11px] text-label"
+                  className="font-mono text-xs text-label"
                   aria-label={`${col.cards.length} tasks`}
                 >
                   {col.cards.length}
@@ -437,7 +437,7 @@ function BoardView({
                         {card.projectTitle}
                       </Link>
                       <span
-                        className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${priorityTone[card.priority]}`}
+                        className={`rounded-full px-1.5 py-0.5 text-xs ${priorityTone[card.priority]}`}
                       >
                         {card.priority}
                       </span>

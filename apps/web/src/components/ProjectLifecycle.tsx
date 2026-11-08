@@ -162,7 +162,7 @@ export function ProjectLifecycle({
               />
               <div className="mt-2 flex items-center gap-1.5">
                 <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] ${
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs ${
                     done
                       ? 'bg-teal text-on-accent'
                       : active

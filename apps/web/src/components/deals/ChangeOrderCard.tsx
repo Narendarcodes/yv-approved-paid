@@ -142,7 +142,7 @@ export default function ChangeOrderCard({
     >
       {/* where it stands: requested -> accepted -> invoiced */}
       {!declined && (
-        <ol className="mb-4 flex items-center gap-2 text-[10.5px]" aria-label="Progress">
+        <ol className="mb-4 flex items-center gap-2 text-xs" aria-label="Progress">
           {STEPS.map((s, i) => (
             <li key={s} className="flex items-center gap-2">
               <span
@@ -235,7 +235,7 @@ export default function ChangeOrderCard({
         {/* line items */}
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className=" text-[10px] text-label">
+            <tr className=" text-xs text-label">
               <th className="px-4 pb-1.5 pt-3 font-medium">Item</th>
               <th className="px-2 pb-1.5 pt-3 text-right font-medium">Qty</th>
               <th className="hidden px-2 pb-1.5 pt-3 text-right font-medium sm:table-cell">Rate</th>
@@ -263,7 +263,7 @@ export default function ChangeOrderCard({
         </table>
         <div className="mx-4 flex items-baseline justify-between gap-3 border-t border-line py-3">
           <span className="text-[13px] text-umber">
-            Total <span className="font-mono text-[11px] text-label">{cur}</span>
+            Total <span className="font-mono text-xs text-label">{cur}</span>
           </span>
           <span className="t-num text-[22px]" data-testid="change-order-total">
             {money(co.amountMinor, cur)}

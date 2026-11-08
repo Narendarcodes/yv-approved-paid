@@ -77,7 +77,11 @@ export default function AssignPicker({
 
   if (!canAssign) {
     return (
-      <span className={`inline-flex items-center gap-2 ${size === 'sm' ? 'text-[12.5px]' : 'text-sm'}`} data-testid={testId} title="You can't change who this is assigned to">
+      <span
+        className={`inline-flex items-center gap-2 ${size === 'sm' ? 'text-[12.5px]' : 'text-sm'}`}
+        data-testid={testId}
+        title="You can't change who this is assigned to"
+      >
         {who}
       </span>
     )
@@ -93,7 +97,9 @@ export default function AssignPicker({
         aria-expanded={open}
         aria-label={current ? `Assigned to ${current.name}. Change` : label}
       >
-        {current ? who : (
+        {current ? (
+          who
+        ) : (
           <span className="flex items-center gap-1.5 font-medium text-teal">
             <UserPlus size={14} strokeWidth={2} /> {label}
           </span>
@@ -106,7 +112,11 @@ export default function AssignPicker({
           aria-label="Org members"
           className="absolute left-0 z-30 mt-1.5 max-h-72 w-72 overflow-auto rounded-xl border border-line bg-surface p-1 shadow-lg"
         >
-          {choices.length === 0 && <li className="px-3 py-2 text-[13px] text-umber">No members yet. Invite someone from Members.</li>}
+          {choices.length === 0 && (
+            <li className="px-3 py-2 text-[13px] text-umber">
+              No members yet. Invite someone from Members.
+            </li>
+          )}
           {choices.map((m) => (
             <li key={m.id} role="option" aria-selected={m.id === value}>
               <button
@@ -115,16 +125,20 @@ export default function AssignPicker({
                 onClick={() => void pick(m.id)}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-canvas disabled:opacity-60"
               >
-                <Avatar initials={m.initials} size="sm" tone={m.role === 'admin' ? 'ink' : 'tint'} />
+                <Avatar
+                  initials={m.initials}
+                  size="sm"
+                  tone={m.role === 'admin' ? 'ink' : 'tint'}
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-medium text-ink">{m.name}</span>
-                  <span className="block truncate text-[11.5px] text-umber">
+                  <span className="block truncate text-xs text-umber">
                     {roleLabel(m.role)}
                     {m.pending ? ' · pending' : ''}
                   </span>
                 </span>
                 {busy === m.id ? (
-                  <span className="font-mono text-[10px] text-label">saving…</span>
+                  <span className="font-mono text-xs text-label">saving…</span>
                 ) : m.id === value ? (
                   <Check size={14} strokeWidth={2} className="text-teal" />
                 ) : null}

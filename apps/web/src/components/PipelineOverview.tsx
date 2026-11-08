@@ -129,7 +129,7 @@ export function PipelineOverview() {
                       {it.title}
                     </Link>
                     {it.failedPosts > 0 && (
-                      <span className="text-[11px] font-medium text-danger">
+                      <span className="text-xs font-medium text-danger">
                         {it.failedPosts} failed post
                       </span>
                     )}

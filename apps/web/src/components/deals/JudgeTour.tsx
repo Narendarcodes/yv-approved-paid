@@ -56,7 +56,7 @@ export default function JudgeTour({ onAsk }: { onAsk: (text: string) => void }) 
       role="region"
       aria-label="Judge tour"
     >
-      <span className="inline-flex items-center gap-1.5 text-[11px] text-teal">
+      <span className="inline-flex items-center gap-1.5 text-xs text-teal">
         <Compass size={14} strokeWidth={2} aria-hidden="true" /> Judge tour
       </span>
       <ol className="flex min-w-0 flex-1 flex-wrap gap-2">
@@ -72,7 +72,7 @@ export default function JudgeTour({ onAsk }: { onAsk: (text: string) => void }) 
               data-testid={`judge-tour-step-${i + 1}`}
             >
               <span
-                className={`flex h-4 w-4 items-center justify-center rounded-full font-mono text-[10px] ${done.includes(i) ? 'bg-teal text-on-accent' : 'bg-ink/10 text-umber'}`}
+                className={`flex h-4 w-4 items-center justify-center rounded-full text-xs ${done.includes(i) ? 'bg-teal text-on-accent' : 'bg-ink/10 text-umber'}`}
                 aria-hidden="true"
               >
                 {done.includes(i) ? <Check size={10} strokeWidth={3} /> : i + 1}

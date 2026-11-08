@@ -98,7 +98,7 @@ export default function NotificationsPage() {
             }`}
           >
             {t}
-            <span className="ml-1.5 font-mono text-[11px] opacity-70">
+            <span className="ml-1.5 font-mono text-xs opacity-70">
               {t === 'All' ? all.length : unread}
             </span>
           </button>
@@ -125,7 +125,7 @@ export default function NotificationsPage() {
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-ink">{n.title}</p>
                   {n.unread ? (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-teal">
+                    <span className="inline-flex items-center gap-1 text-xs text-teal">
                       <span
                         className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal"
                         aria-hidden="true"
@@ -133,7 +133,7 @@ export default function NotificationsPage() {
                       Unread
                     </span>
                   ) : (
-                    <span className=" text-[10px] text-label">Read</span>
+                    <span className=" text-xs text-label">Read</span>
                   )}
                 </div>
                 <p className="mt-0.5 truncate text-[13px] text-umber">{n.desc}</p>

@@ -91,7 +91,7 @@ export default function MoneyTimeline({
         <>
           {ledger.live && (
             <span
-              className="inline-flex items-center gap-1 font-mono text-[11px] text-teal"
+              className="inline-flex items-center gap-1 font-mono text-xs text-teal"
               title="Live: new ledger lines appear as they are written"
             >
               <Radio size={12} strokeWidth={2} /> LIVE
@@ -99,7 +99,7 @@ export default function MoneyTimeline({
           )}
           {!ledger.live && ledger.autoRefresh && (
             <span
-              className="inline-flex items-center gap-1 font-mono text-[11px] text-umber"
+              className="inline-flex items-center gap-1 font-mono text-xs text-umber"
               title="Live push is not connected; the ledger refreshes every 10 seconds"
               data-testid="ledger-auto-refresh"
             >
@@ -226,7 +226,7 @@ function LineHead({
       {showAmount && (
         <span className="t-num !text-[14px]">{money(e.amountMinor, e.currency || currency)}</span>
       )}
-      <span className="font-mono text-[11px] text-label">
+      <span className="font-mono text-xs text-label">
         #{e.seq} · {e.milestoneKey} · {when(e.at)}
       </span>
     </div>
@@ -251,7 +251,7 @@ function InvoiceLine({ entry: e, deal }: { entry: DealLedgerEntry; deal: DealVie
             {co.quantity} × {item.label} @ {money(item.unitPriceMinor, cur)}
           </span>
         )}
-        <span className="status-chip !h-5 bg-ink/[0.05] !text-[11px] text-umber">
+        <span className="status-chip !h-5 bg-ink/[0.05] !text-xs text-umber">
           {invoiceSent(id) ? 'Sent · not paid yet' : 'Draft · not charged'}
         </span>
         {id && <PaypalInvoiceId id={id} />}
@@ -268,12 +268,12 @@ function BlockedLine({ entry: e, currency }: { entry: DealLedgerEntry; currency:
     <>
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span className="text-[13px] font-medium text-danger">{s.title}</span>
-        <span className="font-mono text-[11px] text-label">
+        <span className="font-mono text-xs text-label">
           #{e.seq} · {e.milestoneKey} · {when(e.at)}
         </span>
       </div>
       <p className="mt-0.5 text-[12.5px] text-ink/80">{s.reason}</p>
-      <p className="mt-0.5 font-mono text-[11px] text-label">No money moved.</p>
+      <p className="mt-0.5 font-mono text-xs text-label">No money moved.</p>
       {s.ruleCount > 0 && (
         <details className="group mt-1.5">
           <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded text-[12px] font-medium text-teal hover:text-teal-press [&::-webkit-details-marker]:hidden">
@@ -348,7 +348,7 @@ function PaypalHolds({ deal, milestoneKey }: { deal: DealView; milestoneKey?: st
             <p className="flex min-w-0 flex-wrap items-center gap-x-2">
               <span className="w-[86px] shrink-0">Authorization</span>
               <PaypalId id={f.authorizationId!} className="max-w-full" />
-              <span className=" text-[10.5px] text-label">{f.status}</span>
+              <span className=" text-xs text-label">{f.status}</span>
             </p>
             {m.captures.map((c) => (
               <p key={c.id} className="flex min-w-0 flex-wrap items-center gap-x-2">

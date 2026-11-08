@@ -393,9 +393,7 @@ export default function InvoicesPage() {
                   className="whitespace-nowrap"
                 >
                   {f === 'all' ? 'All' : INVOICE_STATUS[f].label}
-                  <span className="ml-1.5 font-mono text-[10.5px] opacity-70">
-                    {counts[f] ?? 0}
-                  </span>
+                  <span className="ml-1.5 font-mono text-xs opacity-70">{counts[f] ?? 0}</span>
                 </button>
               ))}
             </div>

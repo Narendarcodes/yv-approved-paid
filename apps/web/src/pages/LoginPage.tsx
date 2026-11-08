@@ -105,7 +105,7 @@ export default function LoginPage() {
           >
             {PIPE.map((st, i) => (
               <li key={st.label} className="flex items-center gap-3 py-2.5">
-                <span className="w-5 font-mono text-[11px] text-label">
+                <span className="w-5 font-mono text-xs text-label">
                   {String(i + 1).padStart(2, '0')}
                 </span>
                 <StatusDot stage={st.stage} />

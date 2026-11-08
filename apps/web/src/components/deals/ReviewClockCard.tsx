@@ -96,7 +96,7 @@ function Bar({ v }: { v: ClockView }) {
         ))}
       </div>
       <div
-        className={`relative mt-1 font-mono text-[10px] text-label ${lifted.size ? 'h-8' : 'h-4'}`}
+        className={`relative mt-1 font-mono text-xs text-label ${lifted.size ? 'h-8' : 'h-4'}`}
         aria-hidden="true"
       >
         {p.markers.map((m) => (
@@ -455,7 +455,7 @@ export default function ReviewClockCard({
                     />
                     <div className="min-w-0">
                       <p className="text-ink">{eventText(e, cur)}</p>
-                      <p className="text-[11.5px] text-umber">
+                      <p className="text-xs text-umber">
                         {inZone(e.at, tz)} · {byWord(deal, e.by)}
                         {e.note &&
                         !['changes_requested'].includes(e.id) &&

@@ -23,8 +23,8 @@ export default function Avatar({
   src?: string | null
 }) {
   const sizes = {
-    xs: 'h-6 w-6 text-[9px]',
-    sm: 'h-8 w-8 text-[10px]',
+    xs: 'h-6 w-6 text-xs',
+    sm: 'h-8 w-8 text-xs',
     md: 'h-9 w-9 text-xs',
     lg: 'h-11 w-11 text-sm',
     xl: 'h-20 w-20 text-2xl',
@@ -63,7 +63,7 @@ export default function Avatar({
   }
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-mono font-medium ${sizes[size]} ${tones[tone]} ${className} touch-manipulation`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-medium ${sizes[size]} ${tones[tone]} ${className} touch-manipulation`}
       aria-hidden="true"
     >
       {initials}
@@ -86,7 +86,7 @@ export function AvatarStack({ initials, max = 3 }: { initials: string[]; max?: n
         </span>
       ))}
       {extra > 0 && (
-        <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-canvas font-mono text-[10px] text-umber ring-2 ring-surface">
+        <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-full bg-canvas text-xs text-umber ring-2 ring-surface">
           +{extra}
         </span>
       )}
@@ -163,7 +163,7 @@ export function UnassignedChip({
   }
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-full border border-dashed border-umber/50 px-2.5 ${h} text-[11px] text-umber ${className}`}
+      className={`inline-flex shrink-0 items-center rounded-full border border-dashed border-umber/50 px-2.5 ${h} text-xs text-umber ${className}`}
       data-testid="unassigned-chip"
     >
       Unassigned

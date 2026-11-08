@@ -83,7 +83,7 @@ function MilestoneCell(
         {p.data.title}
       </span>
       {p.compact && (
-        <span className="truncate text-[11px] text-umber" title={`${p.data.dealTitle} · ${team}`}>
+        <span className="truncate text-xs text-umber" title={`${p.data.dealTitle} · ${team}`}>
           {p.data.dealTitle} · {team}
         </span>
       )}

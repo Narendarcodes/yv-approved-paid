@@ -12,7 +12,15 @@ import { primaryOrgId } from '../lib/data'
 import { listScheduledPosts, type ScheduledPost } from '../services/api'
 import { StatusChip, PlatformIcon } from './status'
 
-export function ProjectPublishing({ projectId, status, viewer }: { projectId: string; status: string; viewer: Viewer }) {
+export function ProjectPublishing({
+  projectId,
+  status,
+  viewer,
+}: {
+  projectId: string
+  status: string
+  viewer: Viewer
+}) {
   const [posts, setPosts] = useState<ScheduledPost[]>([])
   const [loaded, setLoaded] = useState(false)
 
@@ -49,7 +57,11 @@ export function ProjectPublishing({ projectId, status, viewer }: { projectId: st
       <header className="card-head justify-between">
         <h2 className="card-title">Publishing</h2>
         {canSchedule && (
-          <Link to={`/publishing/compose?project=${projectId}`} className="btn-secondary !h-8 text-xs" data-testid="project-schedule-post">
+          <Link
+            to={`/publishing/compose?project=${projectId}`}
+            className="btn-secondary !h-8 text-xs"
+            data-testid="project-schedule-post"
+          >
             <Send size={13} strokeWidth={1.75} /> Schedule post
           </Link>
         )}
@@ -61,15 +73,30 @@ export function ProjectPublishing({ projectId, status, viewer }: { projectId: st
             <li key={p.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5">
               <PlatformIcon platform={p.channel?.platform || p.platform.toLowerCase()} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink">{p.channel?.name ?? p.platform}</p>
-                <p className="truncate font-mono text-[11px] text-umber">
-                  {p.status === 'published' ? 'Live ' : p.status === 'scheduled' ? 'Goes live ' : ''}
+                <p className="truncate text-sm font-medium text-ink">
+                  {p.channel?.name ?? p.platform}
+                </p>
+                <p className="truncate font-mono text-xs text-umber">
+                  {p.status === 'published'
+                    ? 'Live '
+                    : p.status === 'scheduled'
+                      ? 'Goes live '
+                      : ''}
                   {fmtDateTime(postTime(p))}
-                  {m.views !== undefined ? ` · ${compact(m.views)} views · ${compact(m.likes)} likes${p.metricsSimulated ? ' (sim.)' : ''}` : ''}
+                  {m.views !== undefined
+                    ? ` · ${compact(m.views)} views · ${compact(m.likes)} likes${p.metricsSimulated ? ' (sim.)' : ''}`
+                    : ''}
                 </p>
               </div>
               {p.postUrl && (
-                <a href={p.postUrl} target="_blank" rel="noreferrer" className="icon-btn icon-btn-sm" aria-label="Open live post" title={p.postUrl}>
+                <a
+                  href={p.postUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="icon-btn icon-btn-sm"
+                  aria-label="Open live post"
+                  title={p.postUrl}
+                >
                   <ExternalLink size={14} strokeWidth={1.75} />
                 </a>
               )}
@@ -78,12 +105,16 @@ export function ProjectPublishing({ projectId, status, viewer }: { projectId: st
           )
         })}
         {!posts.length && (
-          <li className="px-5 py-6 text-center text-sm text-umber">Approved and ready - schedule it to your channels.</li>
+          <li className="px-5 py-6 text-center text-sm text-umber">
+            Approved and ready - schedule it to your channels.
+          </li>
         )}
       </ul>
       {posts.length > 0 && (
         <footer className="border-t border-line px-5 py-2.5 text-right">
-          <Link to="/publishing/calendar" className="text-xs font-medium text-teal hover:underline">Open publishing calendar</Link>
+          <Link to="/publishing/calendar" className="text-xs font-medium text-teal hover:underline">
+            Open publishing calendar
+          </Link>
         </footer>
       )}
     </section>

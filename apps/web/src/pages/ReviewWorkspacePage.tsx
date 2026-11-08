@@ -442,7 +442,7 @@ export default function ReviewWorkspacePage() {
             {draftTime !== null && (
               <button
                 onClick={() => seekTo(draftTime)}
-                className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-tint px-2.5 py-1 font-mono text-[11px] font-medium text-teal hover:underline"
+                className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-tint px-2.5 py-1 text-xs font-medium text-teal hover:underline"
               >
                 <Clock size={11} strokeWidth={2} />
                 {formatTime(draftTime)}
@@ -469,7 +469,7 @@ export default function ReviewWorkspacePage() {
               className="w-full resize-none bg-transparent text-sm text-ink outline-none placeholder:text-label"
             />
             <div className="mt-2 flex items-center justify-between">
-              <p className="text-[11px] text-label">⌘/Ctrl + Enter to send</p>
+              <p className="text-xs text-label">⌘/Ctrl + Enter to send</p>
               <button
                 className="btn-primary btn-sm"
                 onClick={submitComment}
@@ -486,7 +486,7 @@ export default function ReviewWorkspacePage() {
           <header className="card-head justify-between">
             <div>
               <h2 className="card-title">Comments</h2>
-              <span className="font-mono text-[11px] text-label">{openComments.length} open</span>
+              <span className="font-mono text-xs text-label">{openComments.length} open</span>
             </div>
             {canComment && (
               <button
@@ -517,7 +517,7 @@ export default function ReviewWorkspacePage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-1.5 text-[11px] text-umber">
+              <p className="mt-1.5 text-xs text-umber">
                 New feedback after this point needs a new round - no scope creep.
               </p>
             </div>
@@ -536,7 +536,7 @@ export default function ReviewWorkspacePage() {
                         <p className="text-sm font-medium text-ink">{memberOf(c.author)?.name}</p>
                         <button
                           onClick={() => seekTo(c.time)}
-                          className="inline-flex items-center gap-1 rounded-full bg-tint px-2 py-0.5 font-mono text-[11px] font-medium text-teal hover:underline"
+                          className="inline-flex items-center gap-1 rounded-full bg-tint px-2 py-0.5 text-xs font-medium text-teal hover:underline"
                           title="Jump the video to this timestamp"
                         >
                           <Clock size={10} strokeWidth={2} />

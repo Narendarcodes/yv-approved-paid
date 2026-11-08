@@ -422,7 +422,7 @@ export default function ProfilePage() {
                 <h2 className="font-headline truncate text-2xl font-semibold tracking-[-0.02em] text-ink">
                   {viewer.name}
                 </h2>
-                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-tint px-2.5 py-0.5 font-mono text-[11px] font-medium text-teal">
+                <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-tint px-2.5 py-0.5 text-xs font-medium text-teal">
                   <Shield size={11} strokeWidth={2} aria-hidden="true" />
                   {roleLabel[viewer.role] ?? viewer.role}
                 </span>

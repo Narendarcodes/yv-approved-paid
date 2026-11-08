@@ -63,12 +63,12 @@ function Line({
         <p className="truncate text-[13px] font-medium text-ink">
           {showName ? l.displayName : l.stepLabel}
         </p>
-        <p className="text-[11.5px] text-umber">
+        <p className="text-xs text-umber">
           {showName ? `${l.stepLabel} · ` : ''}
           {pctText(l.shareBp)} share
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="min-w-0 truncate font-mono text-[10.5px] text-label" title={l.batchId}>
+          <span className="min-w-0 truncate font-mono text-xs text-label" title={l.batchId}>
             Batch {shortId(l.batchId)}
           </span>
           {l.simulated && <SimulatedBadge />}
@@ -168,7 +168,7 @@ function Body({ r }: { r: PayoutReceipts }) {
       )}
 
       {r.lines.some((l) => l.simulated) && (
-        <p className="flex items-start gap-1.5 text-[11.5px] text-umber">
+        <p className="flex items-start gap-1.5 text-xs text-umber">
           <Info size={13} strokeWidth={1.75} className="mt-px shrink-0" aria-hidden="true" />
           <span>
             Simulated payout: the batch and every receipt are recorded, but no money left PayPal.{' '}

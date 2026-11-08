@@ -239,12 +239,12 @@ export default function RegisterPage() {
                 <p className="truncate text-[13px] font-medium text-ink">
                   {orgName.trim() || 'Your organization'}
                 </p>
-                <p className=" text-[11px] text-umber">yv.app/{orgSlug || 'your-workspace'}</p>
+                <p className=" text-xs text-umber">yv.app/{orgSlug || 'your-workspace'}</p>
               </div>
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-              <span className=" text-[10px] text-label">Being set up</span>
-              <span className=" text-[10px] text-teal">
+              <span className=" text-xs text-label">Being set up</span>
+              <span className=" text-xs text-teal">
                 {step === 4 ? 'Ready' : `Step ${Math.min(step, 3)} of 3`}
               </span>
             </div>
@@ -345,7 +345,7 @@ export default function RegisterPage() {
                       />
                     </div>
                     {tried && !orgName.trim() && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
                         Name your organization
                       </p>
                     )}
@@ -373,11 +373,11 @@ export default function RegisterPage() {
                         className={`input !pl-10 font-mono text-[13px] ${tried && !slugOk ? 'input-error' : ''}`}
                       />
                     </div>
-                    <p className="mt-1.5 font-mono text-[11px] text-label">
+                    <p className="mt-1.5 font-mono text-xs text-label">
                       yv.app/{orgSlug || 'your-workspace'}
                     </p>
                     {tried && !slugOk && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
                         Use lowercase letters, numbers and dashes
                       </p>
                     )}
@@ -452,7 +452,7 @@ export default function RegisterPage() {
                       />
                     </div>
                     {tried && !adminName.trim() && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
                         Enter your full name
                       </p>
                     )}
@@ -478,7 +478,7 @@ export default function RegisterPage() {
                       />
                     </div>
                     {tried && !EMAIL_RE.test(adminEmail) && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
                         Enter a valid work email
                       </p>
                     )}
@@ -523,11 +523,11 @@ export default function RegisterPage() {
                             style={{ width: `${meter.pct}%` }}
                           />
                         </div>
-                        <p className="mt-1.5 text-[10px] text-label">{meter.label}</p>
+                        <p className="mt-1.5 text-xs text-label">{meter.label}</p>
                       </div>
                     )}
                     {tried && adminPassword.length < 8 && (
-                      <p className="mt-1.5 text-[11px] text-danger" role="alert">
+                      <p className="mt-1.5 text-xs text-danger" role="alert">
                         Use at least 8 characters
                       </p>
                     )}
@@ -553,7 +553,7 @@ export default function RegisterPage() {
                       />
                     </div>
                     {confirmPassword.length > 0 && !passwordsMatch && (
-                      <p className="mt-1.5 font-mono text-[11px] text-danger" role="alert">
+                      <p className="mt-1.5 font-mono text-xs text-danger" role="alert">
                         Passwords don&apos;t match yet
                       </p>
                     )}
@@ -711,21 +711,21 @@ export default function RegisterPage() {
 
                 <div className="card mt-8 divide-y divide-line text-left">
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className=" text-[10px] text-label">Organization</span>
+                    <span className=" text-xs text-label">Organization</span>
                     <span className="truncate pl-4 text-sm font-medium text-ink">
                       {orgName.trim()}
                     </span>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className=" text-[10px] text-label">Workspace</span>
+                    <span className=" text-xs text-label">Workspace</span>
                     <span className="font-mono text-[13px] text-ink">yv.app/{orgSlug}</span>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className=" text-[10px] text-label">Admin</span>
+                    <span className=" text-xs text-label">Admin</span>
                     <span className="truncate pl-4 text-sm text-ink">{adminEmail}</span>
                   </div>
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <span className=" text-[10px] text-label">Teammates</span>
+                    <span className=" text-xs text-label">Teammates</span>
                     <span className="text-sm text-ink">{invitedCount} invited</span>
                   </div>
                 </div>

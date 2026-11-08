@@ -102,7 +102,7 @@ export default function LiveChecksCard({
         <PassPill passed={unmeasured ? null : r?.passed} />
         <div className="min-w-0 flex-1">
           <p className="text-[13px] text-ink">{c.text}</p>
-          <p className="font-mono text-[11px] text-label">
+          <p className="font-mono text-xs text-label">
             {c.measure?.metric}: measured {shown(r?.measured)} · target {target(c.measure)}
           </p>
           {unmeasured && (
@@ -132,7 +132,7 @@ export default function LiveChecksCard({
                   ) : (
                     <div className="h-[36px]" />
                   )}
-                  <figcaption className="px-2 py-1 text-[11px] leading-snug text-umber">
+                  <figcaption className="px-2 py-1 text-xs leading-snug text-umber">
                     <span className="font-mono text-label">
                       {ts(e.tStart)}–{ts(e.tEnd)}
                     </span>{' '}
@@ -154,7 +154,7 @@ export default function LiveChecksCard({
       title={terms.title}
       meta={
         version ? (
-          <span className="font-mono text-[11px] text-label">
+          <span className="font-mono text-xs text-label">
             VERSION {version.id} · {shortHash(version.sha256, 8)}
           </span>
         ) : undefined
@@ -182,7 +182,7 @@ export default function LiveChecksCard({
               role="tab"
               aria-selected={v.id === version?.id}
               onClick={() => setPick(v.id)}
-              className={`rounded-full border px-2.5 py-1 font-mono text-[11px] ${
+              className={`rounded-full border px-2.5 py-1 text-xs ${
                 v.id === version?.id ? 'border-teal bg-teal/10 text-teal' : 'border-line text-umber'
               }`}
             >

@@ -175,14 +175,14 @@ export default function ContractsPage() {
                       .join(' · ')}
                   </p>
                   {c.status === 'signed' && c.signerName && (
-                    <p className="mt-1 font-mono text-[11px] text-teal">Signed by {c.signerName}</p>
+                    <p className="mt-1 font-mono text-xs text-teal">Signed by {c.signerName}</p>
                   )}
                 </div>
                 <ol className="flex items-center gap-1.5" aria-label="Contract progress">
                   {STEPS.map((s, i) => (
                     <li key={s} className="flex items-center gap-1.5">
                       <span
-                        className={`flex h-5 items-center gap-1 rounded-full px-2 text-[10px] ${
+                        className={`flex h-5 items-center gap-1 rounded-full px-2 text-xs ${
                           i <= step ? 'bg-teal text-on-accent' : 'bg-ink/5 text-label'
                         }`}
                       >

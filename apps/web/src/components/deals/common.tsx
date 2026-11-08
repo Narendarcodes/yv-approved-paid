@@ -86,7 +86,7 @@ export function PaypalId({ id, className = '' }: { id: string; className?: strin
         {id}
       </span>
       <span
-        className="shrink-0 rounded-[5px] border border-st-production/20 bg-st-production-bg px-1.5 py-px text-[9.5px] text-st-production"
+        className="shrink-0 rounded-[5px] border border-st-production/20 bg-st-production-bg px-1.5 py-px text-xs text-st-production"
         title={env.title}
         data-testid="paypal-env"
       >

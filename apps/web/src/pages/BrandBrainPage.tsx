@@ -143,7 +143,7 @@ export default function BrandBrainPage() {
               <div key={i} className="space-y-2">
                 <p className="font-medium text-[#171310]">{t.q}</p>
                 {t.flow && (
-                  <span className=" text-[11px] text-[#035E5E]">{t.flow.replace('_', ' ')}</span>
+                  <span className=" text-xs text-[#035E5E]">{t.flow.replace('_', ' ')}</span>
                 )}
                 <div className="whitespace-pre-wrap text-sm leading-relaxed text-black/80">
                   {t.text || (busy && i === turns.length - 1 ? 'Thinking…' : '')}
@@ -155,7 +155,7 @@ export default function BrandBrainPage() {
                       <span
                         key={j}
                         title={c.note || ''}
-                        className="rounded-md bg-[#035E5E]/8 px-2 py-0.5 text-[11px] text-[#035E5E]"
+                        className="rounded-md bg-[#035E5E]/8 px-2 py-0.5 text-xs text-[#035E5E]"
                       >
                         {titleOf(c.postId)} · {c.metric} = {String(c.value)}
                       </span>
@@ -197,13 +197,13 @@ export default function BrandBrainPage() {
         </section>
         <aside className="space-y-6">
           <div className="rounded-xl border border-black/10 bg-white p-4">
-            <h2 className="mb-3 text-[11px] text-black/60">Posts</h2>
+            <h2 className="mb-3 text-xs text-black/60">Posts</h2>
             <ul className="space-y-2">
               {posts.map((p) => (
                 <li key={p.id} className="text-sm">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[#171310]">{p.title}</span>
-                    <span className="shrink-0 text-[11px] text-black/50">
+                    <span className="shrink-0 text-xs text-black/50">
                       {p.platform} · {(p.metrics.views ?? 0).toLocaleString()} views
                     </span>
                   </div>
@@ -226,14 +226,14 @@ export default function BrandBrainPage() {
             </ul>
           </div>
           <div className="rounded-xl border border-black/10 bg-white p-4">
-            <h2 className="mb-3 text-[11px] text-black/60">Insights</h2>
+            <h2 className="mb-3 text-xs text-black/60">Insights</h2>
             {insights.length === 0 && (
               <p className="text-sm text-black/50">Run Analyze on a post to get an insight.</p>
             )}
             <ul className="space-y-3">
               {insights.map((i) => (
                 <li key={i.id} className="text-sm">
-                  <p className=" text-[11px] text-[#035E5E]">
+                  <p className=" text-xs text-[#035E5E]">
                     {i.kind.replace('_', ' ')}
                     {i.atSecond != null
                       ? ` @ ${Math.floor(i.atSecond / 60)}:${String(Math.round(i.atSecond % 60)).padStart(2, '0')}`

@@ -61,11 +61,11 @@ const STICKY_OFFLINE = new Set(['agent_disabled', 'not_found'])
 
 function ModeLabel({ mode }: { mode?: Mode }) {
   if (!mode) return null
-  if (mode.kind === 'thinking') return <p className=" text-[10px] text-label">asking live AI…</p>
+  if (mode.kind === 'thinking') return <p className=" text-xs text-label">asking live AI…</p>
   if (mode.kind === 'policy')
     return (
       <p
-        className=" text-[10px] text-label"
+        className=" text-xs text-label"
         title="A money ask with an amount or a version is dry-run straight through the policy engine; no model call"
         data-testid="copilot-mode"
       >
@@ -74,18 +74,14 @@ function ModeLabel({ mode }: { mode?: Mode }) {
     )
   if (mode.kind === 'live')
     return (
-      <p
-        className=" text-[10px] text-teal"
-        title={mode.model ?? undefined}
-        data-testid="copilot-mode"
-      >
+      <p className=" text-xs text-teal" title={mode.model ?? undefined} data-testid="copilot-mode">
         live AI{mode.provider ? ` · ${mode.provider}` : ''}
         {mode.cached ? ' · cached' : ''}
       </p>
     )
   return (
     <p
-      className=" text-[10px] text-label"
+      className=" text-xs text-label"
       title={
         mode.reason
           ? `Live AI unavailable (${mode.reason}); matched offline from your words, no model call`
@@ -421,7 +417,7 @@ export default function DealCopilot({
           <h2 className="card-title">Deal copilot</h2>
         </div>
         <span
-          className={` text-[10px] ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
+          className={` text-xs ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
           title={
             lastMode === 'live'
               ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)'

@@ -873,3 +873,10 @@ body {
 .yv-grid .ag-grid-scrolling-rows.ag-layout-auto-height {
   min-height: 0 !important;
 }
+
+/* One icon size and stroke across the app (lucide). The landing page keeps its own. */
+svg.lucide:not(.landing svg) {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.5;
+}

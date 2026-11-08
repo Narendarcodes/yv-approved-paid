@@ -56,7 +56,7 @@ function MilestoneCell(p: ICellRendererParams<MyMoneyRow> & { narrow?: boolean }
       <span className="truncate text-ink">{p.data.title}</span>
       {p.narrow && (
         <>
-          <span className="truncate text-[11px] text-umber" title={expectedText(p.data)}>
+          <span className="truncate text-xs text-umber" title={expectedText(p.data)}>
             {expectedText(p.data)}
           </span>
           <span className="flex min-w-0">
@@ -92,7 +92,7 @@ function ShareCell(p: ICellRendererParams<MyMoneyRow>) {
   return (
     <span className="flex h-full flex-col items-end justify-center leading-tight">
       <span className="font-medium">{money(p.data.myShareMinor, p.data.currency)}</span>
-      <span className="text-[11px] text-umber">
+      <span className="text-xs text-umber">
         {p.data.mySharePct}% of {money(p.data.amountMinor, p.data.currency)}
       </span>
     </span>
