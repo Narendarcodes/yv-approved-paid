@@ -134,6 +134,16 @@ export default function AppShell() {
     )
   }
 
+  // A role-gated nav item opened by URL: a calm note instead of a page whose API answers 403
+  const gated = navGroups
+    .flatMap((g) => g.items)
+    .find(
+      (i) =>
+        i.roles &&
+        !i.roles.includes(viewer.role) &&
+        (location.pathname === i.to || location.pathname.startsWith(`${i.to}/`)),
+    )
+
   const visibleGroups = navGroups
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(viewer.role)) }))
     .filter((g) => g.items.length > 0)
@@ -372,7 +382,7 @@ export default function AppShell() {
         {/* Page content */}
         <main className="flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
           <div className="page-enter mx-auto max-w-[1440px]">
-            <Outlet />
+            {gated ? <NotForRole label={gated.label} /> : <Outlet />}
           </div>
         </main>
       </div>
@@ -490,3 +500,18 @@ const navGroups: { section: string; items: NavItem[] }[] = [
     ],
   },
 ]
+
+/** Shown when a role opens a page its nav does not offer (the route stays; the page is not for this role). */
+function NotForRole({ label }: { label: string }) {
+  return (
+    <div className="mx-auto max-w-md py-16 text-center" data-testid="not-for-role">
+      <h1 className="text-[20px] font-medium text-ink">{label} isn&apos;t part of your role</h1>
+      <p className="mt-2 text-[14px] text-umber">
+        Your workspace admin can change your role on the Members page.
+      </p>
+      <NavLink to="/dashboard" className="btn-secondary mt-6 inline-flex">
+        Back to the dashboard
+      </NavLink>
+    </div>
+  )
+}

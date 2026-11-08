@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Bot } from 'lucide-react'
 import { Modal } from '../components/primitives'
-import { CardSkeleton, EmptyState, ErrorBanner } from '../components/states'
+import { CardSkeleton, EmptyState } from '../components/states'
 import { useToast } from '../components/toast'
 import DealCard from '../components/deals/DealCard'
 import DealCopilot from '../components/deals/DealCopilot'
@@ -144,9 +144,19 @@ export default function DealPage() {
           <CardSkeleton lines={6} />
         </div>
       ) : isError || !orgId ? (
-        <ErrorBanner
-          message="This deal did not load. It may not exist, or you may not be a party to it."
-          onRetry={() => void refetch()}
+        <EmptyState
+          title="This deal isn't available to you"
+          description="Deals open only to the brand and the people on the deal's team. Ask the brand to add you."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Link to="/deals" className="btn-secondary">
+                All deals
+              </Link>
+              <button className="btn-ghost" onClick={() => void refetch()}>
+                Retry
+              </button>
+            </div>
+          }
         />
       ) : !deal ? (
         <EmptyState title="Deal not found" />

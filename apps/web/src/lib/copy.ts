@@ -38,7 +38,7 @@ export const HINT = {
 
 export const EMPTY_LINE = {
   deals: 'A deal appears here once both sides sign it.',
-  payables: 'Held money shows up once a brand funds a reel.',
+  payables: 'Held money shows up once a brand funds a reel. Money owed to you is in My money.',
   payablesFiltered: 'Clear the filters to see every payment.',
   myMoney: 'Your share lands here when a reel you worked on is approved.',
   projects: 'Start a project to plan, cut and ship a reel.',
