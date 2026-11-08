@@ -35,7 +35,9 @@ import { ListSkeleton } from './components/states'
 // The money grids pull in AG Grid; loaded on demand so it stays out of the main bundle.
 const PayablesPage = lazy(() => import('./pages/PayablesPage'))
 const MyMoneyPage = lazy(() => import('./pages/MyMoneyPage'))
-const lazyPage = (el: ReactNode) => <Suspense fallback={<ListSkeleton rows={4} height="h-12" />}>{el}</Suspense>
+const lazyPage = (el: ReactNode) => (
+  <Suspense fallback={<ListSkeleton rows={4} height="h-12" />}>{el}</Suspense>
+)
 import { useBackendHealth } from './lib/health'
 
 /** Blocks the app shell until a session exists - redirects to /login. */
@@ -62,7 +64,8 @@ function RequireBackend({ children }: { children: ReactNode }) {
       </div>
     )
   }
-  if (healthy === false) return <BackendErrorPage error={error} onRetry={() => window.location.reload()} />
+  if (healthy === false)
+    return <BackendErrorPage error={error} onRetry={() => window.location.reload()} />
   return <>{children}</>
 }
 
@@ -84,15 +87,53 @@ export default function App() {
     <Routes>
       {/* Public marketing home — the tunnel hero landing (no auth gate) */}
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<RedirectIfAuthed><LoginPage /></RedirectIfAuthed>} />
-      <Route path="/register" element={<RedirectIfAuthed><RegisterPage /></RedirectIfAuthed>} />
-      <Route path="/forgot-password" element={<RedirectIfAuthed><ForgotPasswordPage /></RedirectIfAuthed>} />
+      <Route
+        path="/login"
+        element={
+          <RedirectIfAuthed>
+            <LoginPage />
+          </RedirectIfAuthed>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <RedirectIfAuthed>
+            <RegisterPage />
+          </RedirectIfAuthed>
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <RedirectIfAuthed>
+            <ForgotPasswordPage />
+          </RedirectIfAuthed>
+        }
+      />
 
       {/* Printable client report (no app chrome) */}
-      <Route path="/reports/performance" element={<RequireAuth><RequireBackend><PerformanceReportPage /></RequireBackend></RequireAuth>} />
+      <Route
+        path="/reports/performance"
+        element={
+          <RequireAuth>
+            <RequireBackend>
+              <PerformanceReportPage />
+            </RequireBackend>
+          </RequireAuth>
+        }
+      />
 
       {/* Authenticated app shell */}
-      <Route element={<RequireAuth><RequireBackend><AppShell /></RequireBackend></RequireAuth>}>
+      <Route
+        element={
+          <RequireAuth>
+            <RequireBackend>
+              <AppShell />
+            </RequireBackend>
+          </RequireAuth>
+        }
+      >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/my-work" element={<MyWorkPage />} />
         <Route path="/review" element={<ReviewPage />} />
@@ -122,7 +163,7 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<BackendErrorPage notFound />} />
     </Routes>
   )
 }

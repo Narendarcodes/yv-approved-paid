@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AgGridReact } from 'ag-grid-react'
 import type { ColDef, ICellRendererParams } from 'ag-grid-community'
 import { FlaskConical } from 'lucide-react'
+import Illustration from '../components/Illustration'
 import { yvGridTheme } from '../components/grid/agGrid'
 import { shortDate, StatusPill, useNarrow } from '../components/grid/moneyGrid'
 import type { Stage } from '../components/status'
@@ -192,8 +193,17 @@ export default function MyMoneyPage() {
             className="mb-6 flex flex-wrap items-baseline gap-x-4 gap-y-1"
             data-testid="money-summary"
           >
+            {summary.expected === 0 && summary.released > 0 && (
+              <Illustration name="paid" className="h-20 w-auto self-center" />
+            )}
             <p className="text-[22px] tracking-[-0.01em] text-ink">
-              <span className="t-num">{money(summary.expected, summary.cur)}</span> on the way
+              {summary.expected === 0 && summary.released > 0 ? (
+                <span data-testid="all-paid">All paid</span>
+              ) : (
+                <>
+                  <span className="t-num">{money(summary.expected, summary.cur)}</span> on the way
+                </>
+              )}
               {(summary.next || summary.onApproval) && (
                 <span className="text-umber">
                   {' '}
