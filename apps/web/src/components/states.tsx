@@ -13,10 +13,18 @@ export function Skeleton({ className = '' }: { className?: string }) {
 }
 
 /** Card-shaped skeleton: header bar + n text lines. */
-export function CardSkeleton({ lines = 3, className = '' }: { lines?: number; className?: string }) {
+export function CardSkeleton({
+  lines = 3,
+  className = '',
+}: {
+  lines?: number
+  className?: string
+}) {
   return (
     <div className={`card overflow-hidden ${className}`} aria-busy="true">
-      <div className="card-head"><Skeleton className="h-3.5 w-32" /></div>
+      <div className="card-head">
+        <Skeleton className="h-3.5 w-32" />
+      </div>
       <div className="space-y-3 p-5">
         {Array.from({ length: lines }).map((_, i) => (
           <Skeleton key={i} className={`h-3 ${['w-full', 'w-5/6', 'w-2/3', 'w-3/4'][i % 4]}`} />
@@ -78,15 +86,7 @@ export function ErrorBanner({ onRetry, message }: { onRetry?: () => void; messag
 }
 
 /** Genuine "nothing here yet" state. */
-export function EmptyState({
-  title,
-  hint,
-  action,
-}: {
-  title: string
-  hint?: string
-  action?: ReactNode
-}) {
+export function EmptyState({ title, action }: { title: string; action?: ReactNode }) {
   return (
     <div className="fade-in flex flex-col items-center gap-3 rounded-xl border border-line bg-surface px-6 py-10 text-center">
       <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-canvas text-umber">
@@ -94,7 +94,6 @@ export function EmptyState({
       </span>
       <div>
         <p className="text-sm font-medium text-ink">{title}</p>
-        {hint && <p className="mt-0.5 text-[13px] text-umber">{hint}</p>}
       </div>
       {action}
     </div>

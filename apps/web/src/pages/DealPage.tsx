@@ -99,7 +99,7 @@ export default function DealPage() {
           onRetry={() => void refetch()}
         />
       ) : !deal ? (
-        <EmptyState title="Deal not found" hint="Open one from the deals list." />
+        <EmptyState title="Deal not found" />
       ) : (
         <>
           <PageHeader

@@ -279,7 +279,6 @@ function ProjectListView({
           {allProjects.length === 0 ? (
             <EmptyState
               title="No projects yet"
-              hint="Start from a concept to create your first project."
               action={
                 <Link to="/concepts" className="btn-primary !h-9 text-[13px]">
                   <Plus size={14} strokeWidth={2} aria-hidden="true" />

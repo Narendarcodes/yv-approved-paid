@@ -636,7 +636,6 @@ export default function PayablesPage() {
       ) : !rows.length ? (
         <EmptyState
           title="No payables yet"
-          hint="Milestones show up here once you are the brand on a deal, or you manage deals in this organization."
           action={
             <Link to="/deals" className="btn-secondary !h-9 text-[13px]">
               Go to deals
@@ -769,7 +768,6 @@ export default function PayablesPage() {
           ) : (
             <EmptyState
               title="Nothing matches these filters"
-              hint="Remove a chip or clear the filters to see every milestone."
               action={
                 <button className="btn-secondary !h-9 text-[13px]" onClick={() => apply([])}>
                   Clear filters

@@ -216,10 +216,7 @@ export default function MyMoneyPage() {
       ) : org.isError || q.isError ? (
         <ErrorBanner message="Your payouts did not load." onRetry={() => void q.refetch()} />
       ) : !rows.length ? (
-        <EmptyState
-          title="No payouts yet"
-          hint="Milestones appear here once a signed deal names you on its team."
-        />
+        <EmptyState title="No payouts yet" />
       ) : (
         <>
           <div

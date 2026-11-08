@@ -19,10 +19,7 @@ export default function DealsPage() {
       ) : isError ? (
         <ErrorBanner message="Your deals did not load." onRetry={() => void refetch()} />
       ) : !deals?.length ? (
-        <EmptyState
-          title="No deals yet"
-          hint="A deal appears here once you are the client or the editor on one."
-        />
+        <EmptyState title="No deals yet" />
       ) : (
         <ul className="space-y-3" data-testid="deals-list">
           {deals.map((d) => {

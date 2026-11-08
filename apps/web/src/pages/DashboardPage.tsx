@@ -281,7 +281,7 @@ function ScheduledCard({ items, className }: { items: Project[]; className?: str
         </ul>
       ) : (
         <InlineEmpty
-          text="Nothing scheduled yet. Approved work lands here once it has a time."
+          text="Nothing scheduled"
           action={
             <Link to="/publishing/compose" className="card-link">
               Compose a post <ArrowRight size={13} strokeWidth={2} />
@@ -473,7 +473,7 @@ function ActivityCard({ className = '' }: { className?: string }) {
           })}
         </ul>
       ) : (
-        <InlineEmpty text="No project activity yet. Moves, uploads and approvals show up here." />
+        <InlineEmpty text="No project activity yet" />
       )}
     </div>
   )

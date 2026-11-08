@@ -71,7 +71,7 @@ export default function DealCard({
       title={deal.terms.title}
       meta={
         <span className="font-mono text-xs text-label" title={deal.termsHash || deal.termsHashNow}>
-          TERMS {shortHash(deal.termsHash || deal.termsHashNow)}
+          Terms {shortHash(deal.termsHash || deal.termsHashNow)}
         </span>
       }
       footer={
