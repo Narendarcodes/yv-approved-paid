@@ -32,7 +32,7 @@ export default function DisputeSplitCard({
   const [busy, setBusy] = useState(false)
   const pair = milestonePair(deal, milestoneKey)
   if (!pair) return null
-  const { terms, runtime } = pair
+  const { runtime } = pair
   const p = runtime.proposals?.dispute
   const cur = deal.terms.currency
   const split = runtime.split ?? {}
@@ -67,8 +67,7 @@ export default function DisputeSplitCard({
   return (
     <DealCardShell
       testId="dispute-split-card"
-      label="Dispute split"
-      title={terms.title}
+      title="Dispute split"
       meta={
         agreed ? (
           <span className="status-chip bg-st-scheduled-bg text-st-scheduled">Agreed</span>
@@ -90,7 +89,10 @@ export default function DisputeSplitCard({
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
             <div>
               <p className="micro-label">Checklist</p>
-              <p className="t-num text-[18px]">
+              <p
+                className="t-num text-[18px]"
+                title={`${(p.basis.shareBp / 100).toFixed(0)}% of the signed ${money(p.basis.amountMinor, cur)}, capped at what is still held (${money(p.basis.remainingMinor, cur)})`}
+              >
                 {p.basis.passedChecks} of {p.basis.totalChecks} met →{' '}
                 {(p.basis.shareBp / 100).toFixed(0)}%
               </p>
@@ -104,11 +106,6 @@ export default function DisputeSplitCard({
               <p className="t-num text-[18px]">{money(p.clientMinor, cur)}</p>
             </div>
           </div>
-          <p className="mt-1 text-[12px] text-umber">
-            {(p.basis.shareBp / 100).toFixed(0)}% of the signed {money(p.basis.amountMinor, cur)},
-            capped at what is still held ({money(p.basis.remainingMinor, cur)}). Arithmetic, not an
-            AI number.
-          </p>
 
           <ul className="mt-4 divide-y divide-line">
             {p.evidence.checks.map((c) => (

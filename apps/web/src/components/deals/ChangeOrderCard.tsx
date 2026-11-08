@@ -9,7 +9,7 @@
  */
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Check, Copy, ShieldCheck, X } from 'lucide-react'
+import { ArrowUpRight, Check, Copy, X } from 'lucide-react'
 import Chip from '../primitives'
 import { useToast } from '../toast'
 import * as api from '../../services/api'
@@ -24,8 +24,6 @@ import {
   when,
 } from '../../lib/deals'
 import { DealCardShell, PaypalInvoiceId } from './common'
-
-const STEPS = ['Requested', 'Accepted', 'Invoiced'] as const
 
 export default function ChangeOrderCard({
   deal,
@@ -48,7 +46,6 @@ export default function ChangeOrderCard({
   const stage = changeOrderStage(co)
   const canDecide = deal.me === 'client' && co.status === 'draft'
   const declined = co.status === 'declined'
-  const step = co.status === 'invoiced' ? 2 : co.status === 'accepted' ? 1 : 0
   const unit = item?.unitPriceMinor
   const by = co.by === 'agent' ? 'Scope Agent' : roleWord(co.by)
 
@@ -103,7 +100,6 @@ export default function ChangeOrderCard({
         <X size={15} strokeWidth={2} />
         Decline
       </button>
-      <span className="text-[12px] text-umber sm:ml-auto">One tap creates the PayPal invoice.</span>
     </div>
   ) : co.status === 'invoiced' ? (
     <div className="flex w-full flex-wrap items-center gap-2">
@@ -140,38 +136,11 @@ export default function ChangeOrderCard({
       meta={<Chip label={stage.label} tone={stage.tone} dot />}
       footer={footer}
     >
-      {/* where it stands: requested -> accepted -> invoiced */}
-      {!declined && (
-        <ol className="mb-4 flex items-center gap-2 text-xs" aria-label="Progress">
-          {STEPS.map((s, i) => (
-            <li key={s} className="flex items-center gap-2">
-              <span
-                className={`inline-flex items-center gap-1.5 ${i <= step ? 'text-teal' : 'text-label/70'}`}
-                aria-current={i === step ? 'step' : undefined}
-              >
-                <span
-                  className={`h-1.5 w-1.5 rounded-full ${i <= step ? 'bg-teal' : 'bg-line-strong'}`}
-                  aria-hidden="true"
-                />
-                {s}
-              </span>
-              {i < STEPS.length - 1 && (
-                <span
-                  className={`h-px w-5 sm:w-8 ${i < step ? 'bg-teal' : 'bg-line-strong'}`}
-                  aria-hidden="true"
-                />
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-
-      <p className="micro-label">Requested change</p>
-      <blockquote className="mt-1 border-l-2 border-teal/40 pl-3 text-[14px] leading-snug text-ink">
+      <blockquote className="border-l-2 border-teal/40 pl-3 text-[14px] leading-snug text-ink">
         &ldquo;{co.reason}&rdquo;
       </blockquote>
-      <p className="mt-1 text-[12px] text-umber">
-        Raised by {by} {when(co.at)}
+      <p className="mt-1 text-[13px] text-umber">
+        {by} · {when(co.at)}
       </p>
 
       {/* the invoice document */}
@@ -179,58 +148,35 @@ export default function ChangeOrderCard({
         className={`mt-4 overflow-hidden rounded-xl border border-line bg-canvas/50 ${declined ? 'opacity-60' : ''}`}
         data-testid="change-order-invoice"
       >
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 border-b border-line px-4 py-3 sm:grid-cols-[minmax(0,1.8fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
-          <div className="col-span-2 min-w-0 sm:col-span-1">
-            <dt className="micro-label">Invoice</dt>
-            <dd className="mt-0.5">
-              {co.invoiceId ? (
-                <span className="inline-flex max-w-full items-center gap-1">
-                  <PaypalInvoiceId id={co.invoiceId} />
-                  <button
-                    className="icon-btn-sm shrink-0 text-umber hover:text-ink"
-                    onClick={() => void copyId()}
-                    aria-label="Copy invoice id"
-                    title="Copy invoice id"
-                  >
-                    <Copy size={12} strokeWidth={1.75} />
-                  </button>
-                </span>
-              ) : (
-                <span className="text-[13px] text-umber">
-                  {declined ? 'Not issued' : 'Issued on accept'}
-                </span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="micro-label">Status</dt>
-            <dd className="mt-1">
-              {stage.invoice ? (
-                <span title={INVOICE_STATUS[stage.invoice].hint}>
-                  <Chip
-                    label={INVOICE_STATUS[stage.invoice].label}
-                    tone={INVOICE_STATUS[stage.invoice].tone}
-                    dot
-                  />
-                </span>
-              ) : (
-                <span className="text-[13px] text-umber">Quote</span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="micro-label">{co.invoiceId ? 'Issued' : 'Quoted'}</dt>
-            <dd className="mt-0.5 text-[13px] text-ink">
-              {dateOnly(co.invoiceId ? (co.decidedAt ?? co.at) : co.at)}
-            </dd>
-          </div>
-          <div>
-            <dt className="micro-label">Billed to</dt>
-            <dd className="mt-0.5 text-[13px] text-ink">
-              Client <span className="text-umber">· from {roleWord('worker')}</span>
-            </dd>
-          </div>
-        </dl>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-3 text-[13px]">
+          {co.invoiceId ? (
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+              <PaypalInvoiceId id={co.invoiceId} />
+              <button
+                className="icon-btn-sm shrink-0 text-umber hover:text-ink"
+                onClick={() => void copyId()}
+                aria-label="Copy invoice id"
+                title="Copy invoice id"
+              >
+                <Copy size={12} strokeWidth={1.75} />
+              </button>
+            </span>
+          ) : (
+            <span className="text-umber">{declined ? 'Not issued' : 'Quote'}</span>
+          )}
+          {stage.invoice && (
+            <span title={INVOICE_STATUS[stage.invoice].hint}>
+              <Chip
+                label={INVOICE_STATUS[stage.invoice].label}
+                tone={INVOICE_STATUS[stage.invoice].tone}
+                dot
+              />
+            </span>
+          )}
+          <span className="ml-auto text-umber">
+            {dateOnly(co.invoiceId ? (co.decidedAt ?? co.at) : co.at)}
+          </span>
+        </div>
 
         {/* line items */}
         <table className="w-full text-left text-[13px]">
@@ -270,23 +216,6 @@ export default function ChangeOrderCard({
           </span>
         </div>
       </div>
-
-      <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-snug text-umber">
-        <ShieldCheck
-          size={13}
-          strokeWidth={1.75}
-          className="mt-px shrink-0 text-teal"
-          aria-hidden="true"
-        />
-        <span>
-          Priced from the signed rate card; the AI never sets amounts.{' '}
-          {declined
-            ? 'Declined, so no extra round.'
-            : co.status === 'draft'
-              ? 'Accepting unlocks one extra revision round.'
-              : 'Unlocked one extra revision round.'}
-        </span>
-      </p>
     </DealCardShell>
   )
 }
