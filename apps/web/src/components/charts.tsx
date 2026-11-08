@@ -15,7 +15,19 @@ export function rampColor(t: number) {
 }
 
 let sparkId = 0
-export function Sparkline({ values, width = 120, height = 32, stroke = TEAL, label }: { values: number[]; width?: number; height?: number; stroke?: string; label?: string }) {
+export function Sparkline({
+  values,
+  width = 120,
+  height = 32,
+  stroke = TEAL,
+  label,
+}: {
+  values: number[]
+  width?: number
+  height?: number
+  stroke?: string
+  label?: string
+}) {
   const [gid] = useState(() => `spark-${++sparkId}`)
   if (!values.length) return <span className="text-xs text-umber">-</span>
   const max = Math.max(...values, 1)
@@ -25,7 +37,14 @@ export function Sparkline({ values, width = 120, height = 32, stroke = TEAL, lab
   const area = `0,${height} ${pts.join(' ')} ${((values.length - 1) * step).toFixed(1)},${height}`
   const last = values[values.length - 1]
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label || 'trend'} className="overflow-visible">
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label={label || 'trend'}
+      className="overflow-visible"
+    >
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={RAMP[3]} stopOpacity={0.35} />
@@ -33,14 +52,34 @@ export function Sparkline({ values, width = 120, height = 32, stroke = TEAL, lab
         </linearGradient>
       </defs>
       <polygon points={area} fill={`url(#${gid})`} />
-      <polyline points={pts.join(' ')} fill="none" stroke={stroke} strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />
+      <polyline
+        points={pts.join(' ')}
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.75}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
       <circle cx={(values.length - 1) * step} cy={y(last)} r={2.5} fill={stroke} />
     </svg>
   )
 }
 
-export function Delta({ value, suffix = '%', testId }: { value: number | null | undefined; suffix?: string; testId?: string }) {
-  if (value === null || value === undefined) return <span className="font-mono text-xs text-umber" data-testid={testId}>new</span>
+export function Delta({
+  value,
+  suffix = '%',
+  testId,
+}: {
+  value: number | null | undefined
+  suffix?: string
+  testId?: string
+}) {
+  if (value === null || value === undefined)
+    return (
+      <span className="font-mono text-xs text-umber" data-testid={testId}>
+        new
+      </span>
+    )
   const up = value > 0
   const flat = value === 0
   return (
@@ -92,16 +131,28 @@ export function BarTrend({
     <div className="relative" data-testid="bar-trend">
       <div className="flex gap-3">
         {/* y axis */}
-        <div className="relative w-9 shrink-0 font-mono text-[11px] text-label" style={{ height }} aria-hidden="true">
+        <div
+          className="relative w-9 shrink-0 font-mono text-[11px] text-label"
+          style={{ height }}
+          aria-hidden="true"
+        >
           {ticks.map((t) => (
-            <span key={t} className="absolute right-0 -translate-y-1/2 leading-none" style={{ top: `${100 - (t / top) * 100}%` }}>
+            <span
+              key={t}
+              className="absolute right-0 -translate-y-1/2 leading-none"
+              style={{ top: `${100 - (t / top) * 100}%` }}
+            >
               {fmtAxis(t)}
             </span>
           ))}
         </div>
         <div className="relative min-w-0 flex-1">
           {/* gridlines */}
-          <div className="pointer-events-none absolute inset-0" style={{ height }} aria-hidden="true">
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ height }}
+            aria-hidden="true"
+          >
             {ticks.map((t) => (
               <span
                 key={t}
@@ -131,7 +182,8 @@ export function BarTrend({
                     className="w-full rounded-t-[3px] transition-[background-color,height] duration-200"
                     style={{
                       height: d.value > 0 ? `max(4px, ${pct}%)` : '2px',
-                      background: d.value > 0 ? (active ? RAMP[5] : RAMP[4]) : 'var(--color-line-strong)',
+                      background:
+                        d.value > 0 ? (active ? RAMP[5] : RAMP[4]) : 'var(--color-line-strong)',
                       opacity: hover === null || active ? 1 : 0.55,
                     }}
                   />
@@ -143,14 +195,14 @@ export function BarTrend({
           <div className="relative mt-2 h-4 font-mono text-[11px] text-label" aria-hidden="true">
             {data.map((d, i) =>
               i % every === 0 || i === data.length - 1 ? (
-                (i === data.length - 1 && i % every !== 0 && i % every < every / 2) ? null : (
-                <span
-                  key={i}
-                  className="absolute -translate-x-1/2 whitespace-nowrap"
-                  style={{ left: `${((i + 0.5) / data.length) * 100}%` }}
-                >
-                  {d.label}
-                </span>
+                i === data.length - 1 && i % every !== 0 && i % every < every / 2 ? null : (
+                  <span
+                    key={i}
+                    className="absolute -translate-x-1/2 whitespace-nowrap"
+                    style={{ left: `${((i + 0.5) / data.length) * 100}%` }}
+                  >
+                    {d.label}
+                  </span>
                 )
               ) : null,
             )}
@@ -169,7 +221,8 @@ export function BarTrend({
             >
               <p className="font-mono text-[11px] text-white/70">{h.date ?? h.label}</p>
               <p className="text-sm font-semibold">
-                {h.value.toLocaleString()} <span className="text-xs font-normal text-white/80">{unit}</span>
+                {h.value.toLocaleString()}{' '}
+                <span className="text-xs font-normal text-white/80">{unit}</span>
               </p>
             </div>
           )}
@@ -180,12 +233,30 @@ export function BarTrend({
 }
 
 /** Ramp legend: "Less [] [] [] [] [] More". */
-export function RampLegend({ low = 'Less', high = 'More', className = '' }: { low?: string; high?: string; className?: string }) {
+export function RampLegend({
+  low = 'Less',
+  high = 'More',
+  className = '',
+}: {
+  low?: string
+  high?: string
+  className?: string
+}) {
   return (
-    <div className={`flex items-center gap-1.5 font-mono text-[11px] text-label ${className}`} data-testid="ramp-legend">
+    <div
+      className={`flex items-center gap-1.5 font-mono text-[11px] text-label ${className}`}
+      data-testid="ramp-legend"
+    >
       <span>{low}</span>
       {RAMP.map((c) => (
-        <span key={c} className="h-3 w-3 rounded-[3px]" style={{ background: c, boxShadow: c === RAMP[0] ? 'inset 0 0 0 1px rgba(28,25,23,0.08)' : undefined }} />
+        <span
+          key={c}
+          className="h-3 w-3 rounded-[3px]"
+          style={{
+            background: c,
+            boxShadow: c === RAMP[0] ? 'inset 0 0 0 1px rgba(28,25,23,0.08)' : undefined,
+          }}
+        />
       ))}
       <span>{high}</span>
     </div>
@@ -200,7 +271,7 @@ export function SimulatedBadge({ show }: { show: boolean }) {
   if (!show) return null
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-dashed border-st-production/40 bg-st-production-bg px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-st-production"
+      className="inline-flex items-center gap-1 rounded-full border border-dashed border-st-production/40 bg-st-production-bg px-2 py-0.5 text-[11px] font-medium text-st-production"
       title="Demo mode: these numbers are generated, not real platform data"
       data-testid="simulated-badge"
     >

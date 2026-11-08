@@ -1,5 +1,11 @@
 import {
-  ClipboardList, BrainCircuit, LockKeyhole, KanbanSquare, BadgeCheck, CalendarClock, ArrowUpRight,
+  ClipboardList,
+  BrainCircuit,
+  LockKeyhole,
+  KanbanSquare,
+  BadgeCheck,
+  CalendarClock,
+  ArrowUpRight,
 } from 'lucide-react'
 import Reveal from './Reveal'
 
@@ -45,15 +51,18 @@ export default function Features() {
       <div className="dot-grid absolute inset-0 opacity-[0.5]" aria-hidden="true" />
 
       <Reveal className="relative mx-auto max-w-6xl px-6">
-        <p data-reveal className="text-xs font-semibold uppercase tracking-[0.2em] text-teal">
+        <p data-reveal className="text-xs font-semibold text-teal">
           The workspace
         </p>
-        <h2 data-reveal className="mt-4 max-w-2xl font-display text-[clamp(2.4rem,5vw,4rem)] leading-[1.05] tracking-[-0.01em] text-ink">
+        <h2
+          data-reveal
+          className="mt-4 max-w-2xl font-display text-[clamp(2.4rem,5vw,4rem)] leading-[1.05] tracking-[-0.01em] text-ink"
+        >
           One calm system for the whole content lifecycle
         </h2>
         <p data-reveal className="mt-5 max-w-xl text-lg leading-relaxed text-umber">
-          Six connected modules replace the sprawl of docs, chats and spreadsheets your
-          team juggles today.
+          Six connected modules replace the sprawl of docs, chats and spreadsheets your team juggles
+          today.
         </p>
 
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

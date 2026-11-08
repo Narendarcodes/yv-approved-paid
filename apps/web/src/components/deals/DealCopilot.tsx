@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, Send, Sparkles } from 'lucide-react'
+import { Bot, Send } from 'lucide-react'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
 import {
@@ -61,12 +61,11 @@ const STICKY_OFFLINE = new Set(['agent_disabled', 'not_found'])
 
 function ModeLabel({ mode }: { mode?: Mode }) {
   if (!mode) return null
-  if (mode.kind === 'thinking')
-    return <p className="font-mono text-[10px] uppercase text-label">asking live AI…</p>
+  if (mode.kind === 'thinking') return <p className=" text-[10px] text-label">asking live AI…</p>
   if (mode.kind === 'policy')
     return (
       <p
-        className="font-mono text-[10px] uppercase text-label"
+        className=" text-[10px] text-label"
         title="A money ask with an amount or a version is dry-run straight through the policy engine; no model call"
         data-testid="copilot-mode"
       >
@@ -76,7 +75,7 @@ function ModeLabel({ mode }: { mode?: Mode }) {
   if (mode.kind === 'live')
     return (
       <p
-        className="font-mono text-[10px] uppercase text-teal"
+        className=" text-[10px] text-teal"
         title={mode.model ?? undefined}
         data-testid="copilot-mode"
       >
@@ -86,7 +85,7 @@ function ModeLabel({ mode }: { mode?: Mode }) {
     )
   return (
     <p
-      className="font-mono text-[10px] uppercase text-label"
+      className=" text-[10px] text-label"
       title={
         mode.reason
           ? `Live AI unavailable (${mode.reason}); matched offline from your words, no model call`
@@ -190,7 +189,10 @@ function CaptureProposal({
               </p>
             ) : (
               <>
-                <p className="mb-2 text-[13px] font-medium text-danger" data-testid="dry-run-headline">
+                <p
+                  className="mb-2 text-[13px] font-medium text-danger"
+                  data-testid="dry-run-headline"
+                >
                   Blocked, no money moved
                   {(() => {
                     const ids = groupViolations(q.data?.violations ?? [], cur).map((g) => g.id)
@@ -420,15 +422,15 @@ export default function DealCopilot({
           <h2 className="card-title">Deal copilot</h2>
         </div>
         <span
-          className={`font-mono text-[10px] uppercase ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
+          className={` text-[10px] ${lastMode === 'live' ? 'text-teal' : 'text-label'}`}
           title={
             lastMode === 'live'
               ? 'The last answer came from a live LLM (cards and ids only; it never sets an amount)'
               : lastMode === 'policy'
                 ? 'The last answer was a policy dry-run of a money ask; no model call'
                 : lastMode === 'offline'
-                ? 'The last answer was matched offline from your words; no model call. Live AI is used when the agent is on.'
-                : 'Ask about this deal: the live AI answers when the agent is on, otherwise an offline replay does'
+                  ? 'The last answer was matched offline from your words; no model call. Live AI is used when the agent is on.'
+                  : 'Ask about this deal: the live AI answers when the agent is on, otherwise an offline replay does'
           }
           data-testid="copilot-badge"
         >
@@ -484,9 +486,8 @@ export default function DealCopilot({
               key={s.label}
               type="button"
               onClick={() => void ask(s.prompt)}
-              className="inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-[11px] text-umber hover:border-teal hover:text-teal"
+              className="inline-flex items-center rounded-md border border-line px-2 py-1 text-xs text-umber hover:border-line-strong hover:text-ink"
             >
-              <Sparkles size={11} strokeWidth={2} />
               {s.label}
             </button>
           ))}

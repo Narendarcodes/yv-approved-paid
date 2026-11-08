@@ -16,16 +16,7 @@ import type {
   RowSelectionOptions,
   SelectionChangedEvent,
 } from 'ag-grid-community'
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Download,
-  Search,
-  Sparkles,
-  X,
-  XCircle,
-  Clock3,
-} from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Download, Search, X, XCircle, Clock3 } from 'lucide-react'
 import { yvGridTheme } from '../components/grid/agGrid'
 import { payableStatus, shortDate, StatusPill, useNarrow } from '../components/grid/moneyGrid'
 import { PageHeader } from '../components/ui'
@@ -659,14 +650,14 @@ export default function PayablesPage() {
             <div className="flex flex-wrap items-center gap-2">
               <label className="relative min-w-0 flex-1 basis-[280px]">
                 <span className="sr-only">Filter in plain language</span>
-                <Sparkles
-                  size={15}
-                  strokeWidth={1.75}
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-teal"
+                <Search
+                  size={16}
+                  strokeWidth={1.5}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-umber"
                 />
                 <input
                   className="input !pl-9"
-                  placeholder='Filter in plain words, e.g. "held over $300 and in grace"'
+                  placeholder="Filter"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={onKey}

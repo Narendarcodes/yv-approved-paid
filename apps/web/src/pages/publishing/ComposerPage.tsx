@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, Check, Film, ImageIcon, Plug, Send, FileText, Sparkles } from 'lucide-react'
+import { CalendarClock, Check, Film, ImageIcon, Plug, Send, FileText } from 'lucide-react'
 import Chip, { EmptyState } from '../../components/primitives'
 import { PageHeader } from '../../components/ui'
 import { ErrorBanner, ListSkeleton } from '../../components/states'
 import { useToast } from '../../components/toast'
 import { useViewer } from '../../lib/viewer'
 import { invalidateProjectData } from '../../lib/data'
-import { PLATFORMS, PlatformGlyph, fmtDateTime, toLocalInput, usePublishing, canPublish } from '../../lib/publishing'
+import {
+  PLATFORMS,
+  PlatformGlyph,
+  fmtDateTime,
+  toLocalInput,
+  usePublishing,
+  canPublish,
+} from '../../lib/publishing'
 import {
   ApiError,
   listEligibleProjects,
@@ -19,10 +26,20 @@ import {
   type PlatformSettings,
   type TimeSuggestion,
 } from '../../services/api'
-import { PlatformSettingsPanel, defaultSettings, validateSettings, type FieldError } from '../../components/PlatformSettingsPanel'
+import {
+  PlatformSettingsPanel,
+  defaultSettings,
+  validateSettings,
+  type FieldError,
+} from '../../components/PlatformSettingsPanel'
 import { PlatformIcon, StatusChip } from '../../components/status'
 
-const LIMITS: Partial<Record<PlatformKey, number>> = { x: 280, instagram: 2200, linkedin: 3000, youtube: 5000 }
+const LIMITS: Partial<Record<PlatformKey, number>> = {
+  x: 280,
+  instagram: 2200,
+  linkedin: 3000,
+  youtube: 5000,
+}
 
 function tomorrowAt(h: number) {
   const d = new Date()
@@ -58,7 +75,10 @@ export default function ComposerPage() {
       .then((list) => {
         setProjects(list)
         const cur = params.get('project')
-        const initial = (cur && list.find((p) => p.id === cur)) || list.find((p) => p.status === 'APPROVED') || list[0]
+        const initial =
+          (cur && list.find((p) => p.id === cur)) ||
+          list.find((p) => p.status === 'APPROVED') ||
+          list[0]
         if (initial) {
           setProjectId(initial.id)
           setCaption((c) => c || initial.description || '')
@@ -85,15 +105,28 @@ export default function ComposerPage() {
     return limits.sort((a, b) => a.max - b.max)[0]
   }, [selectedChannels])
   const overLimit = tightest ? caption.length > tightest.max : false
-  const selectedPlatforms = useMemo(() => [...new Set(selectedChannels.map((c) => c.platform))].sort(), [selectedChannels])
+  const selectedPlatforms = useMemo(
+    () => [...new Set(selectedChannels.map((c) => c.platform))].sort(),
+    [selectedChannels],
+  )
   const platformKey = selectedPlatforms.join(',')
   useEffect(() => {
-    setPlatformSettings((prev) => defaultSettings(selectedPlatforms, { title: project?.title || '', file }, prev))
+    setPlatformSettings((prev) =>
+      defaultSettings(selectedPlatforms, { title: project?.title || '', file }, prev),
+    )
     setServerErrors([])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platformKey, project?.id, file?.id])
-  const clientErrors = useMemo(() => validateSettings(platformSettings, { caption, file, files }), [platformSettings, caption, file, files])
-  const settingErrors = [...clientErrors, ...serverErrors.filter((e) => !clientErrors.some((c) => c.platform === e.platform && c.field === e.field))]
+  const clientErrors = useMemo(
+    () => validateSettings(platformSettings, { caption, file, files }),
+    [platformSettings, caption, file, files],
+  )
+  const settingErrors = [
+    ...clientErrors,
+    ...serverErrors.filter(
+      (e) => !clientErrors.some((c) => c.platform === e.platform && c.field === e.field),
+    ),
+  ]
   const blockedChannels = selectedChannels.filter((c) => c.status === 'expired')
 
   const suggest = async () => {
@@ -112,7 +145,8 @@ export default function ComposerPage() {
   const whenDate = new Date(when)
   const inPast = isNaN(whenDate.getTime()) || whenDate.getTime() < Date.now() - 30000
 
-  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
+  const toggle = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   const quick = [
     { label: 'In 2 minutes', at: () => new Date(Date.now() + 2 * 60000) },
@@ -121,7 +155,16 @@ export default function ComposerPage() {
   ]
 
   const submit = async () => {
-    if (!orgId || !project || !selected.length || inPast || overLimit || clientErrors.length || blockedChannels.length) return
+    if (
+      !orgId ||
+      !project ||
+      !selected.length ||
+      inPast ||
+      overLimit ||
+      clientErrors.length ||
+      blockedChannels.length
+    )
+      return
     setBusy(true)
     setServerErrors([])
     try {
@@ -135,8 +178,18 @@ export default function ComposerPage() {
       })
       invalidateProjectData(project.id)
       const failed = posts.filter((p) => p.status === 'failed')
-      if (failed.length) toast('warning', 'Scheduled with problems', `${failed.length} channel(s) failed: ${failed[0].failureReason}`)
-      else toast('success', 'Post scheduled', `${project.title} · ${fmtDateTime(whenDate)} · ${posts.length} channel${posts.length === 1 ? '' : 's'}`)
+      if (failed.length)
+        toast(
+          'warning',
+          'Scheduled with problems',
+          `${failed.length} channel(s) failed: ${failed[0].failureReason}`,
+        )
+      else
+        toast(
+          'success',
+          'Post scheduled',
+          `${project.title} · ${fmtDateTime(whenDate)} · ${posts.length} channel${posts.length === 1 ? '' : 's'}`,
+        )
       navigate(`/publishing/calendar?month=${whenDate.getFullYear()}-${whenDate.getMonth() + 1}`)
     } catch (err: any) {
       if (err instanceof ApiError && err.details?.length) setServerErrors(err.details)
@@ -161,7 +214,9 @@ export default function ComposerPage() {
           </Link>
         }
       />
-      {(channelError || projectError) && <ErrorBanner message={channelError || projectError || ''} />}
+      {(channelError || projectError) && (
+        <ErrorBanner message={channelError || projectError || ''} />
+      )}
       {loading ? (
         <ListSkeleton rows={3} height="h-32" />
       ) : !projects.length ? (
@@ -169,7 +224,11 @@ export default function ComposerPage() {
           icon={<FileText size={22} strokeWidth={1.5} />}
           title="No approved projects yet"
           description="A project can be scheduled once a reviewer approves its final version."
-          action={<Link to="/projects" className="btn-primary">Go to projects</Link>}
+          action={
+            <Link to="/projects" className="btn-primary">
+              Go to projects
+            </Link>
+          }
         />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] [&>*]:min-w-0">
@@ -177,18 +236,30 @@ export default function ComposerPage() {
             {/* 1. Project */}
             <section className="card p-5">
               <StepTitle n={1} title="Approved project" />
-              <select className="input mt-3 w-full" value={projectId} onChange={(e) => selectProject(e.target.value)} data-testid="composer-project">
+              <select
+                className="input mt-3 w-full"
+                value={projectId}
+                onChange={(e) => selectProject(e.target.value)}
+                data-testid="composer-project"
+              >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title} {p.approvedVersion ? `· ${p.approvedVersion.label}` : ''} {p.status === 'SCHEDULED' ? '· already scheduled' : ''}
+                    {p.title} {p.approvedVersion ? `· ${p.approvedVersion.label}` : ''}{' '}
+                    {p.status === 'SCHEDULED' ? '· already scheduled' : ''}
                   </option>
                 ))}
               </select>
               {project && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-umber">
-                  <Chip label={project.status === 'SCHEDULED' ? 'Scheduled' : 'Approved'} tone={project.status === 'SCHEDULED' ? 'warning' : 'teal'} dot />
+                  <Chip
+                    label={project.status === 'SCHEDULED' ? 'Scheduled' : 'Approved'}
+                    tone={project.status === 'SCHEDULED' ? 'warning' : 'teal'}
+                    dot
+                  />
                   <span>Final asset: {project.approvedVersion?.label ?? '-'}</span>
-                  {project.approvedVersion?.changeSummary && <span className="truncate">· {project.approvedVersion.changeSummary}</span>}
+                  {project.approvedVersion?.changeSummary && (
+                    <span className="truncate">· {project.approvedVersion.changeSummary}</span>
+                  )}
                 </div>
               )}
               {files.length > 1 && (
@@ -204,7 +275,11 @@ export default function ComposerPage() {
                   ))}
                 </div>
               )}
-              {project && !files.length && <p className="mt-3 text-xs text-warning">The approved version has no file attached - the post will go out as text only.</p>}
+              {project && !files.length && (
+                <p className="mt-3 text-xs text-warning">
+                  The approved version has no file attached - the post will go out as text only.
+                </p>
+              )}
             </section>
 
             {/* 2. Channels */}
@@ -227,24 +302,37 @@ export default function ComposerPage() {
                         key={c.id}
                         onClick={() => !expired && toggle(c.id)}
                         disabled={expired}
-                        title={expired ? `${c.name} needs to be reconnected on the Channels page` : undefined}
+                        title={
+                          expired
+                            ? `${c.name} needs to be reconnected on the Channels page`
+                            : undefined
+                        }
                         aria-pressed={on}
                         data-testid="composer-channel"
                         className={`flex items-center gap-3 rounded-[10px] border px-3 py-2.5 text-left transition-colors ${
-                          on ? 'border-teal bg-tint' : expired ? 'border-line bg-canvas/60' : 'border-line hover:border-line-strong hover:bg-canvas/40'
+                          on
+                            ? 'border-teal bg-tint'
+                            : expired
+                              ? 'border-line bg-canvas/60'
+                              : 'border-line hover:border-line-strong hover:bg-canvas/40'
                         }`}
                       >
                         <PlatformIcon platform={c.platform} size="sm" />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-ink">{c.name}</span>
+                          <span className="block truncate text-sm font-medium text-ink">
+                            {c.name}
+                          </span>
                           <span className="micro-label block truncate">
-                            {PLATFORMS[c.platform].label} · {c.mode === 'postiz' ? 'Postiz' : 'Demo'}
+                            {PLATFORMS[c.platform].label} ·{' '}
+                            {c.mode === 'postiz' ? 'Postiz' : 'Demo'}
                           </span>
                         </span>
                         {expired ? (
                           <StatusChip status="failed" label="Reconnect needed" />
                         ) : (
-                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${on ? 'border-teal bg-teal text-white' : 'border-line-strong'}`}>
+                          <span
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${on ? 'border-teal bg-teal text-white' : 'border-line-strong'}`}
+                          >
                             {on && <Check size={12} strokeWidth={2.5} />}
                           </span>
                         )}
@@ -258,14 +346,21 @@ export default function ComposerPage() {
             {/* 3. Platform settings */}
             <section className="card p-5">
               <StepTitle n={3} title="Platform settings" />
-              <PlatformSettingsPanel value={platformSettings} onChange={setPlatformSettings} errors={settingErrors} files={files} />
+              <PlatformSettingsPanel
+                value={platformSettings}
+                onChange={setPlatformSettings}
+                errors={settingErrors}
+                files={files}
+              />
             </section>
 
             {/* 4. Caption */}
             <section className="card p-5">
               <div className="flex items-center justify-between">
                 <StepTitle n={4} title="Caption" />
-                <span className={`font-mono text-[11px] ${overLimit ? 'text-danger' : 'text-label'}`}>
+                <span
+                  className={`font-mono text-[11px] ${overLimit ? 'text-danger' : 'text-label'}`}
+                >
                   {caption.length}
                   {tightest ? ` / ${tightest.max} (${PLATFORMS[tightest.c.platform].label})` : ''}
                 </span>
@@ -283,9 +378,20 @@ export default function ComposerPage() {
             <section className="card p-5">
               <StepTitle n={5} title="Date & time" />
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <input type="datetime-local" className="input w-auto" value={when} onChange={(e) => setWhen(e.target.value)} data-testid="composer-when" />
+                <input
+                  type="datetime-local"
+                  className="input w-auto"
+                  value={when}
+                  onChange={(e) => setWhen(e.target.value)}
+                  data-testid="composer-when"
+                />
                 {quick.map((q) => (
-                  <button key={q.label} className="btn-ghost !h-9 text-xs" onClick={() => setWhen(toLocalInput(q.at()))} data-testid={`quick-${q.label.replace(/\W+/g, '-').toLowerCase()}`}>
+                  <button
+                    key={q.label}
+                    className="btn-ghost !h-9 text-xs"
+                    onClick={() => setWhen(toLocalInput(q.at()))}
+                    data-testid={`quick-${q.label.replace(/\W+/g, '-').toLowerCase()}`}
+                  >
                     {q.label}
                   </button>
                 ))}
@@ -296,12 +402,15 @@ export default function ComposerPage() {
                   data-testid="suggest-time"
                   title={selected.length ? undefined : 'Pick channels first'}
                 >
-                  <Sparkles size={13} strokeWidth={1.75} /> {suggesting ? 'Thinking…' : 'Suggest best time'}
+                  {suggesting ? 'Thinking…' : 'Suggest best time'}
                 </button>
               </div>
               {suggestion && (
                 <p className="mt-2 text-xs leading-relaxed text-umber" data-testid="suggest-reason">
-                  <span className="font-medium text-[#035E5E]">{fmtDateTime(suggestion.suggestedAt)}</span> · {suggestion.reason}
+                  <span className="font-medium text-[#035E5E]">
+                    {fmtDateTime(suggestion.suggestedAt)}
+                  </span>{' '}
+                  · {suggestion.reason}
                   {suggestion.source === 'heuristic' ? ' (no history yet - platform default)' : ''}
                 </p>
               )}
@@ -311,46 +420,90 @@ export default function ComposerPage() {
 
           {/* Preview */}
           <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
-            <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card" data-testid="composer-preview">
+            <section
+              className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card"
+              data-testid="composer-preview"
+            >
               <div className="flex items-center gap-2 bg-[#171310] px-4 py-3 text-white">
                 <span className="font-headline text-sm font-semibold tracking-tight">Preview</span>
                 <span className="ml-auto flex gap-1.5">
                   {selectedChannels.map((c) => (
-                    <PlatformGlyph key={c.id} platform={c.platform} size={14} className="opacity-90" />
+                    <PlatformGlyph
+                      key={c.id}
+                      platform={c.platform}
+                      size={14}
+                      className="opacity-90"
+                    />
                   ))}
                 </span>
               </div>
               <div className="aspect-[4/5] bg-cream">
                 {project && file && isVideo ? (
-                  <video key={file.id} src={versionFileUrl(project.id, project.approvedVersion!.id, file.id)} className="h-full w-full object-cover" muted playsInline controls preload="metadata" />
+                  <video
+                    key={file.id}
+                    src={versionFileUrl(project.id, project.approvedVersion!.id, file.id)}
+                    className="h-full w-full object-cover"
+                    muted
+                    playsInline
+                    controls
+                    preload="metadata"
+                  />
                 ) : project && file && isImage ? (
-                  <img src={versionFileUrl(project.id, project.approvedVersion!.id, file.id)} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={versionFileUrl(project.id, project.approvedVersion!.id, file.id)}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-umber">
-                    {file ? <Film size={28} strokeWidth={1.25} /> : <ImageIcon size={28} strokeWidth={1.25} />}
-                    <span className="px-6 text-center text-xs">{file ? file.filename : 'No asset on the approved version'}</span>
+                    {file ? (
+                      <Film size={28} strokeWidth={1.25} />
+                    ) : (
+                      <ImageIcon size={28} strokeWidth={1.25} />
+                    )}
+                    <span className="px-6 text-center text-xs">
+                      {file ? file.filename : 'No asset on the approved version'}
+                    </span>
                   </div>
                 )}
               </div>
               <div className="space-y-2 p-4">
-                <p className="font-headline text-sm font-semibold text-[#171310]">{project?.title ?? 'Pick a project'}</p>
-                <p className="line-clamp-5 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">{caption || <span className="text-label">Your caption appears here.</span>}</p>
-                <p className="pt-1 font-mono text-[11px] text-[#035E5E]">{inPast ? '-' : fmtDateTime(whenDate)}</p>
+                <p className="font-headline text-sm font-semibold text-[#171310]">
+                  {project?.title ?? 'Pick a project'}
+                </p>
+                <p className="line-clamp-5 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
+                  {caption || <span className="text-label">Your caption appears here.</span>}
+                </p>
+                <p className="pt-1 font-mono text-[11px] text-[#035E5E]">
+                  {inPast ? '-' : fmtDateTime(whenDate)}
+                </p>
               </div>
             </section>
 
             <button
               className="btn-primary w-full justify-center"
-              disabled={!canSchedule || busy || !project || !selected.length || inPast || overLimit || clientErrors.length > 0}
+              disabled={
+                !canSchedule ||
+                busy ||
+                !project ||
+                !selected.length ||
+                inPast ||
+                overLimit ||
+                clientErrors.length > 0
+              }
               onClick={() => void submit()}
               data-testid="composer-submit"
               title={canSchedule ? undefined : 'Your role cannot schedule posts'}
             >
-              <Send size={14} strokeWidth={1.75} /> {busy ? 'Scheduling…' : `Schedule${selected.length ? ` to ${selected.length} channel${selected.length === 1 ? '' : 's'}` : ''}`}
+              <Send size={14} strokeWidth={1.75} />{' '}
+              {busy
+                ? 'Scheduling…'
+                : `Schedule${selected.length ? ` to ${selected.length} channel${selected.length === 1 ? '' : 's'}` : ''}`}
             </button>
             {clientErrors.length > 0 && selected.length > 0 && (
               <p className="text-center text-xs text-danger" data-testid="settings-blocking">
-                Fix {clientErrors.length} setting{clientErrors.length === 1 ? '' : 's'} above to schedule.
+                Fix {clientErrors.length} setting{clientErrors.length === 1 ? '' : 's'} above to
+                schedule.
               </p>
             )}
             {status && (
@@ -370,7 +523,9 @@ export default function ComposerPage() {
 function StepTitle({ n, title }: { n: number; title: string }) {
   return (
     <h2 className="card-title flex items-center gap-2">
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#035E5E] font-mono text-[10px] text-white">{n}</span>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#035E5E] font-mono text-[10px] text-white">
+        {n}
+      </span>
       {title}
     </h2>
   )

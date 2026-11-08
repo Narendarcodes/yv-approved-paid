@@ -61,14 +61,10 @@ body {
 
 /* ---------- Component recipes ---------- */
 @layer components {
-  /* Mono micro-labels (VERSION, TEAM, SCHEDULE...) - 11px, solid colour that
-     passes WCAG AA (>= 4.5:1) on surface and canvas. */
+  /* Small labels: sentence case, body font, secondary text step */
   .micro-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.35;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    font-size: 12px;
+    line-height: 16px;
     color: var(--color-label);
   }
   .card {
@@ -106,7 +102,7 @@ body {
   .card-title {
     font-family: var(--font-headline);
     font-size: 15px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.01em;
     line-height: 1.3;
     color: var(--color-ink);
@@ -142,18 +138,17 @@ body {
   /* Type scale: display (page titles), title (card/section), body, meta */
   .t-display {
     font-family: var(--font-headline);
-    font-size: 28px;
-    line-height: 1.15;
-    font-weight: 600;
-    letter-spacing: -0.03em;
+    font-size: 24px;
+    line-height: 30px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
     color: var(--color-ink);
   }
   .t-title {
     font-family: var(--font-headline);
     font-size: 15px;
     line-height: 1.3;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 500;
     color: var(--color-ink);
   }
   .t-body {
@@ -169,7 +164,7 @@ body {
   /* Big numbers (KPIs, stage counts) - tabular figures so columns don't jitter */
   .t-num {
     font-family: var(--font-headline);
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
@@ -218,9 +213,9 @@ body {
     gap: 6px;
     height: 22px;
     padding: 0 8px;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-sm);
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1;
     white-space: nowrap;
   }
@@ -290,9 +285,7 @@ body {
   .btn-primary {
     background: var(--color-teal);
     color: var(--color-on-accent);
-    box-shadow:
-      0 1px 2px rgba(15, 118, 110, 0.28),
-      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
   .btn-primary:hover {
     background: var(--color-teal-press);
@@ -441,10 +434,8 @@ body {
 
   .label {
     display: block;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 13px;
+    line-height: 20px;
     color: var(--color-umber);
     margin-bottom: 6px;
   }
@@ -453,12 +444,11 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border-radius: 999px;
+    border-radius: var(--radius-sm);
     padding: 0 10px;
-    height: 24px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 500;
+    height: 22px;
+    font-size: 12px;
+    font-weight: 400;
   }
   .chip-teal {
     background: var(--color-tint);
@@ -485,14 +475,14 @@ body {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 12px;
-    border-radius: 10px;
+    gap: 10px;
+    border-radius: var(--radius-md);
     padding: 0 12px;
-    height: 38px;
+    height: 34px;
     font-family: var(--font-body);
     font-size: 14px;
-    font-weight: 500;
-    color: rgba(28, 25, 23, 0.72);
+    font-weight: 400;
+    color: var(--color-umber);
     transition:
       background-color 0.16s var(--ease-out),
       color 0.16s var(--ease-out);
@@ -502,28 +492,16 @@ body {
     color: var(--color-ink);
     background: rgba(28, 25, 23, 0.045);
   }
+  /* Active row: one surface step, not the accent */
   .nav-item.active {
-    background: var(--color-tint);
-    color: var(--color-teal-press);
-    font-weight: 600;
-  }
-  /* Active rail — quiet 2px accent that makes the active row read at a glance */
-  .nav-item.active::before {
-    content: '';
-    position: absolute;
-    left: -12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 18px;
-    border-radius: 999px;
-    background: var(--color-teal);
+    background: var(--color-cream);
+    color: var(--color-ink);
   }
   .nav-item svg {
-    transition: transform 0.16s var(--ease-out);
+    color: var(--color-umber);
   }
-  .nav-item:hover svg {
-    transform: translateX(1px);
+  .nav-item.active svg {
+    color: var(--color-ink);
   }
 
   /* Group header: quiet sentence-case text, no tracked caps */
@@ -577,10 +555,7 @@ body {
   }
 
   .table-head {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 12px;
     color: var(--color-label);
     font-weight: 500;
     padding: 12px 20px;
@@ -786,11 +761,7 @@ body {
   background: var(--color-teal);
   color: var(--color-on-accent);
   font-family: var(--font-headline);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  box-shadow:
-    0 1px 3px rgba(15, 118, 110, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  font-weight: 500;
 }
 
 /* Hero accent underline for the auth pages */
@@ -893,9 +864,7 @@ body {
 /* AG Grid money grids (/payables, /my-money): theme params live in components/grid/agGrid.ts;
    only the header's mono micro-label (DESIGN.md .table-head) needs CSS. */
 .yv-grid .ag-header-cell-text {
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 400;
 }
 .yv-grid .ag-root-wrapper {
   box-shadow: var(--shadow-1);

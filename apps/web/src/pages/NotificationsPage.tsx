@@ -7,39 +7,27 @@ import { useToast } from '../components/toast'
 const typeMeta: Record<string, { icon: JSX.Element; tone: string }> = {
   review: {
     tone: 'bg-tint text-teal',
-    icon: (
-      <User size={15} strokeWidth={1.75} />
-    ),
+    icon: <User size={15} strokeWidth={1.75} />,
   },
   approval: {
     tone: 'bg-success/10 text-success',
-    icon: (
-      <CircleCheck size={15} strokeWidth={1.75} />
-    ),
+    icon: <CircleCheck size={15} strokeWidth={1.75} />,
   },
   revision: {
     tone: 'bg-warning/10 text-warning',
-    icon: (
-      <Clock size={15} strokeWidth={1.75} />
-    ),
+    icon: <Clock size={15} strokeWidth={1.75} />,
   },
   schedule: {
     tone: 'bg-ink/5 text-umber',
-    icon: (
-      <Calendar size={15} strokeWidth={1.75} />
-    ),
+    icon: <Calendar size={15} strokeWidth={1.75} />,
   },
   published: {
     tone: 'bg-tint text-teal',
-    icon: (
-      <Check size={15} strokeWidth={2} />
-    ),
+    icon: <Check size={15} strokeWidth={2} />,
   },
   comment: {
     tone: 'bg-ink/5 text-umber',
-    icon: (
-      <MessageSquare size={15} strokeWidth={1.75} />
-    ),
+    icon: <MessageSquare size={15} strokeWidth={1.75} />,
   },
 }
 
@@ -128,19 +116,24 @@ export default function NotificationsPage() {
                 n.unread ? 'bg-tint/30' : ''
               }`}
             >
-              <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.tone}`}>
+              <span
+                className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${meta.tone}`}
+              >
                 {meta.icon}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-ink">{n.title}</p>
                   {n.unread ? (
-                    <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase text-teal">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal" aria-hidden="true" />
+                    <span className="inline-flex items-center gap-1 text-[10px] text-teal">
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal"
+                        aria-hidden="true"
+                      />
                       Unread
                     </span>
                   ) : (
-                    <span className="font-mono text-[10px] uppercase text-label">Read</span>
+                    <span className=" text-[10px] text-label">Read</span>
                   )}
                 </div>
                 <p className="mt-0.5 truncate text-[13px] text-umber">{n.desc}</p>
@@ -151,7 +144,9 @@ export default function NotificationsPage() {
         })}
         {visible.length === 0 && (
           <p className="px-5 py-10 text-center text-sm text-umber">
-            {tab === 'Unread' && all.length ? 'Nothing unread. You\u2019re all caught up.' : 'No notifications yet.'}
+            {tab === 'Unread' && all.length
+              ? 'Nothing unread. You\u2019re all caught up.'
+              : 'No notifications yet.'}
           </p>
         )}
       </div>

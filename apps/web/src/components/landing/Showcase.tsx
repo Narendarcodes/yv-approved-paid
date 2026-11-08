@@ -51,10 +51,14 @@ export default function Showcase() {
   }, [])
 
   return (
-    <section ref={root} className="relative overflow-hidden bg-cream/70 py-28" style={{ perspective: '1400px' }}>
+    <section
+      ref={root}
+      className="relative overflow-hidden bg-cream/70 py-28"
+      style={{ perspective: '1400px' }}
+    >
       <div className="grain absolute inset-0" aria-hidden="true" />
       <div className="relative mx-auto max-w-6xl px-6">
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-teal">Inside yv.</p>
+        <p className="text-center text-xs font-semibold text-teal">Inside yv.</p>
         <h2 className="mx-auto mt-4 max-w-2xl text-center font-display text-[clamp(2.4rem,5vw,4rem)] leading-[1.05] text-ink">
           The dashboard your work deserves
         </h2>
@@ -73,18 +77,23 @@ export default function Showcase() {
               {/* mock body — sidebar column only from sm up (it's display:none below) */}
               <div className="grid grid-cols-1 sm:grid-cols-[200px_1fr]">
                 <aside className="hidden border-r border-line p-4 sm:block">
-                  {['Dashboard', 'My work', 'Review', 'Board', 'Projects', 'Analytics'].map((item, i) => (
-                    <div key={item} className={`rounded-lg px-3 py-2 text-sm ${i === 0 ? 'bg-tint font-semibold text-teal' : 'text-umber'}`}>
-                      {item}
-                    </div>
-                  ))}
+                  {['Dashboard', 'My work', 'Review', 'Board', 'Projects', 'Analytics'].map(
+                    (item, i) => (
+                      <div
+                        key={item}
+                        className={`rounded-lg px-3 py-2 text-sm ${i === 0 ? 'bg-tint font-semibold text-teal' : 'text-umber'}`}
+                      >
+                        {item}
+                      </div>
+                    ),
+                  )}
                 </aside>
                 <div className="min-w-0 space-y-4 p-4 sm:p-5">
                   {/* stats: stacked on mobile, 3-up from sm */}
                   <div className="grid gap-3 sm:grid-cols-3">
                     {['In review', 'In production', 'Scheduled'].map((s, i) => (
                       <div key={s} className="rounded-xl border border-line p-3">
-                        <p className="text-[11px] uppercase tracking-wide text-umber">{s}</p>
+                        <p className="text-[11px] text-umber">{s}</p>
                         <p className="mt-1 font-display text-2xl text-ink">{[7, 12, 5][i]}</p>
                       </div>
                     ))}
@@ -96,8 +105,12 @@ export default function Showcase() {
                   ].map(([name, stage, pct]) => (
                     <div key={name} className="rounded-xl border border-line p-4">
                       <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-3">
-                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{name}</p>
-                        <span className="shrink-0 whitespace-nowrap rounded-full bg-tint px-2 py-0.5 text-[11px] font-semibold text-teal">{stage}</span>
+                        <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                          {name}
+                        </p>
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-tint px-2 py-0.5 text-[11px] font-semibold text-teal">
+                          {stage}
+                        </span>
                       </div>
                       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-canvas">
                         <div className="h-full rounded-full bg-teal" style={{ width: pct }} />

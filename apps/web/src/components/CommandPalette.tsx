@@ -18,7 +18,15 @@ interface Result {
   to: string
 }
 
-export default function CommandPalette({ open, initialQuery = '', onClose }: { open: boolean; initialQuery?: string; onClose: () => void }) {
+export default function CommandPalette({
+  open,
+  initialQuery = '',
+  onClose,
+}: {
+  open: boolean
+  initialQuery?: string
+  onClose: () => void
+}) {
   const navigate = useNavigate()
   const [q, setQ] = useState(initialQuery)
   const [active, setActive] = useState(0)
@@ -46,7 +54,13 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
   const results = useMemo<Result[]>(() => {
     const query = q.trim().toLowerCase()
     return projects
-      .filter((p) => !query || p.title.toLowerCase().includes(query) || p.type.toLowerCase().includes(query) || p.status.toLowerCase().includes(query))
+      .filter(
+        (p) =>
+          !query ||
+          p.title.toLowerCase().includes(query) ||
+          p.type.toLowerCase().includes(query) ||
+          p.status.toLowerCase().includes(query),
+      )
       .slice(0, 8)
       .map((p) => ({
         kind: 'project' as const,
@@ -83,7 +97,11 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-[14vh]">
-      <div className="fixed inset-0 bg-ink/40 backdrop-blur-[3px]" onClick={onClose} aria-hidden="true" />
+      <div
+        className="fixed inset-0 bg-ink/40 backdrop-blur-[3px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div
         className="modal-in relative w-full max-w-[560px] overflow-hidden rounded-[20px] border border-line bg-surface shadow-[0_16px_40px_rgba(28,25,23,0.16),0_4px_12px_rgba(28,25,23,0.08)]"
         role="dialog"
@@ -92,7 +110,11 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
       >
         {/* Input — single focus ring, no double border */}
         <div className="group flex items-center gap-3 border-b border-line bg-canvas/40 px-4 py-3.5 transition-colors focus-within:border-teal/30 focus-within:bg-surface">
-          <Search size={18} strokeWidth={1.75} className="shrink-0 text-umber/40 transition-colors group-focus-within:text-teal/70" />
+          <Search
+            size={18}
+            strokeWidth={1.75}
+            className="shrink-0 text-umber/40 transition-colors group-focus-within:text-teal/70"
+          />
           <input
             ref={inputRef}
             value={q}
@@ -114,7 +136,11 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
               <X size={13} strokeWidth={2} />
             </button>
           )}
-          <button onClick={onClose} className="ml-1 hidden items-center justify-center rounded-full p-1.5 text-umber/40 hover:bg-ink/5 hover:text-ink md:flex" aria-label="Close search">
+          <button
+            onClick={onClose}
+            className="ml-1 hidden items-center justify-center rounded-full p-1.5 text-umber/40 hover:bg-ink/5 hover:text-ink md:flex"
+            aria-label="Close search"
+          >
             <X size={14} strokeWidth={2} />
           </button>
         </div>
@@ -129,9 +155,7 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
             </div>
           ) : (
             <div>
-              <p className="micro-label px-3 pb-1.5 pt-1">
-                Projects · {results.length}
-              </p>
+              <p className="micro-label px-3 pb-1.5 pt-1">Projects · {results.length}</p>
               <ul className="space-y-1">
                 {results.map((r, i) => (
                   <li key={r.id}>
@@ -146,14 +170,20 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
                     >
                       <span
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-umber transition-colors ${
-                          i === active ? 'border-line bg-surface text-teal shadow-sm' : 'border-line/50 bg-canvas'
+                          i === active
+                            ? 'border-line bg-surface text-teal shadow-sm'
+                            : 'border-line/50 bg-canvas'
                         }`}
                       >
                         <FileText size={15} strokeWidth={1.75} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-headline text-[14px] font-medium leading-tight tracking-[-0.01em] text-ink">{r.title}</span>
-                        <span className="mt-0.5 block truncate font-mono text-[11px] leading-none tracking-wide text-label">{r.sub}</span>
+                        <span className="block truncate font-headline text-[14px] font-medium leading-tight tracking-[-0.01em] text-ink">
+                          {r.title}
+                        </span>
+                        <span className="mt-0.5 block truncate font-mono text-[11px] leading-none text-label">
+                          {r.sub}
+                        </span>
                       </span>
                       <span className="micro-label hidden shrink-0 rounded-full border border-line bg-ink/[0.04] px-2.5 py-1 font-medium md:inline-flex">
                         Project
@@ -169,16 +199,24 @@ export default function CommandPalette({ open, initialQuery = '', onClose }: { o
         <div className="flex items-center justify-between gap-3 border-t border-line bg-canvas/30 px-4 py-2.5">
           <div className="micro-label flex items-center gap-3">
             <span className="hidden items-center gap-1.5 md:inline-flex">
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">↑</kbd>
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">↓</kbd>
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+                ↑
+              </kbd>
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+                ↓
+              </kbd>
               <span className="ml-1">Navigate</span>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">↵</kbd>
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+                ↵
+              </kbd>
               <span>Open</span>
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">ESC</kbd>
+              <kbd className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
+                ESC
+              </kbd>
               <span>Close</span>
             </span>
           </div>

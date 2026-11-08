@@ -17,18 +17,21 @@ export default function LandingFooter() {
           <div>
             <p className="font-display text-2xl text-ink">yv.</p>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-umber">
-              The project memory platform for content teams — briefs, reviews,
-              production and publishing in one calm, connected workspace.
+              The project memory platform for content teams — briefs, reviews, production and
+              publishing in one calm, connected workspace.
             </p>
           </div>
 
           {/* product */}
           <nav aria-label="Product">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-umber">Product</p>
+            <p className="text-xs font-semibold text-umber">Product</p>
             <ul className="mt-4 space-y-2.5">
               {PRODUCT_LINKS.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href} className="text-sm text-ink/80 transition-colors duration-200 hover:text-teal">
+                  <a
+                    href={l.href}
+                    className="text-sm text-ink/80 transition-colors duration-200 hover:text-teal"
+                  >
                     {l.label}
                   </a>
                 </li>
@@ -38,11 +41,14 @@ export default function LandingFooter() {
 
           {/* app */}
           <nav aria-label="Get started">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-umber">Get started</p>
+            <p className="text-xs font-semibold text-umber">Get started</p>
             <ul className="mt-4 space-y-2.5">
               {APP_LINKS.map((l) => (
                 <li key={l.href}>
-                  <a href={l.href} className="text-sm text-ink/80 transition-colors duration-200 hover:text-teal">
+                  <a
+                    href={l.href}
+                    className="text-sm text-ink/80 transition-colors duration-200 hover:text-teal"
+                  >
                     {l.label}
                   </a>
                 </li>
@@ -55,9 +61,7 @@ export default function LandingFooter() {
           <p className="text-xs text-umber/80">
             © {new Date().getFullYear()} yv. — content operations &amp; project memory.
           </p>
-          <p className="text-xs text-umber/60">
-            Built for teams who refuse to forget.
-          </p>
+          <p className="text-xs text-umber/60">Built for teams who refuse to forget.</p>
         </div>
       </div>
     </footer>

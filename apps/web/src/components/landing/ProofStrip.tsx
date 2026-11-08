@@ -6,7 +6,14 @@ const STATS = [
   { value: 98, suffix: '%', label: 'briefs on record' },
 ]
 
-const TEAMS = ['Northwind Studio', 'Halcyon Media', 'Paper & Pixel', 'Fieldnote Agency', 'Bright Copy Co.', 'Meridian Films']
+const TEAMS = [
+  'Northwind Studio',
+  'Halcyon Media',
+  'Paper & Pixel',
+  'Fieldnote Agency',
+  'Bright Copy Co.',
+  'Meridian Films',
+]
 
 export default function ProofStrip() {
   return (
@@ -19,7 +26,7 @@ export default function ProofStrip() {
               <p className="font-display text-3xl text-ink">
                 <CountUp to={s.value} suffix={s.suffix} />
               </p>
-              <p className="mt-1 text-xs font-medium uppercase tracking-widest text-umber">{s.label}</p>
+              <p className="mt-1 text-xs font-medium text-umber">{s.label}</p>
             </div>
           ))}
         </div>
@@ -28,7 +35,10 @@ export default function ProofStrip() {
         <div data-reveal className="marquee mt-9 overflow-hidden" aria-hidden="true">
           <div className="marquee-track flex w-max items-center gap-12">
             {[...TEAMS, ...TEAMS].map((t, i) => (
-              <span key={`${t}-${i}`} className="whitespace-nowrap text-sm font-medium tracking-wide text-umber/70">
+              <span
+                key={`${t}-${i}`}
+                className="whitespace-nowrap text-sm font-medium text-umber/70"
+              >
                 {t}
               </span>
             ))}

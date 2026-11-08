@@ -56,7 +56,7 @@ export default function JudgeTour({ onAsk }: { onAsk: (text: string) => void }) 
       role="region"
       aria-label="Judge tour"
     >
-      <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase text-teal">
+      <span className="inline-flex items-center gap-1.5 text-[11px] text-teal">
         <Compass size={14} strokeWidth={2} aria-hidden="true" /> Judge tour
       </span>
       <ol className="flex min-w-0 flex-1 flex-wrap gap-2">

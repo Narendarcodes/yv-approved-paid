@@ -350,7 +350,7 @@ function PaypalHolds({ deal, milestoneKey }: { deal: DealView; milestoneKey?: st
             <p className="flex min-w-0 flex-wrap items-center gap-x-2">
               <span className="w-[86px] shrink-0">Authorization</span>
               <PaypalId id={f.authorizationId!} className="max-w-full" />
-              <span className="font-mono text-[10.5px] uppercase text-label">{f.status}</span>
+              <span className=" text-[10.5px] text-label">{f.status}</span>
             </p>
             {m.captures.map((c) => (
               <p key={c.id} className="flex min-w-0 flex-wrap items-center gap-x-2">

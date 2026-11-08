@@ -9,7 +9,10 @@ import { MOTTO, PAYPAL_ENV, paypalEnv } from '../../lib/deals'
 /** The motto line every deal screen carries. */
 export function Motto({ className = '' }: { className?: string }) {
   return (
-    <p className={`flex items-center gap-1.5 font-mono text-[11px] text-label ${className}`} data-testid="deal-motto">
+    <p
+      className={`flex items-center gap-1.5 font-mono text-[11px] text-label ${className}`}
+      data-testid="deal-motto"
+    >
       <ShieldCheck size={13} strokeWidth={1.75} className="text-teal" aria-hidden="true" />
       {MOTTO}
     </p>
@@ -42,7 +45,11 @@ export function DealCardShell({
         {meta && <div className="flex shrink-0 items-center gap-2">{meta}</div>}
       </div>
       <div className="p-5">{children}</div>
-      {footer && <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">{footer}</div>}
+      {footer && (
+        <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-3">
+          {footer}
+        </div>
+      )}
     </section>
   )
 }
@@ -58,15 +65,28 @@ export function TagPill({ tag }: { tag: 'fix' | 'taste' }) {
 
 export function PassPill({ passed }: { passed: boolean | null | undefined }) {
   if (passed === true) return <span className="status-chip bg-st-live-bg text-st-live">Pass</span>
-  if (passed === false) return <span className="status-chip bg-st-failed-bg text-st-failed">Fail</span>
+  if (passed === false)
+    return <span className="status-chip bg-st-failed-bg text-st-failed">Fail</span>
   return <span className="status-chip bg-ink/[0.05] text-umber">Unmeasured</span>
 }
 
-export function Stat({ label, value, tone }: { label: string; value: ReactNode; tone?: 'teal' | 'danger' }) {
+export function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: ReactNode
+  tone?: 'teal' | 'danger'
+}) {
   return (
     <div className="min-w-0">
       <p className="micro-label">{label}</p>
-      <p className={`t-num mt-1 text-[18px] ${tone === 'teal' ? '!text-teal' : tone === 'danger' ? '!text-danger' : ''}`}>{value}</p>
+      <p
+        className={`t-num mt-1 text-[18px] ${tone === 'teal' ? '!text-teal' : tone === 'danger' ? '!text-danger' : ''}`}
+      >
+        {value}
+      </p>
     </div>
   )
 }
@@ -80,7 +100,7 @@ export function PaypalId({ id, className = '' }: { id: string; className?: strin
         {id}
       </span>
       <span
-        className="shrink-0 rounded-[5px] border border-st-production/20 bg-st-production-bg px-1.5 py-px font-mono text-[9.5px] uppercase tracking-[0.06em] text-st-production"
+        className="shrink-0 rounded-[5px] border border-st-production/20 bg-st-production-bg px-1.5 py-px text-[9.5px] text-st-production"
         title={env.title}
         data-testid="paypal-env"
       >
