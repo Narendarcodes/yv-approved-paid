@@ -129,7 +129,11 @@ export default function ReelPanel({
   const showPayout =
     !!deal.termsHash && t.payees.length > 0 && (r.payouts.length > 0 || deal.me === 'worker')
   const latest = r.versions[r.versions.length - 1]
-  const failed = latest?.checks ? latest.checks.failed.length : null
+  const machineN = t.checklist.filter((c) => c.kind !== 'taste').length
+  const passedN = latest?.checks
+    ? (latest.checks.results?.filter((x) => x.passed && x.status === 'ok').length ??
+      machineN - latest.checks.failed.length)
+    : null
   const canFund = deal.me === 'client' && r.state === 'SIGNED'
   const reviewPending = !!r.proposals?.review || (r.state === 'IN_REVIEW' && !clocked)
   // a merged review is the next action only while the reel is still in review; after that it is history under Checks
@@ -203,7 +207,7 @@ export default function ReelPanel({
         <DealSection
           id="checks"
           title="Checks"
-          meta={failed === null ? undefined : failed ? `${failed} failed` : 'All passed'}
+          meta={passedN === null ? undefined : `${passedN} of ${machineN} passed`}
           open={open.has('checks')}
           onToggle={() => onToggle('checks')}
         >

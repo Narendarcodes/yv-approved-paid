@@ -1,7 +1,8 @@
 /**
  * LiveChecksCard: what the Video QA agent measured on a submitted version.
- * One row per checklist line: measured value vs the signed target, pass/fail,
- * timestamped evidence with screenshots (served by the deal's evidence route).
+ * One slim row per checklist line: pass/fail dot, name, measured vs target,
+ * and a time chip. Failed lines open with the evidence frame and the reason;
+ * passed lines open on click.
  * Taste lines are shown as "people decide": no machine verdict on taste.
  *
  * Buttons (client, while the milestone is in review): Approve this version,
@@ -13,12 +14,21 @@ import { useToast } from '../toast'
 import * as api from '../../services/api'
 import type { DealChecklistItem, DealMeasure, DealView } from '../../contracts/types'
 import { milestonePair, shortHash, when } from '../../lib/deals'
-import { DealCardShell, PassPill } from './common'
+import { DealCardShell } from './common'
 
+/** Unit for a measure: the signed unit, else the metric's suffix (duration_s -> s). */
+function unitOf(m?: DealMeasure): string {
+  if (!m) return ''
+  if (m.unit) return m.unit
+  if (/_s$/.test(m.metric)) return 's'
+  if (/_lufs$/.test(m.metric)) return 'LUFS'
+  return ''
+}
+const OP: Record<string, string> = { '<=': '≤', '>=': '≥', '==': '=' }
 function target(m?: DealMeasure): string {
   if (!m) return '—'
-  const u = m.unit ? ` ${m.unit}` : ''
-  const w = m.window ? ` in ${m.window[0]}–${m.window[1]}s` : ''
+  const u = unitOf(m) ? ` ${unitOf(m)}` : ''
+  const w = m.window ? ` ${ts(m.window[0])}–${ts(m.window[1])}` : ''
   switch (m.op) {
     case 'between':
       return `${m.value} to ${m.max}${u}`
@@ -27,15 +37,26 @@ function target(m?: DealMeasure): string {
     case 'absent':
       return `absent${w}`
     default:
-      return `${m.op} ${m.value}${u}${w}`
+      return `${OP[m.op] ?? m.op} ${m.value}${u}${w}`
   }
 }
-function shown(v: unknown): string {
+function shown(v: unknown, m?: DealMeasure): string {
   if (v === null || v === undefined) return '—'
-  if (typeof v === 'boolean') return v ? 'yes' : 'no'
-  return String(v)
+  if (typeof v === 'boolean') return v ? 'present' : 'absent'
+  const u = typeof v === 'number' && unitOf(m) ? ` ${unitOf(m)}` : ''
+  return `${v}${u}`
 }
 const ts = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
+/** Seek the reel's player when one is on the page; returns false when there is none. */
+function seekReel(seconds: number): boolean {
+  const v = document.querySelector<HTMLVideoElement>('video[data-reel-player]')
+  if (!v) return false
+  v.currentTime = seconds
+  v.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  void v.play?.().catch(() => undefined)
+  return true
+}
 
 export default function LiveChecksCard({
   deal,
@@ -58,6 +79,7 @@ export default function LiveChecksCard({
   const checked = useMemo(() => (pair?.runtime.versions ?? []).filter((v) => v.checks), [pair])
   const [pick, setPick] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState<Record<string, boolean>>({})
   if (!pair) return null
   const { terms, runtime } = pair
   const version = checked.find((v) => v.id === pick) ?? checked[checked.length - 1]
@@ -80,69 +102,97 @@ export default function LiveChecksCard({
     }
   }
 
-  const row = (c: DealChecklistItem) => {
-    if (c.kind === 'taste')
-      return (
-        <li key={c.id} className="flex items-start gap-3 py-2.5">
-          <span className="status-chip bg-st-idea-bg text-st-idea">Taste</span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] text-ink">{c.text}</p>
-            <p className="text-[12px] text-umber">
-              People decide. Taste costs a revision round, never pay.
-            </p>
-          </div>
-        </li>
-      )
+  const machine = terms.checklist.filter((c) => c.kind !== 'taste')
+  const taste = terms.checklist.filter((c) => c.kind === 'taste')
+  const verdict = (c: DealChecklistItem): boolean | null => {
     const r = byId.get(c.id)
-    const unmeasured =
-      !r || r.status === 'not_measurable' || version?.checks?.unmeasured?.includes(c.id)
+    if (!r || r.status === 'not_measurable' || version?.checks?.unmeasured?.includes(c.id))
+      return null
+    return r.passed
+  }
+  const passedCount = machine.filter((c) => verdict(c) === true).length
+  const isOpen = (c: DealChecklistItem) => open[c.id] ?? verdict(c) !== true // failed and unmeasured start open
+
+  const row = (c: DealChecklistItem) => {
+    const r = byId.get(c.id)
+    const ok = verdict(c)
     const note = version?.checks?.notes?.[c.id]
+    const ev = r?.evidence ?? []
+    const first = ev[0]
+    const expanded = isOpen(c)
+    const hasDetail = ok !== true || !!note || ev.length > 0
+    const toggle = () => setOpen((o) => ({ ...o, [c.id]: !expanded }))
+    const reason =
+      ok === null
+        ? 'Not measured: counts as not met until it is.'
+        : (note ?? (ok === false ? first?.note : undefined))
     return (
-      <li key={c.id} className="flex items-start gap-3 py-2.5" data-testid={`check-${c.id}`}>
-        <PassPill passed={unmeasured ? null : r?.passed} />
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] text-ink">{c.text}</p>
-          <p className="font-mono text-xs text-label">
-            {c.measure?.metric}: measured {shown(r?.measured)} · target {target(c.measure)}
-          </p>
-          {unmeasured && (
-            <p className="text-[12px] text-warning">Not measured: counts as not met until it is.</p>
-          )}
-          {note && <p className="mt-0.5 text-[12px] text-umber">{note}</p>}
-          {!!r?.evidence?.length && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {r.evidence.map((e, i) => (
-                <figure
-                  key={i}
-                  className="w-[148px] overflow-hidden rounded-lg border border-line bg-canvas"
-                >
-                  {e.screenshot ? (
-                    <a
-                      href={api.dealEvidenceUrl(orgId, deal.id, e.screenshot)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <img
-                        src={api.dealEvidenceUrl(orgId, deal.id, e.screenshot)}
-                        alt={`Evidence ${ts(e.tStart)}–${ts(e.tEnd)}: ${e.note}`}
-                        loading="lazy"
-                        className="block h-[84px] w-full object-cover"
-                      />
-                    </a>
-                  ) : (
-                    <div className="h-[36px]" />
-                  )}
-                  <figcaption className="px-2 py-1 text-xs leading-snug text-umber">
-                    <span className="font-mono text-label">
-                      {ts(e.tStart)}–{ts(e.tEnd)}
-                    </span>{' '}
-                    {e.note}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
+      <li key={c.id} data-testid={`check-${c.id}`} data-passed={String(ok)}>
+        <div className="flex min-h-10 items-center gap-3 py-2">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${ok === true ? 'bg-success' : ok === false ? 'bg-danger' : 'bg-warning'}`}
+            aria-label={ok === true ? 'Passed' : ok === false ? 'Failed' : 'Not measured'}
+            role="img"
+          />
+          <button
+            type="button"
+            className="min-w-0 flex-1 truncate text-left text-[13px] text-ink disabled:cursor-default"
+            onClick={toggle}
+            disabled={!hasDetail}
+            aria-expanded={hasDetail ? expanded : undefined}
+          >
+            {c.text}
+          </button>
+          <span className="t-num hidden shrink-0 text-[12px] text-umber sm:inline">
+            {shown(r?.measured, c.measure)} · target {target(c.measure)}
+          </span>
+          {first && (
+            <button
+              type="button"
+              className="t-num shrink-0 rounded-sm border border-line px-1.5 py-px text-[12px] text-umber hover:border-line-strong hover:text-ink"
+              onClick={() => {
+                if (!seekReel(first.tStart)) setOpen((o) => ({ ...o, [c.id]: true }))
+              }}
+              title="Jump to this moment in the reel"
+              data-testid={`check-time-${c.id}`}
+            >
+              {ts(first.tStart)}–{ts(first.tEnd)}
+            </button>
           )}
         </div>
+        {expanded && hasDetail && (
+          <div className="mb-2 flex gap-3 pl-5">
+            {first?.screenshot && (
+              <a
+                href={api.dealEvidenceUrl(orgId, deal.id, first.screenshot)}
+                target="_blank"
+                rel="noreferrer"
+                className="shrink-0"
+              >
+                <img
+                  src={api.dealEvidenceUrl(orgId, deal.id, first.screenshot)}
+                  alt={`Evidence ${ts(first.tStart)}–${ts(first.tEnd)}: ${first.note}`}
+                  loading="lazy"
+                  className="block aspect-video w-[120px] rounded-md border border-line object-cover"
+                />
+              </a>
+            )}
+            <div className="min-w-0 text-[12px] leading-5 text-umber">
+              <p className="t-num sm:hidden">
+                {shown(r?.measured, c.measure)} · target {target(c.measure)}
+              </p>
+              {reason && <p className={ok === false ? 'text-ink' : ''}>{reason}</p>}
+              {ev.slice(reason === first?.note ? 1 : 0).map((e, i) => (
+                <p key={i}>
+                  <span className="t-num">
+                    {ts(e.tStart)}–{ts(e.tEnd)}
+                  </span>{' '}
+                  {e.note}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
       </li>
     )
   }
@@ -192,18 +242,39 @@ export default function LiveChecksCard({
         </div>
       )}
       {!version ? (
-        <p className="text-[13px] text-umber">No checked version yet</p>
+        <p className="text-[13px] text-umber">
+          No checked version yet. Checks run when the editor uploads a cut.
+        </p>
       ) : (
         <>
-          <p className="text-[12px] text-umber">
-            Checked {when(version.checks?.at)} ·{' '}
-            {version.checks?.passed ? (
-              <span className="text-success">every signed check passed</span>
-            ) : (
-              <span className="text-danger">{version.checks?.failed.length} check(s) not met</span>
-            )}
-          </p>
-          <ul className="mt-2 divide-y divide-line">{terms.checklist.map(row)}</ul>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[13px] text-ink" data-testid="checks-summary">
+              <span className="t-num">
+                {passedCount} of {machine.length}
+              </span>{' '}
+              passed
+            </p>
+            <p className="text-[12px] text-umber">Checked {when(version.checks?.at)}</p>
+          </div>
+          <ul className="mt-1 divide-y divide-line">{machine.map(row)}</ul>
+          {taste.length > 0 && (
+            <div className="mt-3 border-t border-line pt-3">
+              <p className="text-[12px] text-umber">
+                People decide taste. It costs a revision round, never pay.
+              </p>
+              <ul className="mt-1">
+                {taste.map((c) => (
+                  <li key={c.id} className="flex items-center gap-3 py-1.5 text-[13px] text-ink">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full border border-line-strong"
+                      aria-hidden="true"
+                    />
+                    {c.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </DealCardShell>
