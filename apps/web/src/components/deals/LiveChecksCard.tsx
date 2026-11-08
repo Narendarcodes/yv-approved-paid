@@ -63,7 +63,8 @@ export default function LiveChecksCard({
   const version = checked.find((v) => v.id === pick) ?? checked[checked.length - 1]
   const latest = runtime.versions[runtime.versions.length - 1]
   const byId = new Map((version?.checks?.results ?? []).map((r) => [r.checklistId, r]))
-  const canDecide = !hideDecisions && deal.me === 'client' && runtime.state === 'IN_REVIEW' && !!latest
+  const canDecide =
+    !hideDecisions && deal.me === 'client' && runtime.state === 'IN_REVIEW' && !!latest
 
   const approve = async () => {
     if (!latest) return
@@ -86,12 +87,15 @@ export default function LiveChecksCard({
           <span className="status-chip bg-st-idea-bg text-st-idea">Taste</span>
           <div className="min-w-0 flex-1">
             <p className="text-[13px] text-ink">{c.text}</p>
-            <p className="text-[12px] text-umber">People decide. Taste costs a revision round, never pay.</p>
+            <p className="text-[12px] text-umber">
+              People decide. Taste costs a revision round, never pay.
+            </p>
           </div>
         </li>
       )
     const r = byId.get(c.id)
-    const unmeasured = !r || r.status === 'not_measurable' || version?.checks?.unmeasured?.includes(c.id)
+    const unmeasured =
+      !r || r.status === 'not_measurable' || version?.checks?.unmeasured?.includes(c.id)
     const note = version?.checks?.notes?.[c.id]
     return (
       <li key={c.id} className="flex items-start gap-3 py-2.5" data-testid={`check-${c.id}`}>
@@ -101,14 +105,23 @@ export default function LiveChecksCard({
           <p className="font-mono text-[11px] text-label">
             {c.measure?.metric}: measured {shown(r?.measured)} · target {target(c.measure)}
           </p>
-          {unmeasured && <p className="text-[12px] text-warning">Not measured: counts as not met until it is.</p>}
+          {unmeasured && (
+            <p className="text-[12px] text-warning">Not measured: counts as not met until it is.</p>
+          )}
           {note && <p className="mt-0.5 text-[12px] text-umber">{note}</p>}
           {!!r?.evidence?.length && (
             <div className="mt-2 flex flex-wrap gap-2">
               {r.evidence.map((e, i) => (
-                <figure key={i} className="w-[148px] overflow-hidden rounded-lg border border-line bg-canvas">
+                <figure
+                  key={i}
+                  className="w-[148px] overflow-hidden rounded-lg border border-line bg-canvas"
+                >
                   {e.screenshot ? (
-                    <a href={api.dealEvidenceUrl(orgId, deal.id, e.screenshot)} target="_blank" rel="noreferrer">
+                    <a
+                      href={api.dealEvidenceUrl(orgId, deal.id, e.screenshot)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
                       <img
                         src={api.dealEvidenceUrl(orgId, deal.id, e.screenshot)}
                         alt={`Evidence ${ts(e.tStart)}–${ts(e.tEnd)}: ${e.note}`}
@@ -179,7 +192,7 @@ export default function LiveChecksCard({
         </div>
       )}
       {!version ? (
-        <p className="text-[13px] text-umber">No checked version yet. Checks run when the editor submits a cut.</p>
+        <p className="text-[13px] text-umber">No checked version yet</p>
       ) : (
         <>
           <p className="text-[12px] text-umber">

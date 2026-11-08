@@ -12,12 +12,26 @@ import { EmptyState } from '../components/primitives'
 import { PageHeader } from '../components/ui'
 import { ErrorBanner } from '../components/states'
 import { useToast } from '../components/toast'
-import { BarTrend, Delta, RAMP, RampLegend, SimulatedBadge, pctText, rampColor } from '../components/charts'
+import {
+  BarTrend,
+  Delta,
+  RAMP,
+  RampLegend,
+  SimulatedBadge,
+  pctText,
+  rampColor,
+} from '../components/charts'
 import { Skeleton } from '../components/states'
 import { primaryOrgId } from '../lib/data'
 import { compact, canPublish } from '../lib/publishing'
 import { useViewer } from '../lib/viewer'
-import { getAnalyticsHeatmap, getAnalyticsSummary, runAnalyticsIngest, type AnalyticsSummary, type Heatmap } from '../services/api'
+import {
+  getAnalyticsHeatmap,
+  getAnalyticsSummary,
+  runAnalyticsIngest,
+  type AnalyticsSummary,
+  type Heatmap,
+} from '../services/api'
 import { PlatformIcon } from '../components/status'
 
 const WINDOWS = [7, 30, 90] as const
@@ -75,7 +89,11 @@ export default function AnalyticsPage() {
     setSyncing(true)
     try {
       const r = await runAnalyticsIngest(orgId)
-      toast('success', 'Analytics refreshed', `${r.posts} post${r.posts === 1 ? '' : 's'} and ${r.channels} channel${r.channels === 1 ? '' : 's'} updated`)
+      toast(
+        'success',
+        'Analytics refreshed',
+        `${r.posts} post${r.posts === 1 ? '' : 's'} and ${r.channels} channel${r.channels === 1 ? '' : 's'} updated`,
+      )
       await load(orgId, days)
     } catch (err: any) {
       toast('danger', 'Refresh failed', err?.message)
@@ -84,10 +102,12 @@ export default function AnalyticsPage() {
     }
   }
 
-  const hasData = !!data && (data.totals.views > 0 || data.topContent.length > 0 || data.platforms.length > 0)
+  const hasData =
+    !!data && (data.totals.views > 0 || data.topContent.length > 0 || data.platforms.length > 0)
   const heatGrid = useMemo(() => {
     const max = Math.max(0.0001, ...(heat?.cells.map((c) => c.engagementRate) ?? [0]))
-    const at = (weekday: number, hour: number) => heat?.cells.find((c) => c.weekday === weekday && c.hour === hour)
+    const at = (weekday: number, hour: number) =>
+      heat?.cells.find((c) => c.weekday === weekday && c.hour === hour)
     return { max, at }
   }, [heat])
   const maxPlatformViews = Math.max(1, ...(data?.platforms.map((p) => p.views) ?? [1]))
@@ -96,7 +116,6 @@ export default function AnalyticsPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Analytics"
-        subtitle="How published work is performing across channels - pulled from your publishing accounts after every post goes live."
         actions={
           <>
             <div className="seg" role="group" aria-label="Time window" data-testid="window-toggle">
@@ -112,11 +131,20 @@ export default function AnalyticsPage() {
                 </button>
               ))}
             </div>
-            <Link to={`/reports/performance?month=${lastMonthKey()}`} className="btn-secondary" data-testid="monthly-report">
+            <Link
+              to={`/reports/performance?month=${lastMonthKey()}`}
+              className="btn-secondary"
+              data-testid="monthly-report"
+            >
               <FileText size={14} strokeWidth={1.75} /> Monthly report
             </Link>
             {canPublish(viewer) && (
-              <button className="btn-ghost" onClick={() => void syncNow()} disabled={syncing} data-testid="analytics-refresh">
+              <button
+                className="btn-ghost"
+                onClick={() => void syncNow()}
+                disabled={syncing}
+                data-testid="analytics-refresh"
+              >
                 <RefreshCw size={14} strokeWidth={1.75} /> {syncing ? 'Refreshing…' : 'Refresh'}
               </button>
             )}
@@ -146,10 +174,27 @@ export default function AnalyticsPage() {
             <section className="grid grid-cols-2 gap-4 lg:grid-cols-5" data-testid="kpis">
               {[
                 { k: 'Views', v: compact(data.totals.views), d: data.change.views },
-                { k: 'Engagements', v: compact(data.totals.engagements), d: data.change.engagements },
-                { k: 'Engagement rate', v: pctText(data.totals.engagementRate), d: data.change.engagementRate, suffix: ' pts' },
-                { k: 'Followers gained', v: compact(data.totals.followersGained), d: data.change.followersGained },
-                { k: 'Watch time (min)', v: compact(data.totals.watchTime), d: data.change.watchTime },
+                {
+                  k: 'Engagements',
+                  v: compact(data.totals.engagements),
+                  d: data.change.engagements,
+                },
+                {
+                  k: 'Engagement rate',
+                  v: pctText(data.totals.engagementRate),
+                  d: data.change.engagementRate,
+                  suffix: ' pts',
+                },
+                {
+                  k: 'Followers gained',
+                  v: compact(data.totals.followersGained),
+                  d: data.change.followersGained,
+                },
+                {
+                  k: 'Watch time (min)',
+                  v: compact(data.totals.watchTime),
+                  d: data.change.watchTime,
+                },
               ].map((t) => (
                 <div key={t.k} className="card p-4">
                   <p className="micro-label">{t.k}</p>
@@ -167,7 +212,10 @@ export default function AnalyticsPage() {
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="card-title">Daily views</h2>
-                  <p className="t-meta mt-0.5">{compact(data.totals.views)} views across all channels<span className="hidden sm:inline"> · hover a bar for the day</span></p>
+                  <p className="t-meta mt-0.5">
+                    {compact(data.totals.views)} views across all channels
+                    <span className="hidden sm:inline"> · hover a bar for the day</span>
+                  </p>
                 </div>
                 <span className="micro-label whitespace-nowrap">last {days} days</span>
               </div>
@@ -176,7 +224,11 @@ export default function AnalyticsPage() {
                   const d = new Date(`${t.date}T12:00:00`)
                   return {
                     label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-                    date: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+                    date: d.toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    }),
                     value: t.views,
                   }
                 })}
@@ -195,7 +247,10 @@ export default function AnalyticsPage() {
                     <li key={t.projectId} className="flex items-center gap-3 px-5 py-3">
                       <span className="w-5 font-mono text-xs text-umber">{i + 1}</span>
                       <div className="min-w-0 flex-1">
-                        <Link to={`/projects/${t.projectId}`} className="block truncate text-sm font-medium text-ink hover:text-teal">
+                        <Link
+                          to={`/projects/${t.projectId}`}
+                          className="block truncate text-sm font-medium text-ink hover:text-teal"
+                        >
                           {t.title}
                         </Link>
                         <p className="truncate text-xs text-umber">{t.client || 'No client'}</p>
@@ -205,11 +260,19 @@ export default function AnalyticsPage() {
                           <PlatformIcon key={p} platform={p} size="sm" />
                         ))}
                       </span>
-                      <span className="hidden w-16 text-right font-mono text-sm text-ink sm:inline">{compact(t.views)}</span>
-                      <span className="w-14 text-right font-mono text-sm font-medium text-teal">{pctText(t.engagementRate)}</span>
+                      <span className="hidden w-16 text-right font-mono text-sm text-ink sm:inline">
+                        {compact(t.views)}
+                      </span>
+                      <span className="w-14 text-right font-mono text-sm font-medium text-teal">
+                        {pctText(t.engagementRate)}
+                      </span>
                     </li>
                   ))}
-                  {!data.topContent.length && <li className="px-5 py-6 text-sm text-umber">Nothing crossed 50 views in this window yet.</li>}
+                  {!data.topContent.length && (
+                    <li className="px-5 py-6 text-sm text-umber">
+                      Nothing crossed 50 views in this window yet.
+                    </li>
+                  )}
                 </ol>
               </section>
 
@@ -225,10 +288,15 @@ export default function AnalyticsPage() {
                       <div className="flex items-center gap-3">
                         <PlatformIcon platform={p.platform} size="sm" />
                         <span className="flex-1 text-sm font-medium text-ink">{p.label}</span>
-                        <span className="font-mono text-xs text-umber">{p.posts} post{p.posts === 1 ? '' : 's'}</span>
+                        <span className="font-mono text-xs text-umber">
+                          {p.posts} post{p.posts === 1 ? '' : 's'}
+                        </span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink/[0.06]">
-                        <div className="h-full rounded-full bg-teal transition-[width] duration-500" style={{ width: `${Math.max(2, (p.views / maxPlatformViews) * 100)}%` }} />
+                        <div
+                          className="h-full rounded-full bg-teal transition-[width] duration-500"
+                          style={{ width: `${Math.max(2, (p.views / maxPlatformViews) * 100)}%` }}
+                        />
                       </div>
                       <dl className="mt-2 grid grid-cols-4 gap-2 text-xs">
                         <div>
@@ -244,8 +312,12 @@ export default function AnalyticsPage() {
                           <dd className="font-mono text-ink">{compact(p.followersGained)}</dd>
                         </div>
                         <div>
-                          <dt className="micro-label">{p.platform === 'youtube' ? 'Watch min' : 'Saves'}</dt>
-                          <dd className="font-mono text-ink">{compact(p.platform === 'youtube' ? p.watchTime : p.saves)}</dd>
+                          <dt className="micro-label">
+                            {p.platform === 'youtube' ? 'Watch min' : 'Saves'}
+                          </dt>
+                          <dd className="font-mono text-ink">
+                            {compact(p.platform === 'youtube' ? p.watchTime : p.saves)}
+                          </dd>
                         </div>
                       </dl>
                     </li>
@@ -260,16 +332,23 @@ export default function AnalyticsPage() {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h2 className="card-title">Best time to post</h2>
                   {heat?.best && (
-                    <span className="rounded-full bg-tint px-2.5 py-1 text-xs font-medium text-teal" data-testid="best-slot">
-                      {heat.best.day} around {heat.best.hour}:00 · {pctText(heat.best.engagementRate)}
+                    <span
+                      className="rounded-full bg-tint px-2.5 py-1 text-xs font-medium text-teal"
+                      data-testid="best-slot"
+                    >
+                      {heat.best.day} around {heat.best.hour}:00 ·{' '}
+                      {pctText(heat.best.engagementRate)}
                     </span>
                   )}
                 </div>
                 <p className="mb-3 text-xs text-umber">
-                  Average engagement rate by the day and hour your posts went live ({heat?.posts ?? 0} posts, {heat?.timezone}).
+                  {heat?.posts ?? 0} posts, {heat?.timezone}
                 </p>
                 <div className="overflow-x-auto">
-                  <table className="border-separate border-spacing-[3px]" aria-label="Engagement by weekday and hour">
+                  <table
+                    className="border-separate border-spacing-[3px]"
+                    aria-label="Engagement by weekday and hour"
+                  >
                     <thead>
                       <tr>
                         <th />
@@ -283,15 +362,25 @@ export default function AnalyticsPage() {
                     <tbody>
                       {DAYS.map((d, row) => (
                         <tr key={d}>
-                          <th className="pr-2 text-left font-mono text-[11px] font-normal text-label">{d}</th>
+                          <th className="pr-2 text-left font-mono text-[11px] font-normal text-label">
+                            {d}
+                          </th>
                           {Array.from({ length: 24 }, (_, h) => {
                             const c = heatGrid.at(DAY_INDEX[row], h)
                             return (
                               <td
                                 key={h}
                                 className="h-5 w-5 rounded-[4px] transition-transform hover:scale-110"
-                                style={{ background: c ? rampColor(c.engagementRate / heatGrid.max) : RAMP[0] }}
-                                title={c ? `${d} ${h}:00 · ${c.posts} post(s) · ${pctText(c.engagementRate)}` : `${d} ${h}:00 · no posts`}
+                                style={{
+                                  background: c
+                                    ? rampColor(c.engagementRate / heatGrid.max)
+                                    : RAMP[0],
+                                }}
+                                title={
+                                  c
+                                    ? `${d} ${h}:00 · ${c.posts} post(s) · ${pctText(c.engagementRate)}`
+                                    : `${d} ${h}:00 · no posts`
+                                }
                               />
                             )
                           })}
@@ -302,7 +391,10 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <span className="t-meta">Darker = higher engagement rate</span>
-                  <RampLegend low="Low" high={heatGrid.max > 0.0001 ? `${pctText(heatGrid.max)}` : 'High'} />
+                  <RampLegend
+                    low="Low"
+                    high={heatGrid.max > 0.0001 ? `${pctText(heatGrid.max)}` : 'High'}
+                  />
                 </div>
               </section>
 
@@ -337,16 +429,25 @@ export default function AnalyticsPage() {
                       <tr key={r.name}>
                         <td className="px-5 py-2.5 text-ink">
                           {rollupBy === 'client' && r.name !== 'No client' ? (
-                            <Link className="hover:text-teal" to={`/reports/performance?month=${lastMonthKey()}&client=${encodeURIComponent(r.name)}`}>
+                            <Link
+                              className="hover:text-teal"
+                              to={`/reports/performance?month=${lastMonthKey()}&client=${encodeURIComponent(r.name)}`}
+                            >
                               {r.name}
                             </Link>
                           ) : (
                             r.name
                           )}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-mono text-umber">{r.projects}</td>
-                        <td className="px-3 py-2.5 text-right font-mono text-ink">{compact(r.views)}</td>
-                        <td className="px-5 py-2.5 text-right font-mono text-teal">{pctText(r.engagementRate)}</td>
+                        <td className="px-3 py-2.5 text-right font-mono text-umber">
+                          {r.projects}
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-mono text-ink">
+                          {compact(r.views)}
+                        </td>
+                        <td className="px-5 py-2.5 text-right font-mono text-teal">
+                          {pctText(r.engagementRate)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -376,7 +477,11 @@ function AnalyticsSkeleton() {
         <Skeleton className="mb-5 h-3.5 w-28" />
         <div className="flex h-[180px] items-end gap-[3px]">
           {Array.from({ length: 30 }).map((_, i) => (
-            <div key={i} className="skeleton flex-1 !rounded-b-none" style={{ height: `${25 + ((i * 37) % 60)}%` }} />
+            <div
+              key={i}
+              className="skeleton flex-1 !rounded-b-none"
+              style={{ height: `${25 + ((i * 37) % 60)}%` }}
+            />
           ))}
         </div>
       </div>

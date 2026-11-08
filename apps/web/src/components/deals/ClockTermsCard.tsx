@@ -18,14 +18,22 @@ import { CLOCK_DEFAULTS, clockTermsOf } from '../../lib/clock'
 import { DealCardShell } from './common'
 
 type NumKey = keyof typeof CLOCK_DEFAULTS
-const FIELDS: { key: NumKey; label: string; min: number; max: number; unit: string; help: (n: number) => string }[] = [
+const FIELDS: {
+  key: NumKey
+  label: string
+  min: number
+  max: number
+  unit: string
+  help: (n: number) => string
+}[] = [
   {
     key: 'reviewWindowBusinessDays',
     label: 'Review window',
     min: 2,
     max: 10,
     unit: 'business days',
-    help: (n) => `The client has ${n} business days (to 6 PM their time) to approve or ask for changes once checks pass.`,
+    help: (n) =>
+      `The client has ${n} business days (to 6 PM their time) to approve or ask for changes once checks pass.`,
   },
   {
     key: 'partialReleasePct',
@@ -33,7 +41,10 @@ const FIELDS: { key: NumKey; label: string; min: number; max: number; unit: stri
     min: 0,
     max: 90,
     unit: '%',
-    help: (n) => (n > 0 ? `If the window ends with no reply, ${n}% of the milestone releases to the team right away.` : 'Nothing releases when the window ends; only the grace release pays.'),
+    help: (n) =>
+      n > 0
+        ? `If the window ends with no reply, ${n}% of the milestone releases to the team right away.`
+        : 'Nothing releases when the window ends; only the grace release pays.',
   },
   {
     key: 'graceBusinessDays',
@@ -41,7 +52,10 @@ const FIELDS: { key: NumKey; label: string; min: number; max: number; unit: stri
     min: 0,
     max: 10,
     unit: 'business days',
-    help: (n) => (n > 0 ? `After the window, ${n} more business days before the rest releases too.` : 'No grace: the rest releases when the window ends.'),
+    help: (n) =>
+      n > 0
+        ? `After the window, ${n} more business days before the rest releases too.`
+        : 'No grace: the rest releases when the window ends.',
   },
   {
     key: 'includedRevisionRounds',
@@ -49,7 +63,8 @@ const FIELDS: { key: NumKey; label: string; min: number; max: number; unit: stri
     min: 0,
     max: 10,
     unit: 'rounds',
-    help: (n) => `${n} change request${n === 1 ? '' : 's'} included; each one pauses the clock. More become a paid change order.`,
+    help: (n) =>
+      `${n} change request${n === 1 ? '' : 's'} included; each one pauses the clock. More become a paid change order.`,
   },
 ]
 
@@ -72,10 +87,11 @@ export default function ClockTermsCard({
   const canEdit = !locked && !!deal.me
   const cur = deal.terms.currency
   const initial = useMemo(
-    () => ({
-      ...CLOCK_DEFAULTS,
-      ...Object.fromEntries(Object.entries(signed || {}).filter(([, v]) => v !== undefined)),
-    }) as typeof CLOCK_DEFAULTS & { backupReviewerId?: string },
+    () =>
+      ({
+        ...CLOCK_DEFAULTS,
+        ...Object.fromEntries(Object.entries(signed || {}).filter(([, v]) => v !== undefined)),
+      }) as typeof CLOCK_DEFAULTS & { backupReviewerId?: string },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify(signed)],
   )
@@ -125,14 +141,21 @@ export default function ClockTermsCard({
   if (locked && !signed) return null
 
   const dirty = JSON.stringify(spec) !== JSON.stringify(signed ? { ...signed } : null)
-  const reviewers = team.filter((m) => !m.disabled && m.id !== deal.terms.worker.userId && m.id !== deal.terms.client.userId)
-  const backupName = (id?: string) => (id ? team.find((m) => m.id === id)?.name || 'A team member' : 'None')
+  const reviewers = team.filter(
+    (m) => !m.disabled && m.id !== deal.terms.worker.userId && m.id !== deal.terms.client.userId,
+  )
+  const backupName = (id?: string) =>
+    id ? team.find((m) => m.id === id)?.name || 'A team member' : 'None'
 
   const save = async () => {
     setBusy(true)
     try {
       await api.setClockTerms(orgId, deal.id, milestoneKey, spec)
-      toast('success', spec ? 'Review terms saved' : 'Review clock removed', 'Signatures were cleared: both sides sign the new terms.')
+      toast(
+        'success',
+        spec ? 'Review terms saved' : 'Review clock removed',
+        'Signatures were cleared: both sides sign the new terms.',
+      )
       onChanged?.()
     } catch (e: any) {
       toast('danger', 'Could not save the review terms', e?.message || 'Try again')
@@ -161,11 +184,21 @@ export default function ClockTermsCard({
       footer={
         canEdit ? (
           <>
-            <button className="btn-primary" disabled={busy || !dirty || (!!spec && plan?.allowed === false)} onClick={save} data-testid="save-clock-terms">
+            <button
+              className="btn-primary"
+              disabled={busy || !dirty || (!!spec && plan?.allowed === false)}
+              onClick={save}
+              data-testid="save-clock-terms"
+            >
               Save review terms
             </button>
             <label className="ml-auto flex items-center gap-2 text-[13px] text-umber">
-              <input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} className="accent-[#035E5E]" />
+              <input
+                type="checkbox"
+                checked={on}
+                onChange={(e) => setOn(e.target.checked)}
+                className="accent-[#035E5E]"
+              />
               Use the review clock
             </label>
           </>
@@ -181,14 +214,16 @@ export default function ClockTermsCard({
                 {f.unit === '%' ? '%' : ` ${f.unit}`}
               </li>
             ))}
-            <li className="chip chip-neutral">Backup reviewer: {backupName(signed.backupReviewerId)}</li>
+            <li className="chip chip-neutral">
+              Backup reviewer: {backupName(signed.backupReviewerId)}
+            </li>
           </ul>
           <p className="mt-2 flex items-center gap-1.5 text-[12px] text-umber">
-            <Lock size={12} strokeWidth={2} aria-hidden="true" /> Signed and hashed with the deal; changing them needs a new deal.
+            <Lock size={16} strokeWidth={1.5} aria-hidden="true" /> Signed with the deal
           </p>
         </>
       ) : !on && canEdit ? (
-        <p className="text-[13px] text-umber">No review clock: the plain review window in the deal applies. Turn it on to protect both sides from silence.</p>
+        <p className="text-[13px] text-umber">No review clock</p>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -208,16 +243,25 @@ export default function ClockTermsCard({
                       step={1}
                       className="input w-24"
                       value={form[f.key]}
-                      onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value === '' ? f.min : Math.round(Number(e.target.value)) }))}
+                      onChange={(e) =>
+                        setForm((s) => ({
+                          ...s,
+                          [f.key]:
+                            e.target.value === '' ? f.min : Math.round(Number(e.target.value)),
+                        }))
+                      }
                     />
                     <span className="text-[13px] text-umber">{f.unit}</span>
                   </div>
                 ) : (
                   <p className="t-num mt-1 text-[16px]">
-                    {values[f.key]} <span className="text-[13px] font-normal text-umber">{f.unit}</span>
+                    {values[f.key]}{' '}
+                    <span className="text-[13px] font-normal text-umber">{f.unit}</span>
                   </p>
                 )}
-                <p className="mt-1 text-[12px] leading-snug text-umber">{f.help(Number(values[f.key]))}</p>
+                <p className="mt-1 text-[12px] leading-snug text-umber">
+                  {f.help(Number(values[f.key]))}
+                </p>
               </div>
             ))}
             <div className="min-w-0">
@@ -229,7 +273,9 @@ export default function ClockTermsCard({
                   id={`ct-${milestoneKey}-backup`}
                   className="input mt-1 w-full max-w-xs"
                   value={form.backupReviewerId || ''}
-                  onChange={(e) => setForm((s) => ({ ...s, backupReviewerId: e.target.value || undefined }))}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, backupReviewerId: e.target.value || undefined }))
+                  }
                 >
                   <option value="">None</option>
                   {reviewers.map((m) => (
@@ -241,11 +287,14 @@ export default function ClockTermsCard({
               ) : (
                 <p className="mt-1 text-[14px] text-ink">{backupName(signed?.backupReviewerId)}</p>
               )}
-              <p className="mt-1 text-[12px] leading-snug text-umber">Also gets the 80% reminder, so a review never stalls on one person.</p>
             </div>
           </div>
 
-          <div className="mt-4 flex items-start gap-2.5 rounded-[10px] bg-canvas px-3 py-2.5" data-testid="clock-terms-preview" aria-live="polite">
+          <div
+            className="mt-4 flex items-start gap-2.5 rounded-[10px] bg-canvas px-3 py-2.5"
+            data-testid="clock-terms-preview"
+            aria-live="polite"
+          >
             <Timer size={16} className="mt-0.5 shrink-0 text-teal" aria-hidden="true" />
             <div className="min-w-0 text-[13px] text-ink">
               {plan && !plan.allowed ? (
@@ -253,11 +302,15 @@ export default function ClockTermsCard({
               ) : preview ? (
                 <>
                   <p>
-                    {locked ? 'Under these terms, a delivery today is reviewed by' : 'If you deliver today, review ends'}{' '}
+                    {locked
+                      ? 'Under these terms, a delivery today is reviewed by'
+                      : 'If you deliver today, review ends'}{' '}
                     <span className="font-medium">{preview.deadlineText}</span>.
                   </p>
                   <p className="mt-0.5 text-[12px] text-umber">
-                    {preview.partialAmountMinor > 0 ? `${money(preview.partialAmountMinor, cur)} releases then on silence, ` : ''}
+                    {preview.partialAmountMinor > 0
+                      ? `${money(preview.partialAmountMinor, cur)} releases then on silence, `
+                      : ''}
                     the rest ({money(preview.remainderMinor, cur)}) by {preview.graceText}.
                   </p>
                 </>

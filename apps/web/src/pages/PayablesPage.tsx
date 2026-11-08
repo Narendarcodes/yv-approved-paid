@@ -605,7 +605,6 @@ export default function PayablesPage() {
     <div className="fade-in" data-testid="payables-page">
       <PageHeader
         title="Payables"
-        subtitle="Every milestone's money across your deals: what is held, where the review clock stands, and what needs you next."
         actions={
           <>
             <button

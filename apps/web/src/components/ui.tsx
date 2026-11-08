@@ -114,22 +114,11 @@ export function Spacer({ h = 4 }: { h?: number }) {
   return <div style={{ height: `${h * 4}px` }} aria-hidden="true" />
 }
 
-export function PageHeader({
-  title,
-  subtitle,
-  actions,
-}: {
-  title: string
-  subtitle?: string
-  actions?: ReactNode
-}) {
+export function PageHeader({ title, actions }: { title: string; actions?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="min-w-0 flex-1 basis-[320px]">
         <h1 className="t-display">{title}</h1>
-        {subtitle && (
-          <p className="mt-1.5 max-w-[62ch] text-sm leading-relaxed text-umber">{subtitle}</p>
-        )}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

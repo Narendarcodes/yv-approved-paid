@@ -207,7 +207,6 @@ export default function ComposerPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Compose"
-        subtitle="Schedule an approved project's final cut to your channels. The project moves to Scheduled now and to Published when it goes live."
         actions={
           <Link to="/publishing/calendar" className="btn-secondary">
             <CalendarClock size={14} strokeWidth={1.75} /> Calendar

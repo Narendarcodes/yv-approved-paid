@@ -31,7 +31,7 @@ import {
   useDealRefresh,
 } from '../../lib/deals'
 import { Skeleton } from '../states'
-import { DealCardShell, Motto } from './common'
+import { DealCardShell } from './common'
 import DealCard from './DealCard'
 import LiveChecksCard from './LiveChecksCard'
 import ReviewMergeCard from './ReviewMergeCard'
@@ -278,8 +278,7 @@ function Rendered({
     default:
       return (
         <p className="text-[13px] text-umber">
-          I answer with cards: ask about the deal, the checks, the review notes, the money, a change
-          order or the dispute split.
+          Ask about the deal, checks, notes, money, a change order or the split
         </p>
       )
   }
@@ -444,13 +443,7 @@ export default function DealCopilot({
         </span>
       </div>
       <div className="min-h-[160px] flex-1 space-y-3 overflow-y-auto p-4">
-        <Motto />
-        {turns.length === 0 && (
-          <p className="text-[13px] text-umber">
-            Ask about this deal. Answers come back as cards; proposals are dry-run through policy
-            and never move money.
-          </p>
-        )}
+        {turns.length === 0 && <p className="text-[13px] text-umber">Ask about this deal.</p>}
         {turns.map((t) =>
           t.role === 'user' ? (
             <p

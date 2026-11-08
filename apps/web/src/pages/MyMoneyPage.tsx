@@ -210,10 +210,7 @@ export default function MyMoneyPage() {
 
   return (
     <div className="fade-in" data-testid="my-money-page">
-      <PageHeader
-        title="Where's my money"
-        subtitle="Your share of every milestone you are on, what has reached you, and when the rest is due."
-      />
+      <PageHeader title="My money" />
       {org.isLoading || q.isLoading ? (
         <ListSkeleton rows={3} height="h-12" />
       ) : org.isError || q.isError ? (

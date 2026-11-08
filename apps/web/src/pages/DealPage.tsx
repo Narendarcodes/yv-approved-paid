@@ -12,7 +12,6 @@ import { PageHeader } from '../components/ui'
 import { CardSkeleton, EmptyState, ErrorBanner } from '../components/states'
 import { StatusChip } from '../components/status'
 import { useToast } from '../components/toast'
-import { Motto } from '../components/deals/common'
 import DealCard from '../components/deals/DealCard'
 import LiveChecksCard from '../components/deals/LiveChecksCard'
 import ReviewMergeCard from '../components/deals/ReviewMergeCard'
@@ -27,7 +26,7 @@ import ClockTermsCard from '../components/deals/ClockTermsCard'
 import TeamPayoutCard from '../components/deals/TeamPayoutCard'
 import { clockTermsOf } from '../lib/clock'
 import * as api from '../services/api'
-import { DEMO_DEAL_PATH, invoiceSent, money, roleWord, useDeal, useDealRefresh } from '../lib/deals'
+import { DEMO_DEAL_PATH, invoiceSent, money, useDeal, useDealRefresh } from '../lib/deals'
 
 export default function DealPage() {
   const { dealId, key: fundKey } = useParams()
@@ -38,7 +37,10 @@ export default function DealPage() {
   const refresh = useDealRefresh(orgId, dealId)
   const confirmed = useRef(false)
   // copilot open on wide screens, closed on small ones
-  const [copilot, setCopilot] = useState(() => typeof window === 'undefined' || window.matchMedia?.('(min-width: 1024px)').matches !== false)
+  const [copilot, setCopilot] = useState(
+    () =>
+      typeof window === 'undefined' || window.matchMedia?.('(min-width: 1024px)').matches !== false,
+  )
   const [autoAsk, setAutoAsk] = useState<{ text: string; nonce: number } | null>(null)
   const isDemoDeal = `/deals/${dealId}` === DEMO_DEAL_PATH
 
@@ -55,7 +57,13 @@ export default function DealPage() {
     }
     api
       .confirmDealFunding(orgId, dealId, fundKey)
-      .then((r) => toast(r.result?.outcome === 'done' ? 'success' : 'warning', r.result?.outcome === 'done' ? 'Hold placed on PayPal' : 'Hold not placed yet', 'An authorization, not a charge.'))
+      .then((r) =>
+        toast(
+          r.result?.outcome === 'done' ? 'success' : 'warning',
+          r.result?.outcome === 'done' ? 'Hold placed on PayPal' : 'Hold not placed yet',
+          'An authorization, not a charge.',
+        ),
+      )
       .catch((e: any) => toast('danger', 'Could not confirm the hold', e?.message || 'Try again'))
       .finally(() => {
         void refresh()
@@ -64,15 +72,20 @@ export default function DealPage() {
   }, [fundKey, orgId, dealId, search, navigate, toast, refresh])
 
   const changed = () => void refresh()
-  const toReview = (key: string) => document.getElementById(`review-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  const toChangeOrder = (id: string) => document.getElementById(`co-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const toReview = (key: string) =>
+    document.getElementById(`review-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const toChangeOrder = (id: string) =>
+    document.getElementById(`co-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   // change orders waiting on the client, and what has been billed so far (amounts from the deal, never typed)
   const waitingCos = deal?.changeOrders.filter((c) => c.status === 'draft') ?? []
   const invoicedCos = deal?.changeOrders.filter((c) => c.status === 'invoiced') ?? []
 
   return (
     <div className="fade-in">
-      <Link to="/deals" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-umber hover:text-ink">
+      <Link
+        to="/deals"
+        className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-umber hover:text-ink"
+      >
         <ArrowLeft size={14} strokeWidth={2} /> All deals
       </Link>
       {isLoading ? (
@@ -81,22 +94,27 @@ export default function DealPage() {
           <CardSkeleton lines={6} />
         </div>
       ) : isError || !orgId ? (
-        <ErrorBanner message="This deal did not load. It may not exist, or you may not be a party to it." onRetry={() => void refetch()} />
+        <ErrorBanner
+          message="This deal did not load. It may not exist, or you may not be a party to it."
+          onRetry={() => void refetch()}
+        />
       ) : !deal ? (
         <EmptyState title="Deal not found" hint="Open one from the deals list." />
       ) : (
         <>
           <PageHeader
             title={deal.terms.title}
-            subtitle={`You are the ${roleWord(deal.me).toLowerCase()} on this deal.`}
             actions={
-              <button className="btn-secondary" onClick={() => setCopilot((v) => !v)} aria-expanded={copilot}>
+              <button
+                className="btn-secondary"
+                onClick={() => setCopilot((v) => !v)}
+                aria-expanded={copilot}
+              >
                 <Bot size={15} strokeWidth={1.75} />
                 {copilot ? 'Hide copilot' : 'Ask the copilot'}
               </button>
             }
           />
-          <Motto className="-mt-3 mb-5" />
           {isDemoDeal && (
             <JudgeTour
               onAsk={(text) => {
@@ -110,23 +128,54 @@ export default function DealPage() {
               className={`mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-4 py-3 ${waitingCos.length ? 'border-st-production/25 bg-st-production-bg' : 'border-line bg-surface'}`}
               data-testid="change-order-banner"
             >
-              <Receipt size={16} strokeWidth={1.75} className={waitingCos.length ? 'text-st-production' : 'text-teal'} aria-hidden="true" />
+              <Receipt
+                size={16}
+                strokeWidth={1.75}
+                className={waitingCos.length ? 'text-st-production' : 'text-teal'}
+                aria-hidden="true"
+              />
               <p className="min-w-0 flex-1 text-[13px] text-ink">
                 {waitingCos.length ? (
                   <>
-                    {waitingCos.length === 1 ? 'A change order is' : `${waitingCos.length} change orders are`} waiting for the client:{' '}
-                    <span className="t-num">{money(waitingCos.reduce((a, c) => a + c.amountMinor, 0), deal.terms.currency)}</span> from the signed rate card.
+                    {waitingCos.length === 1
+                      ? 'A change order is'
+                      : `${waitingCos.length} change orders are`}{' '}
+                    waiting for the client:{' '}
+                    <span className="t-num">
+                      {money(
+                        waitingCos.reduce((a, c) => a + c.amountMinor, 0),
+                        deal.terms.currency,
+                      )}
+                    </span>{' '}
+                    from the signed rate card.
                   </>
                 ) : (
                   <>
-                    {invoicedCos.length === 1 ? 'One change order' : `${invoicedCos.length} change orders`} invoiced in PayPal:{' '}
-                    <span className="t-num">{money(invoicedCos.reduce((a, c) => a + c.amountMinor, 0), deal.terms.currency)}</span>, {invoicedCos.every((c) => invoiceSent(c.invoiceId)) ? 'sent and not paid yet' : 'drafted and not charged yet'}.
+                    {invoicedCos.length === 1
+                      ? 'One change order'
+                      : `${invoicedCos.length} change orders`}{' '}
+                    invoiced in PayPal:{' '}
+                    <span className="t-num">
+                      {money(
+                        invoicedCos.reduce((a, c) => a + c.amountMinor, 0),
+                        deal.terms.currency,
+                      )}
+                    </span>
+                    ,{' '}
+                    {invoicedCos.every((c) => invoiceSent(c.invoiceId))
+                      ? 'sent and not paid yet'
+                      : 'drafted and not charged yet'}
+                    .
                   </>
                 )}
               </p>
               {waitingCos.length ? (
-                <button className="btn-primary btn-xs" onClick={() => toChangeOrder(waitingCos[0].id)}>
-                  {deal.me === 'client' ? 'Review & accept' : 'View'} <ArrowRight size={13} strokeWidth={2} />
+                <button
+                  className="btn-primary btn-xs"
+                  onClick={() => toChangeOrder(waitingCos[0].id)}
+                >
+                  {deal.me === 'client' ? 'Review & accept' : 'View'}{' '}
+                  <ArrowRight size={13} strokeWidth={2} />
                 </button>
               ) : (
                 <Link to="/invoices" className="btn-secondary btn-xs">
@@ -149,12 +198,22 @@ export default function DealPage() {
                 return (
                   <section key={t.key} className="space-y-4" aria-labelledby={`ms-${t.key}`}>
                     <div className="flex items-center gap-3 pt-2">
-                      <h2 id={`ms-${t.key}`} className="font-headline text-[17px] font-semibold text-ink">
+                      <h2
+                        id={`ms-${t.key}`}
+                        className="font-headline text-[17px] font-semibold text-ink"
+                      >
                         {t.title}
                       </h2>
                       <StatusChip status={r.state} />
                     </div>
-                    {clocked && <ReviewClockCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />}
+                    {clocked && (
+                      <ReviewClockCard
+                        deal={deal}
+                        orgId={orgId}
+                        milestoneKey={t.key}
+                        onChanged={changed}
+                      />
+                    )}
                     <LiveChecksCard
                       deal={deal}
                       orgId={orgId}
@@ -164,24 +223,46 @@ export default function DealPage() {
                       hideDecisions={clocked}
                     />
                     {showTerms && (
-                      <ClockTermsCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />
+                      <ClockTermsCard
+                        deal={deal}
+                        orgId={orgId}
+                        milestoneKey={t.key}
+                        onChanged={changed}
+                      />
                     )}
                     {(r.proposals?.review || (r.state === 'IN_REVIEW' && !clocked)) && (
                       <div id={`review-${t.key}`}>
-                        <ReviewMergeCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />
+                        <ReviewMergeCard
+                          deal={deal}
+                          orgId={orgId}
+                          milestoneKey={t.key}
+                          onChanged={changed}
+                        />
                       </div>
                     )}
                     {cos.map((c) => (
                       <div key={c.id} id={`co-${c.id}`} className="scroll-mt-20">
-                        <ChangeOrderCard deal={deal} orgId={orgId} changeOrderId={c.id} onChanged={changed} />
+                        <ChangeOrderCard
+                          deal={deal}
+                          orgId={orgId}
+                          changeOrderId={c.id}
+                          onChanged={changed}
+                        />
                       </div>
                     ))}
                     {(r.proposals?.dispute || r.state === 'DISPUTED') && (
-                      <DisputeSplitCard deal={deal} orgId={orgId} milestoneKey={t.key} onChanged={changed} />
+                      <DisputeSplitCard
+                        deal={deal}
+                        orgId={orgId}
+                        milestoneKey={t.key}
+                        onChanged={changed}
+                      />
                     )}
-                    {!!deal.termsHash && t.payees.length > 0 && (r.payouts.length > 0 || deal.me === 'worker') && (
-                      <TeamPayoutCard deal={deal} orgId={orgId} milestoneKey={t.key} />
-                    )}
+                    {!!deal.termsHash &&
+                      t.payees.length > 0 &&
+                      (r.payouts.length > 0 || deal.me === 'worker') && (
+                        <TeamPayoutCard deal={deal} orgId={orgId} milestoneKey={t.key} />
+                      )}
                   </section>
                 )
               })}

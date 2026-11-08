@@ -225,12 +225,9 @@ export default function RegisterPage() {
 
         <div className="relative z-10">
           <span className="auth-rule mb-5 block h-1 w-10" aria-hidden="true" />
-          <h1 className="max-w-md font-headline text-[40px] font-semibold leading-[1.08] tracking-[-0.03em] text-ink">
+          <h1 className="max-w-md text-[32px] font-medium leading-[1.15] tracking-[-0.01em] text-ink">
             One calm home for your team&apos;s concepts, reviews and published work
           </h1>
-          <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-umber">
-            Set up your organization, add your team, and keep every decision in one calm workspace.
-          </p>
 
           {/* Live preview of the workspace being created */}
           <div className="card card-hover mt-10 max-w-sm p-4">
@@ -304,9 +301,6 @@ export default function RegisterPage() {
             {step === 1 && (
               <div>
                 <h2 className="t-display">Name your organization</h2>
-                <p className="mt-2 text-sm text-umber">
-                  Your team, projects and content history will live here.
-                </p>
 
                 {existingWorkspace && (
                   <div
@@ -412,9 +406,6 @@ export default function RegisterPage() {
             {step === 2 && (
               <div>
                 <h2 className="t-display">Create the admin account</h2>
-                <p className="mt-2 text-sm text-umber">
-                  You&apos;ll own the workspace and manage your team.
-                </p>
 
                 {existingAccount && (
                   <div
@@ -589,9 +580,6 @@ export default function RegisterPage() {
             {step === 3 && (
               <div>
                 <h2 className="t-display">Invite your team</h2>
-                <p className="mt-2 text-sm text-umber">
-                  Add your editors, reviewers and publishers, or skip for now.
-                </p>
 
                 <div className="mt-7 space-y-3">
                   {members.length === 0 && (
@@ -600,9 +588,6 @@ export default function RegisterPage() {
                         <UserPlus size={17} strokeWidth={1.75} />
                       </span>
                       <p className="text-sm font-medium text-ink">No members yet</p>
-                      <p className="mt-1 text-xs text-umber">
-                        You can invite them anytime from Settings.
-                      </p>
                     </div>
                   )}
 

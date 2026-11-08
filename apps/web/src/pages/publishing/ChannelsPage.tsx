@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plug, RefreshCw, Unplug, FlaskConical, Radio, ArrowRight, AlertTriangle, ExternalLink, ShieldCheck } from 'lucide-react'
+import {
+  Plug,
+  RefreshCw,
+  Unplug,
+  FlaskConical,
+  Radio,
+  ArrowRight,
+  AlertTriangle,
+  ExternalLink,
+  ShieldCheck,
+} from 'lucide-react'
 import Chip, { Modal } from '../../components/primitives'
 import { PageHeader } from '../../components/ui'
 import { ErrorBanner, ListSkeleton } from '../../components/states'
@@ -42,7 +52,11 @@ export default function ChannelsPage() {
     try {
       const list = await completeChannelConnect(orgId)
       const live = list.filter((c) => c.status === 'connected').length
-      toast('success', 'Channels refreshed from Postiz', `${live} connected channel${live === 1 ? '' : 's'}`)
+      toast(
+        'success',
+        'Channels refreshed from Postiz',
+        `${live} connected channel${live === 1 ? '' : 's'}`,
+      )
       setOauth(null)
       await reload()
     } catch (err: any) {
@@ -66,13 +80,20 @@ export default function ChannelsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [oauth])
 
-  const handleStart = (label: string, res: { mode: string; url?: string; channel?: SocialChannel; reconnect?: boolean }) => {
+  const handleStart = (
+    label: string,
+    res: { mode: string; url?: string; channel?: SocialChannel; reconnect?: boolean },
+  ) => {
     if (res.mode === 'postiz' && res.url) {
       popup.current = window.open(res.url, 'postiz-connect', 'width=620,height=760')
       setOauth({ label, url: res.url })
       return false
     }
-    toast('success', `${label} ${res.reconnect ? 'reconnected' : 'connected'}`, `${res.channel?.name ?? 'Demo channel'} · simulated sign-in (demo mode)`)
+    toast(
+      'success',
+      `${label} ${res.reconnect ? 'reconnected' : 'connected'}`,
+      `${res.channel?.name ?? 'Demo channel'} · simulated sign-in (demo mode)`,
+    )
     return true
   }
 
@@ -108,8 +129,14 @@ export default function ChannelsPage() {
     setBusy(true)
     try {
       const r = await checkChannels(orgId)
-      if (r.apiKeyValid === false) toast('danger', 'Postiz rejected the API key', 'Check POSTIZ_API_KEY on the server')
-      else toast(r.expired ? 'warning' : 'success', 'Connections checked', r.expired ? `${r.expired} channel(s) need reconnecting` : 'Every channel is healthy')
+      if (r.apiKeyValid === false)
+        toast('danger', 'Postiz rejected the API key', 'Check POSTIZ_API_KEY on the server')
+      else
+        toast(
+          r.expired ? 'warning' : 'success',
+          'Connections checked',
+          r.expired ? `${r.expired} channel(s) need reconnecting` : 'Every channel is healthy',
+        )
       await reload()
     } catch (err: any) {
       toast('danger', 'Check failed', err?.message)
@@ -123,7 +150,11 @@ export default function ChannelsPage() {
     setBusy(true)
     try {
       const linked = await importPostizChannels(orgId)
-      toast('success', 'Synced from Postiz', `${linked.length} channel${linked.length === 1 ? '' : 's'} linked`)
+      toast(
+        'success',
+        'Synced from Postiz',
+        `${linked.length} channel${linked.length === 1 ? '' : 's'} linked`,
+      )
       await reload()
     } catch (err: any) {
       toast('danger', 'Postiz sync failed', err?.message)
@@ -149,7 +180,6 @@ export default function ChannelsPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Channels"
-        subtitle="The social accounts approved content goes out to. Connect them once, then schedule from the composer."
         actions={
           <Link to="/publishing/compose" className="btn-primary" data-testid="channels-compose">
             Schedule a post <ArrowRight size={14} strokeWidth={1.75} />
@@ -164,8 +194,14 @@ export default function ChannelsPage() {
           style={{ borderLeft: `3px solid ${postiz ? '#035E5E' : '#b45309'}` }}
         >
           <div className="flex items-start gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${postiz ? 'bg-tint text-[#035E5E]' : 'bg-warning/10 text-warning'}`}>
-              {postiz ? <Radio size={18} strokeWidth={1.75} /> : <FlaskConical size={18} strokeWidth={1.75} />}
+            <span
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${postiz ? 'bg-tint text-[#035E5E]' : 'bg-warning/10 text-warning'}`}
+            >
+              {postiz ? (
+                <Radio size={18} strokeWidth={1.75} />
+              ) : (
+                <FlaskConical size={18} strokeWidth={1.75} />
+              )}
             </span>
             <div>
               <h2 className="card-title">
@@ -180,11 +216,21 @@ export default function ChannelsPage() {
           </div>
           {canManage && (
             <div className="flex flex-wrap gap-2">
-              <button className="btn-ghost" onClick={() => void check()} disabled={busy} data-testid="channels-check">
+              <button
+                className="btn-ghost"
+                onClick={() => void check()}
+                disabled={busy}
+                data-testid="channels-check"
+              >
                 <ShieldCheck size={14} strokeWidth={1.75} /> Check connections
               </button>
               {postiz && (
-                <button className="btn-secondary" onClick={syncPostiz} disabled={busy} data-testid="postiz-sync">
+                <button
+                  className="btn-secondary"
+                  onClick={syncPostiz}
+                  disabled={busy}
+                  data-testid="postiz-sync"
+                >
                   <RefreshCw size={14} strokeWidth={1.75} /> Sync from Postiz
                 </button>
               )}
@@ -205,7 +251,9 @@ export default function ChannelsPage() {
                 <header className="flex items-center gap-3">
                   <PlatformIcon platform={p} size="lg" />
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-headline text-base font-semibold tracking-tight text-[#171310]">{PLATFORMS[p].label}</h3>
+                    <h3 className="font-headline text-base font-semibold tracking-tight text-[#171310]">
+                      {PLATFORMS[p].label}
+                    </h3>
                     <p className="text-xs text-umber">{PLATFORMS[p].hint}</p>
                   </div>
                   {list.some((c) => c.status === 'expired') ? (
@@ -227,21 +275,37 @@ export default function ChannelsPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-ink">{c.name}</p>
-                        <p className="truncate font-mono text-[11px] text-umber">{c.handle ? `@${c.handle}` : c.externalId || ''}</p>
+                        <p className="truncate font-mono text-[11px] text-umber">
+                          {c.handle ? `@${c.handle}` : c.externalId || ''}
+                        </p>
                         {c.status === 'expired' && (
                           <p className="mt-1 flex items-center gap-1 text-xs text-danger">
-                            <AlertTriangle size={12} strokeWidth={2} /> {c.statusReason || 'Authorisation expired'}
+                            <AlertTriangle size={12} strokeWidth={2} />{' '}
+                            {c.statusReason || 'Authorisation expired'}
                           </p>
                         )}
                       </div>
-                      <Chip label={c.mode === 'postiz' ? 'Postiz' : 'Demo'} tone={c.mode === 'postiz' ? 'teal' : 'warning'} />
+                      <Chip
+                        label={c.mode === 'postiz' ? 'Postiz' : 'Demo'}
+                        tone={c.mode === 'postiz' ? 'teal' : 'warning'}
+                      />
                       {canManage && c.status === 'expired' && (
-                        <button className="btn-secondary !h-8 text-xs" onClick={() => void reconnect(c)} disabled={busy} data-testid="channel-reconnect">
+                        <button
+                          className="btn-secondary !h-8 text-xs"
+                          onClick={() => void reconnect(c)}
+                          disabled={busy}
+                          data-testid="channel-reconnect"
+                        >
                           <RefreshCw size={12} strokeWidth={1.75} /> Reconnect
                         </button>
                       )}
                       {canManage && (
-                        <button className="icon-btn icon-btn-sm" aria-label={`Disconnect ${c.name}`} title="Disconnect" onClick={() => void disconnect(c.id, c.name)}>
+                        <button
+                          className="icon-btn icon-btn-sm"
+                          aria-label={`Disconnect ${c.name}`}
+                          title="Disconnect"
+                          onClick={() => void disconnect(c.id, c.name)}
+                        >
                           <Unplug size={14} strokeWidth={1.75} />
                         </button>
                       )}
@@ -255,7 +319,8 @@ export default function ChannelsPage() {
                     onClick={() => openConnect(p)}
                     data-testid={`connect-${p}`}
                   >
-                    <Plug size={14} strokeWidth={1.75} /> {list.length ? 'Add another account' : `Connect ${PLATFORMS[p].label}`}
+                    <Plug size={14} strokeWidth={1.75} />{' '}
+                    {list.length ? 'Add another account' : `Connect ${PLATFORMS[p].label}`}
                   </button>
                 )}
               </section>
@@ -264,54 +329,77 @@ export default function ChannelsPage() {
         </div>
       )}
 
-      <Modal open={!!connecting} onClose={() => setConnecting(null)} title={connecting ? `Connect ${PLATFORMS[connecting].label}` : 'Connect'}>
+      <Modal
+        open={!!connecting}
+        onClose={() => setConnecting(null)}
+        title={connecting ? `Connect ${PLATFORMS[connecting].label}` : 'Connect'}
+      >
         {connecting && (
           <div className="space-y-4">
             {postiz ? (
               <p className="text-sm leading-relaxed text-umber">
-                You will sign in to {PLATFORMS[connecting].label} in a Postiz window (Postiz holds the tokens). When you close it, yv. picks up the new
-                channel automatically.
+                You will sign in to {PLATFORMS[connecting].label} in a Postiz window (Postiz holds
+                the tokens). When you close it, yv. picks up the new channel automatically.
               </p>
             ) : (
               <p className="text-sm leading-relaxed text-umber">
-                Demo mode: the sign-in is simulated, no real account is touched. Posts to it are published by the built-in scheduler with a demo link.
+                Demo mode: the sign-in is simulated, no real account is touched. Posts to it are
+                published by the built-in scheduler with a demo link.
               </p>
             )}
             {!postiz && (
-            <label className="block">
-              <span className="text-xs font-medium text-umber">Account handle</span>
-              <div className="mt-1 flex items-center gap-2">
-                <PlatformIcon platform={connecting} size="sm" />
-                <input
-                  className="input flex-1"
-                  value={handle}
-                  autoFocus
-                  onChange={(e) => setHandle(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void connect()}
-                  placeholder={`@${PLATFORMS[connecting].placeholder}`}
-                  data-testid="channel-handle"
-                />
-              </div>
-            </label>
+              <label className="block">
+                <span className="text-xs font-medium text-umber">Account handle</span>
+                <div className="mt-1 flex items-center gap-2">
+                  <PlatformIcon platform={connecting} size="sm" />
+                  <input
+                    className="input flex-1"
+                    value={handle}
+                    autoFocus
+                    onChange={(e) => setHandle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && void connect()}
+                    placeholder={`@${PLATFORMS[connecting].placeholder}`}
+                    data-testid="channel-handle"
+                  />
+                </div>
+              </label>
             )}
             <div className="flex justify-end gap-2">
               <button className="btn-ghost" onClick={() => setConnecting(null)}>
                 Cancel
               </button>
-              <button className="btn-primary" onClick={() => void connect()} disabled={busy} data-testid="channel-connect-submit">
-                {busy ? 'Connecting…' : postiz ? `Continue to ${PLATFORMS[connecting].label}` : 'Connect (simulated sign-in)'}
+              <button
+                className="btn-primary"
+                onClick={() => void connect()}
+                disabled={busy}
+                data-testid="channel-connect-submit"
+              >
+                {busy
+                  ? 'Connecting…'
+                  : postiz
+                    ? `Continue to ${PLATFORMS[connecting].label}`
+                    : 'Connect (simulated sign-in)'}
               </button>
             </div>
           </div>
         )}
       </Modal>
 
-      <Modal open={!!oauth} onClose={() => setOauth(null)} title={oauth ? `Connecting ${oauth.label}` : 'Connecting'}>
+      <Modal
+        open={!!oauth}
+        onClose={() => setOauth(null)}
+        title={oauth ? `Connecting ${oauth.label}` : 'Connecting'}
+      >
         {oauth && (
           <div className="space-y-4" data-testid="oauth-wait">
             <p className="text-sm leading-relaxed text-umber">
               Finish signing in in the Postiz window. If it did not open,{' '}
-              <a className="font-medium text-[#035E5E] underline" href={oauth.url} target="_blank" rel="noreferrer">
+              <a
+                className="font-medium text-[#035E5E] underline"
+                href={oauth.url}
+                target="_blank"
+                rel="noreferrer"
+              >
                 open it here <ExternalLink size={12} className="inline" />
               </a>
               .
@@ -320,7 +408,12 @@ export default function ChannelsPage() {
               <button className="btn-ghost" onClick={() => setOauth(null)}>
                 Cancel
               </button>
-              <button className="btn-primary" onClick={() => void finishOauth()} disabled={busy} data-testid="oauth-done">
+              <button
+                className="btn-primary"
+                onClick={() => void finishOauth()}
+                disabled={busy}
+                data-testid="oauth-done"
+              >
                 {busy ? 'Checking…' : 'I have connected it'}
               </button>
             </div>

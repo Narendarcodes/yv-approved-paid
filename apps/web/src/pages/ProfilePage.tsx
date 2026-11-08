@@ -263,7 +263,6 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-3xl">
       <header className="mb-7">
         <h1 className="t-display">Profile</h1>
-        <p className="mt-1.5 text-sm text-umber">Your account details and workspace identity</p>
       </header>
 
       <section className="card overflow-hidden">

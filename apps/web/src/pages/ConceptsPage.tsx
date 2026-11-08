@@ -165,7 +165,6 @@ export default function ConceptsPage() {
     <div className="fade-in space-y-8">
       <PageHeader
         title="Concepts"
-        subtitle="Every content idea the team is weighing, before it becomes a project."
         actions={
           mayManage ? (
             <button className="btn-primary" onClick={() => setOpen(true)}>
@@ -206,10 +205,6 @@ export default function ConceptsPage() {
                   All analytics →
                 </Link>
               </div>
-              <p className="mb-3 text-xs text-umber">
-                Last month's best performers by engagement rate - build the next idea on what
-                landed.
-              </p>
               <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {top.items.map((t, i) => (
                   <li key={t.projectId} className="rounded-[10px] border border-line p-3">
@@ -336,10 +331,6 @@ export default function ConceptsPage() {
       >
         {converting && (
           <div className="space-y-3" data-testid="convert-modal">
-            <p className="text-xs text-umber">
-              Creates the project and its creative brief in one step. Everything here can be edited
-              later on the project.
-            </p>
             <label className="label block" htmlFor="cv-goal">
               Goal
             </label>

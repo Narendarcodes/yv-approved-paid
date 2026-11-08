@@ -27,7 +27,12 @@ const STAGE_LINK: Record<string, string> = {
 function Who({ b }: { b: BlockedOn | null }) {
   if (!b) return null
   if (b.kind === 'unassigned') return <UnassignedChip size="xs" />
-  const tone = b.kind === 'client' ? 'bg-st-production-bg text-st-production' : b.kind === 'system' ? 'bg-ink/[0.05] text-umber' : 'bg-st-scheduled-bg text-st-scheduled'
+  const tone =
+    b.kind === 'client'
+      ? 'bg-st-production-bg text-st-production'
+      : b.kind === 'system'
+        ? 'bg-ink/[0.05] text-umber'
+        : 'bg-st-scheduled-bg text-st-scheduled'
   return <span className={`status-chip max-w-full truncate ${tone}`}>{b.name}</span>
 }
 
@@ -80,14 +85,26 @@ export function PipelineOverview() {
                   <span className="sr-only">Stage {i + 1}: </span>
                   {s.label}
                 </span>
-                <span className="t-num mt-1 text-[28px] leading-none" data-testid={`stage-count-${s.key}`}>
+                <span
+                  className="t-num mt-1 text-[28px] leading-none"
+                  data-testid={`stage-count-${s.key}`}
+                >
                   {s.count}
                 </span>
                 <span className="text-xs text-umber">
-                  {s.key === 'idea' && s.concepts ? `${s.concepts} concept${s.concepts === 1 ? '' : 's'}` : s.key === 'live' ? 'last 30 days' : s.count ? 'in progress' : 'clear'}
+                  {s.key === 'idea' && s.concepts
+                    ? `${s.concepts} concept${s.concepts === 1 ? '' : 's'}`
+                    : s.key === 'live'
+                      ? 'last 30 days'
+                      : s.count
+                        ? 'in progress'
+                        : 'clear'}
                 </span>
                 <span className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-ink/[0.06]">
-                  <span className={`block h-full rounded-full transition-[width] duration-500 ${STAGE_DOT[stageOf(s.key)]}`} style={{ width: `${total ? Math.max(4, (s.count / total) * 100) : 0}%` }} />
+                  <span
+                    className={`block h-full rounded-full transition-[width] duration-500 ${STAGE_DOT[stageOf(s.key)]}`}
+                    style={{ width: `${total ? Math.max(4, (s.count / total) * 100) : 0}%` }}
+                  />
                 </span>
               </button>
             </li>
@@ -105,11 +122,20 @@ export function PipelineOverview() {
               <ul className="divide-y divide-line">
                 {shown.items.map((it) => (
                   <li key={it._id} className="flex flex-wrap items-center gap-3 py-2.5">
-                    <Link to={`/projects/${it._id}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-teal">
+                    <Link
+                      to={`/projects/${it._id}`}
+                      className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-teal"
+                    >
                       {it.title}
                     </Link>
-                    {it.failedPosts > 0 && <span className="text-[11px] font-medium text-danger">{it.failedPosts} failed post</span>}
-                    {it.blockedOn?.action && <span className="text-xs text-umber">{it.blockedOn.action}</span>}
+                    {it.failedPosts > 0 && (
+                      <span className="text-[11px] font-medium text-danger">
+                        {it.failedPosts} failed post
+                      </span>
+                    )}
+                    {it.blockedOn?.action && (
+                      <span className="text-xs text-umber">{it.blockedOn.action}</span>
+                    )}
                     <Who b={it.blockedOn} />
                   </li>
                 ))}
@@ -134,7 +160,9 @@ export function PipelineOverview() {
                 <li key={`${b.kind}:${b.name}`} className="px-5 py-3">
                   <div className="flex items-center gap-2">
                     <Who b={{ kind: b.kind, name: b.name }} />
-                    <span className="ml-auto font-mono text-xs text-umber">{b.count} item{b.count === 1 ? '' : 's'}</span>
+                    <span className="ml-auto font-mono text-xs text-umber">
+                      {b.count} item{b.count === 1 ? '' : 's'}
+                    </span>
                   </div>
                   <p className="mt-1 truncate text-xs text-umber">
                     {b.projects.map((p) => p.title).join(' · ')}
@@ -143,7 +171,7 @@ export function PipelineOverview() {
               ))}
             </ul>
           ) : (
-            <p className="px-5 py-6 text-sm text-umber">Nobody is blocking anything. Next step: propose a concept.</p>
+            <p className="px-5 py-6 text-sm text-umber">Nobody is blocking anything</p>
           )}
         </div>
 
@@ -153,7 +181,10 @@ export function PipelineOverview() {
             <CalendarClock size={15} strokeWidth={1.75} className="text-umber" />
             <h2 className="card-title">Going live today</h2>
             {data.failedPosts > 0 && (
-              <Link to="/publishing/calendar" className="ml-auto flex items-center gap-1 rounded-md text-xs font-medium text-st-failed hover:underline">
+              <Link
+                to="/publishing/calendar"
+                className="ml-auto flex items-center gap-1 rounded-md text-xs font-medium text-st-failed hover:underline"
+              >
                 <AlertTriangle size={12} strokeWidth={2} /> {data.failedPosts} failed
               </Link>
             )}
@@ -163,7 +194,10 @@ export function PipelineOverview() {
               {data.goingLiveToday.slice(0, 6).map((g) => (
                 <li key={g._id} className="flex items-center gap-3 px-5 py-3">
                   <PlatformIcon platform={g.platform} size="sm" />
-                  <Link to={`/projects/${g.projectId}`} className="min-w-0 flex-1 truncate text-sm text-ink hover:text-teal">
+                  <Link
+                    to={`/projects/${g.projectId}`}
+                    className="min-w-0 flex-1 truncate text-sm text-ink hover:text-teal"
+                  >
                     {g.title}
                   </Link>
                   {g.status === 'published' ? (
@@ -199,7 +233,10 @@ export function PipelineOverview() {
                   <SimulatedBadge show />
                 </div>
               )}
-              <Link to={`/projects/${data.lastWeekBest.projectId}`} className="block font-headline text-lg font-semibold leading-snug tracking-[-0.01em] text-ink hover:text-teal">
+              <Link
+                to={`/projects/${data.lastWeekBest.projectId}`}
+                className="block font-headline text-lg font-semibold leading-snug tracking-[-0.01em] text-ink hover:text-teal"
+              >
                 {data.lastWeekBest.title}
               </Link>
               <div className="mt-2 flex items-center gap-1.5">
@@ -210,7 +247,9 @@ export function PipelineOverview() {
               <dl className="mt-4 grid grid-cols-2 gap-3">
                 <div>
                   <dt className="micro-label">Engagement</dt>
-                  <dd className="t-num mt-0.5 text-xl !text-teal">{pctText(data.lastWeekBest.engagementRate)}</dd>
+                  <dd className="t-num mt-0.5 text-xl !text-teal">
+                    {pctText(data.lastWeekBest.engagementRate)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="micro-label">Views (7d)</dt>
@@ -218,14 +257,15 @@ export function PipelineOverview() {
                 </div>
               </dl>
               <p className="mt-3 flex items-center gap-1.5 text-xs text-umber">
-                Team views this week {compact(data.lastWeek.views)} <Delta value={data.lastWeek.change} />
+                Team views this week {compact(data.lastWeek.views)}{' '}
+                <Delta value={data.lastWeek.change} />
               </p>
               <Link to="/analytics" className="card-link mt-3">
                 Open analytics <ArrowRight size={12} strokeWidth={2} />
               </Link>
             </div>
           ) : (
-            <p className="px-5 py-6 text-sm text-umber">No published posts last week. Once something goes live its numbers land here.</p>
+            <p className="px-5 py-6 text-sm text-umber">No published posts last week</p>
           )}
         </div>
       </section>

@@ -27,7 +27,13 @@ const STAGES: { key: string; label: string; statuses: string[] }[] = [
   {
     key: 'review',
     label: 'Review',
-    statuses: ['FIRST_DRAFT_SUBMITTED', 'UNDER_REVIEW', 'REVISION_REQUESTED', 'REVISION_IN_PROGRESS', 'REVISION_SUBMITTED'],
+    statuses: [
+      'FIRST_DRAFT_SUBMITTED',
+      'UNDER_REVIEW',
+      'REVISION_REQUESTED',
+      'REVISION_IN_PROGRESS',
+      'REVISION_SUBMITTED',
+    ],
   },
   { key: 'approved', label: 'Approved', statuses: ['APPROVED'] },
   { key: 'scheduled', label: 'Scheduled', statuses: ['SCHEDULED'] },
@@ -117,7 +123,9 @@ export function ProjectLifecycle({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="micro-label">Lifecycle</p>
-          <p className="mt-1 font-headline text-base font-semibold tracking-tight text-ink">{projectStatusLabel({ status, publishProgress })}</p>
+          <p className="mt-1 font-headline text-base font-semibold tracking-tight text-ink">
+            {projectStatusLabel({ status, publishProgress })}
+          </p>
         </div>
         {next && !cancelled && (
           <div className="flex flex-wrap items-center gap-2">
@@ -128,7 +136,15 @@ export function ProjectLifecycle({
               data-testid="advance-stage"
               title={allowed ? undefined : 'Your role cannot make this move'}
             >
-              {busy ? 'Moving…' : next === 'APPROVED' ? 'Approve latest version' : next === 'PUBLISHED' ? 'Open scheduled posts' : next === 'SCHEDULED' ? 'Schedule post' : `Move to ${statusLabel(next)}`}
+              {busy
+                ? 'Moving…'
+                : next === 'APPROVED'
+                  ? 'Approve latest version'
+                  : next === 'PUBLISHED'
+                    ? 'Open scheduled posts'
+                    : next === 'SCHEDULED'
+                      ? 'Schedule post'
+                      : `Move to ${statusLabel(next)}`}
               {!busy && <ArrowRight size={14} strokeWidth={1.75} />}
             </button>
           </div>
@@ -141,17 +157,27 @@ export function ProjectLifecycle({
           const active = !cancelled && i === current
           return (
             <li key={s.key} className="min-w-0">
-              <div className={`h-1.5 rounded-full transition-colors duration-500 ${done ? 'bg-teal' : active ? 'bg-teal/60' : 'bg-line'}`} />
+              <div
+                className={`h-1.5 rounded-full transition-colors duration-500 ${done ? 'bg-teal' : active ? 'bg-teal/60' : 'bg-line'}`}
+              />
               <div className="mt-2 flex items-center gap-1.5">
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] ${
-                    done ? 'bg-teal text-on-accent' : active ? 'border-2 border-teal bg-surface' : 'border border-line bg-surface'
+                    done
+                      ? 'bg-teal text-on-accent'
+                      : active
+                        ? 'border-2 border-teal bg-surface'
+                        : 'border border-line bg-surface'
                   }`}
                   aria-hidden="true"
                 >
                   {done && <Check size={10} strokeWidth={3} />}
                 </span>
-                <span className={`truncate text-[12px] ${active ? 'font-semibold text-ink' : done ? 'text-ink/80' : 'text-label'}`}>{s.label}</span>
+                <span
+                  className={`truncate text-[12px] ${active ? 'font-semibold text-ink' : done ? 'text-ink/80' : 'text-label'}`}
+                >
+                  {s.label}
+                </span>
               </div>
             </li>
           )
@@ -161,7 +187,15 @@ export function ProjectLifecycle({
   )
 }
 
-const EMPTY_BRIEF: Brief = { goal: '', targetAudience: '', videoType: '', deliverables: [], references: [], deadline: null, specialInstructions: '' }
+const EMPTY_BRIEF: Brief = {
+  goal: '',
+  targetAudience: '',
+  videoType: '',
+  deliverables: [],
+  references: [],
+  deadline: null,
+  specialInstructions: '',
+}
 
 export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Viewer }) {
   const toast = useToast()
@@ -198,7 +232,10 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
         goal: form.goal || '',
         targetAudience: form.targetAudience || '',
         videoType: form.videoType || '',
-        deliverables: deliverablesText.split('\n').map((d) => d.trim()).filter(Boolean),
+        deliverables: deliverablesText
+          .split('\n')
+          .map((d) => d.trim())
+          .filter(Boolean),
         references: form.references ?? [],
         deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
         specialInstructions: form.specialInstructions || '',
@@ -232,25 +269,57 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
       {editing ? (
         <div className="space-y-3 px-5 py-4">
           <div>
-            <label className="label" htmlFor="brief-goal">Goal</label>
-            <textarea id="brief-goal" rows={2} className="input w-full" value={form.goal ?? ''} onChange={(e) => setForm({ ...form, goal: e.target.value })} />
+            <label className="label" htmlFor="brief-goal">
+              Goal
+            </label>
+            <textarea
+              id="brief-goal"
+              rows={2}
+              className="input w-full"
+              value={form.goal ?? ''}
+              onChange={(e) => setForm({ ...form, goal: e.target.value })}
+            />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="label" htmlFor="brief-aud">Audience</label>
-              <input id="brief-aud" className="input" value={form.targetAudience ?? ''} onChange={(e) => setForm({ ...form, targetAudience: e.target.value })} />
+              <label className="label" htmlFor="brief-aud">
+                Audience
+              </label>
+              <input
+                id="brief-aud"
+                className="input"
+                value={form.targetAudience ?? ''}
+                onChange={(e) => setForm({ ...form, targetAudience: e.target.value })}
+              />
             </div>
             <div>
-              <label className="label" htmlFor="brief-type">Format</label>
-              <input id="brief-type" className="input" value={form.videoType ?? ''} onChange={(e) => setForm({ ...form, videoType: e.target.value })} />
+              <label className="label" htmlFor="brief-type">
+                Format
+              </label>
+              <input
+                id="brief-type"
+                className="input"
+                value={form.videoType ?? ''}
+                onChange={(e) => setForm({ ...form, videoType: e.target.value })}
+              />
             </div>
           </div>
           <div>
-            <label className="label" htmlFor="brief-del">Deliverables (one per line)</label>
-            <textarea id="brief-del" rows={3} className="input w-full" value={deliverablesText} onChange={(e) => setDeliverablesText(e.target.value)} />
+            <label className="label" htmlFor="brief-del">
+              Deliverables (one per line)
+            </label>
+            <textarea
+              id="brief-del"
+              rows={3}
+              className="input w-full"
+              value={deliverablesText}
+              onChange={(e) => setDeliverablesText(e.target.value)}
+            />
           </div>
           <div>
-            <label className="label" htmlFor="brief-deadline">Deadline</label>
+            <label className="label" htmlFor="brief-deadline">
+              Deadline
+            </label>
             <input
               id="brief-deadline"
               type="date"
@@ -260,8 +329,17 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
             />
           </div>
           <div className="flex justify-end gap-2 pt-1">
-            <button className="btn-ghost" onClick={() => setEditing(false)} disabled={saving}>Cancel</button>
-            <button className="btn-primary" onClick={save} disabled={saving} data-testid="save-brief">{saving ? 'Saving…' : 'Save brief'}</button>
+            <button className="btn-ghost" onClick={() => setEditing(false)} disabled={saving}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={save}
+              disabled={saving}
+              data-testid="save-brief"
+            >
+              {saving ? 'Saving…' : 'Save brief'}
+            </button>
           </div>
         </div>
       ) : brief ? (
@@ -278,7 +356,9 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
             <dt className="micro-label">Format · deadline</dt>
             <dd className="mt-1 text-sm text-ink/85">
               {brief.videoType || '—'}
-              {deadline && !isNaN(deadline.getTime()) ? ` · ${deadline.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}
+              {deadline && !isNaN(deadline.getTime())
+                ? ` · ${deadline.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+                : ''}
             </dd>
           </div>
           {!!brief.deliverables?.length && (
@@ -286,14 +366,16 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
               <dt className="micro-label">Deliverables</dt>
               <dd className="mt-1.5 flex flex-wrap gap-1.5">
                 {brief.deliverables.map((d) => (
-                  <span key={d} className="rounded-full bg-tint px-2.5 py-1 text-[12px] text-teal">{d}</span>
+                  <span key={d} className="rounded-full bg-tint px-2.5 py-1 text-[12px] text-teal">
+                    {d}
+                  </span>
                 ))}
               </dd>
             </div>
           )}
         </dl>
       ) : (
-        <p className="px-5 py-8 text-center text-sm text-umber">No brief yet. Capture the goal, audience and deliverables so nobody has to dig through chats.</p>
+        <p className="px-5 py-8 text-center text-sm text-umber">No brief yet</p>
       )}
     </div>
   )

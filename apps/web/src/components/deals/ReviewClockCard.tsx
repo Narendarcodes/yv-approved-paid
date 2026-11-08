@@ -11,20 +11,39 @@
  * and when. Polls every 15 s. Every amount and date comes from the API.
  */
 import { useMemo, useState } from 'react'
-import { AlertTriangle, ChevronDown, CircleCheck, Clock3, Gavel, MessageSquareDiff, PauseCircle, Receipt } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronDown,
+  CircleCheck,
+  Clock3,
+  Gavel,
+  MessageSquareDiff,
+  PauseCircle,
+  Receipt,
+} from 'lucide-react'
 import { Modal } from '../primitives'
 import { useToast } from '../toast'
 import * as api from '../../services/api'
 import type { ClockChangesReply, ClockView } from '../../services/api'
 import type { DealView } from '../../contracts/types'
 import { milestonePair, money } from '../../lib/deals'
-import { byWord, countdown, eventText, inZone, progressOf, useMilestoneClock } from '../../lib/clock'
+import {
+  byWord,
+  countdown,
+  eventText,
+  inZone,
+  progressOf,
+  useMilestoneClock,
+} from '../../lib/clock'
 import { DealCardShell } from './common'
 
 type Dialog = null | 'approve' | 'changes' | 'dispute'
 
 function StatusPill({ v }: { v: ClockView }) {
-  const s = v.status === 'running' && (v.state.status === 'released_partial' || v.state.status === 'grace') ? 'grace' : v.status
+  const s =
+    v.status === 'running' && (v.state.status === 'released_partial' || v.state.status === 'grace')
+      ? 'grace'
+      : v.status
   const map: Record<string, [string, string]> = {
     waiting_checks: ['Waiting for checks', 'bg-ink/[0.05] text-umber'],
     running: ['Running', 'bg-st-review-bg text-st-review'],
@@ -50,7 +69,9 @@ function Bar({ v }: { v: ClockView }) {
   const inGrace = p.window >= 1 && p.hasGrace && v.status === 'running'
   // two marks closer than ~8% of the bar: the later label drops a line so they never overlap
   const sorted = [...p.markers].sort((a, b) => a.at - b.at)
-  const lifted = new Set(sorted.filter((m, i) => i > 0 && m.at - sorted[i - 1].at < 0.08).map((m) => m.id))
+  const lifted = new Set(
+    sorted.filter((m, i) => i > 0 && m.at - sorted[i - 1].at < 0.08).map((m) => m.id),
+  )
   return (
     <div className="mt-4" data-testid="clock-progress">
       <div
@@ -66,10 +87,18 @@ function Bar({ v }: { v: ClockView }) {
           style={{ width: `${p.window * 100}%` }}
         />
         {p.markers.map((m) => (
-          <span key={m.id} className="absolute -top-1 h-4 w-px bg-ink/40" style={{ left: `${m.at * 100}%` }} aria-hidden="true" />
+          <span
+            key={m.id}
+            className="absolute -top-1 h-4 w-px bg-ink/40"
+            style={{ left: `${m.at * 100}%` }}
+            aria-hidden="true"
+          />
         ))}
       </div>
-      <div className={`relative mt-1 font-mono text-[10px] text-label ${lifted.size ? 'h-8' : 'h-4'}`} aria-hidden="true">
+      <div
+        className={`relative mt-1 font-mono text-[10px] text-label ${lifted.size ? 'h-8' : 'h-4'}`}
+        aria-hidden="true"
+      >
         {p.markers.map((m) => (
           <span
             key={m.id}
@@ -83,8 +112,18 @@ function Bar({ v }: { v: ClockView }) {
       {inGrace && (
         <div className="mt-2">
           <p className="micro-label">Grace</p>
-          <div className="relative mt-1 h-1.5 rounded-full bg-ink/[0.06]" role="progressbar" aria-label="Grace period used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p.grace * 100)}>
-            <div className="absolute inset-y-0 left-0 rounded-full bg-st-production" style={{ width: `${p.grace * 100}%` }} />
+          <div
+            className="relative mt-1 h-1.5 rounded-full bg-ink/[0.06]"
+            role="progressbar"
+            aria-label="Grace period used"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(p.grace * 100)}
+          >
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-st-production"
+              style={{ width: `${p.grace * 100}%` }}
+            />
           </div>
         </div>
       )}
@@ -120,10 +159,23 @@ export default function ReviewClockCard({
   const options = useMemo(() => {
     if (!pair) return []
     const latest = pair.runtime.versions[pair.runtime.versions.length - 1]
-    const failed = new Set([...(latest?.checks?.failed ?? []), ...(latest?.checks?.unmeasured ?? [])])
-    const brief = pair.terms.checklist.map((c) => ({ id: c.id, text: c.text, kind: failed.has(c.id) ? ('failed' as const) : ('brief' as const) }))
-    const extra = [...failed].filter((id) => !pair.terms.checklist.some((c) => c.id === id)).map((id) => ({ id, text: id, kind: 'failed' as const }))
-    return [...brief.filter((o) => o.kind === 'failed'), ...extra, ...brief.filter((o) => o.kind === 'brief')]
+    const failed = new Set([
+      ...(latest?.checks?.failed ?? []),
+      ...(latest?.checks?.unmeasured ?? []),
+    ])
+    const brief = pair.terms.checklist.map((c) => ({
+      id: c.id,
+      text: c.text,
+      kind: failed.has(c.id) ? ('failed' as const) : ('brief' as const),
+    }))
+    const extra = [...failed]
+      .filter((id) => !pair.terms.checklist.some((c) => c.id === id))
+      .map((id) => ({ id, text: id, kind: 'failed' as const }))
+    return [
+      ...brief.filter((o) => o.kind === 'failed'),
+      ...extra,
+      ...brief.filter((o) => o.kind === 'brief'),
+    ]
   }, [pair])
 
   if (!pair || q.isLoading) {
@@ -155,11 +207,17 @@ export default function ReviewClockCard({
   const inReview = v.milestoneState === 'IN_REVIEW'
   const isClient = deal.me === 'client'
   const isEditor = deal.me === 'worker'
-  const held = Math.max(0, Math.min(v.amounts?.amountMinor ?? 0, runtime.funding?.authorizedMinor ?? 0) - runtime.capturedMinor)
+  const held = Math.max(
+    0,
+    Math.min(v.amounts?.amountMinor ?? 0, runtime.funding?.authorizedMinor ?? 0) -
+      runtime.capturedMinor,
+  )
   const total = v.amounts?.amountMinor ?? 0
   const graceNow = v.state.status === 'released_partial' || v.state.status === 'grace'
   const roundsLeft = v.includedRevisionRounds - v.revisionsUsed
-  const roundItem = deal.terms.rateCard.find((r) => r.id === 'revision_round') || deal.terms.rateCard.find((r) => /revision/i.test(`${r.id} ${r.label}`))
+  const roundItem =
+    deal.terms.rateCard.find((r) => r.id === 'revision_round') ||
+    deal.terms.rateCard.find((r) => /revision/i.test(`${r.id} ${r.label}`))
   const latest = runtime.versions[runtime.versions.length - 1]
 
   const refresh = () => {
@@ -178,7 +236,11 @@ export default function ReviewClockCard({
     setBusy(true)
     try {
       await api.clockApprove(orgId, deal.id, milestoneKey)
-      toast('success', 'Approved and released', `${money(held, cur)} releases to the team through policy.`)
+      toast(
+        'success',
+        'Approved and released',
+        `${money(held, cur)} releases to the team through policy.`,
+      )
       close()
       refresh()
     } catch (e: any) {
@@ -189,13 +251,18 @@ export default function ReviewClockCard({
   }
   const doChanges = async () => {
     if (!citation) {
-      setPickError('Pick the brief item or failed check this change is about. A change request without one is not sent.')
+      setPickError(
+        'Pick the brief item or failed check this change is about. A change request without one is not sent.',
+      )
       return
     }
     setBusy(true)
     setPickError(null)
     try {
-      const r = await api.clockRequestChanges(orgId, deal.id, milestoneKey, { citation, text: text.trim() || undefined })
+      const r = await api.clockRequestChanges(orgId, deal.id, milestoneKey, {
+        citation,
+        text: text.trim() || undefined,
+      })
       if (r.changeOrderRequired) {
         setReply(r)
       } else {
@@ -213,7 +280,11 @@ export default function ReviewClockCard({
     setBusy(true)
     try {
       await api.clockDispute(orgId, deal.id, milestoneKey)
-      toast('warning', 'Dispute opened', `The clock stopped; ${money(held, cur)} stays frozen in the hold.`)
+      toast(
+        'warning',
+        'Dispute opened',
+        `The clock stopped; ${money(held, cur)} stays frozen in the hold.`,
+      )
       close()
       refresh()
     } catch (e: any) {
@@ -229,7 +300,9 @@ export default function ReviewClockCard({
       ? graceNow
         ? [{ amount: v.amounts.remainderCents, at: v.state.graceDeadline }]
         : [
-            ...(v.amounts.partialAmountCents > 0 ? [{ amount: v.amounts.partialAmountCents, at: v.state.deadline }] : []),
+            ...(v.amounts.partialAmountCents > 0
+              ? [{ amount: v.amounts.partialAmountCents, at: v.state.deadline }]
+              : []),
             { amount: v.amounts.remainderCents, at: v.state.graceDeadline },
           ]
       : []
@@ -244,15 +317,27 @@ export default function ReviewClockCard({
         footer={
           isClient && live ? (
             <>
-              <button className="btn-primary" disabled={busy || !inReview || !latest} onClick={() => setDialog('approve')}>
+              <button
+                className="btn-primary"
+                disabled={busy || !inReview || !latest}
+                onClick={() => setDialog('approve')}
+              >
                 <CircleCheck size={15} strokeWidth={2} />
                 Approve &amp; release
               </button>
-              <button className="btn-secondary" disabled={busy || !inReview} onClick={() => setDialog('changes')}>
+              <button
+                className="btn-secondary"
+                disabled={busy || !inReview}
+                onClick={() => setDialog('changes')}
+              >
                 <MessageSquareDiff size={15} strokeWidth={2} />
                 Request changes
               </button>
-              <button className="btn-ghost text-danger" disabled={busy} onClick={() => setDialog('dispute')}>
+              <button
+                className="btn-ghost text-danger"
+                disabled={busy}
+                onClick={() => setDialog('dispute')}
+              >
                 <Gavel size={15} strokeWidth={2} />
                 Dispute
               </button>
@@ -261,11 +346,21 @@ export default function ReviewClockCard({
         }
       >
         <div className="flex items-start gap-3">
-          <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tint text-teal" aria-hidden="true">
-            {v.status === 'paused' ? <PauseCircle size={18} strokeWidth={1.75} /> : <Clock3 size={18} strokeWidth={1.75} />}
+          <span
+            className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-tint text-teal"
+            aria-hidden="true"
+          >
+            {v.status === 'paused' ? (
+              <PauseCircle size={18} strokeWidth={1.75} />
+            ) : (
+              <Clock3 size={18} strokeWidth={1.75} />
+            )}
           </span>
           <div className="min-w-0">
-            <p className="font-headline text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink" data-testid="clock-countdown">
+            <p
+              className="font-headline text-[26px] font-semibold leading-tight tracking-[-0.02em] text-ink"
+              data-testid="clock-countdown"
+            >
               {cd.big}
             </p>
             <p className="mt-0.5 text-[12.5px] text-umber">
@@ -281,12 +376,18 @@ export default function ReviewClockCard({
 
         {live && <Bar v={v} />}
 
-        <p className="mt-3 rounded-[10px] bg-canvas px-3 py-2.5 text-[13.5px] leading-snug text-ink" data-testid="clock-line">
+        <p
+          className="mt-3 rounded-[10px] bg-canvas px-3 py-2.5 text-[13.5px] leading-snug text-ink"
+          data-testid="clock-line"
+        >
           {v.state.line}
         </p>
 
         {silence.length > 0 && (
-          <div className="mt-3 rounded-[10px] border border-st-scheduled/20 bg-st-scheduled-bg px-3 py-2.5" data-testid="clock-silence">
+          <div
+            className="mt-3 rounded-[10px] border border-st-scheduled/20 bg-st-scheduled-bg px-3 py-2.5"
+            data-testid="clock-silence"
+          >
             <p className="micro-label !text-st-scheduled">What you'll get on silence</p>
             <ul className="mt-1 space-y-0.5 text-[13px] text-ink">
               {silence.map((s, i) => (
@@ -299,16 +400,22 @@ export default function ReviewClockCard({
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className={`chip ${roundsLeft <= 0 ? 'chip-warning' : 'chip-neutral'}`} data-testid="clock-rounds">
+          <span
+            className={`chip ${roundsLeft <= 0 ? 'chip-warning' : 'chip-neutral'}`}
+            data-testid="clock-rounds"
+          >
             Revisions used {v.revisionsUsed} of {v.includedRevisionRounds}
           </span>
           {v.status === 'paused' && <span className="chip chip-warning">Paused</span>}
           {v.amounts && v.terms.partialReleasePct > 0 && (
             <span className="chip chip-neutral">
-              {v.terms.partialReleasePct}% on silence · {v.terms.graceBusinessDays} grace day{v.terms.graceBusinessDays === 1 ? '' : 's'}
+              {v.terms.partialReleasePct}% on silence · {v.terms.graceBusinessDays} grace day
+              {v.terms.graceBusinessDays === 1 ? '' : 's'}
             </span>
           )}
-          <span className="chip chip-neutral">Held {money(held, cur)} of {money(total, cur)}</span>
+          <span className="chip chip-neutral">
+            Held {money(held, cur)} of {money(total, cur)}
+          </span>
         </div>
 
         <div className="mt-4 border-t border-line pt-3">
@@ -319,28 +426,46 @@ export default function ReviewClockCard({
             data-testid="clock-timeline-toggle"
           >
             <span>
-              Timeline <span className="font-normal text-umber">· {v.timeline.length} event{v.timeline.length === 1 ? '' : 's'}, the same log both sides see</span>
+              Timeline{' '}
+              <span className="font-normal text-umber">
+                · {v.timeline.length} event{v.timeline.length === 1 ? '' : 's'}, the same log both
+                sides see
+              </span>
             </span>
-            <ChevronDown size={16} className={`shrink-0 text-umber transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+            <ChevronDown
+              size={16}
+              className={`shrink-0 text-umber transition-transform ${open ? 'rotate-180' : ''}`}
+              aria-hidden="true"
+            />
           </button>
           {open && (
             <ol className="mt-2 space-y-2" data-testid="clock-timeline">
-              {v.timeline.length === 0 && <li className="text-[12.5px] text-umber">Nothing yet. The clock starts when the automatic checks pass.</li>}
-              {[...v.timeline].sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).map((e, i) => (
-                <li key={`${e.id}-${i}`} className="flex gap-2.5 text-[13px]">
-                  <span
-                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${e.id.startsWith('release') ? 'bg-st-live' : e.kind === 'action' ? 'bg-teal' : 'bg-ink/30'}`}
-                    aria-hidden="true"
-                  />
-                  <div className="min-w-0">
-                    <p className="text-ink">{eventText(e, cur)}</p>
-                    <p className="text-[11.5px] text-umber">
-                      {inZone(e.at, tz)} · {byWord(deal, e.by)}
-                      {e.note && !['changes_requested'].includes(e.id) && e.note !== 'automatic checks passed' ? ` · ${e.note}` : ''}
-                    </p>
-                  </div>
+              {v.timeline.length === 0 && (
+                <li className="text-[12.5px] text-umber">
+                  Nothing yet. The clock starts when the automatic checks pass.
                 </li>
-              ))}
+              )}
+              {[...v.timeline]
+                .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+                .map((e, i) => (
+                  <li key={`${e.id}-${i}`} className="flex gap-2.5 text-[13px]">
+                    <span
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${e.id.startsWith('release') ? 'bg-st-live' : e.kind === 'action' ? 'bg-teal' : 'bg-ink/30'}`}
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-ink">{eventText(e, cur)}</p>
+                      <p className="text-[11.5px] text-umber">
+                        {inZone(e.at, tz)} · {byWord(deal, e.by)}
+                        {e.note &&
+                        !['changes_requested'].includes(e.id) &&
+                        e.note !== 'automatic checks passed'
+                          ? ` · ${e.note}`
+                          : ''}
+                      </p>
+                    </div>
+                  </li>
+                ))}
             </ol>
           )}
         </div>
@@ -350,14 +475,25 @@ export default function ReviewClockCard({
         <p className="text-[14px] text-ink">
           Approve version <span className="font-mono">{latest?.id}</span> and release{' '}
           <span className="t-num font-semibold">{money(held, cur)}</span> to the team now
-          {held < total ? ` (the rest of ${money(total, cur)}; ${money(total - held, cur)} was already released)` : ''}.
+          {held < total
+            ? ` (the rest of ${money(total, cur)}; ${money(total - held, cur)} was already released)`
+            : ''}
+          .
         </p>
-        <p className="mt-2 text-[12.5px] text-umber">The review clock stops. The Money Agent captures it through policy and pays the signed split.</p>
+        <p className="mt-2 text-[12.5px] text-umber">
+          The review clock stops. The Money Agent captures it through policy and pays the signed
+          split.
+        </p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button className="btn-secondary" onClick={close}>
             Cancel
           </button>
-          <button className="btn-primary" disabled={busy} onClick={doApprove} data-testid="confirm-approve">
+          <button
+            className="btn-primary"
+            disabled={busy}
+            onClick={doApprove}
+            data-testid="confirm-approve"
+          >
             Release {money(held, cur)}
           </button>
         </div>
@@ -365,7 +501,8 @@ export default function ReviewClockCard({
 
       <Modal open={dialog === 'dispute'} onClose={close} title="Open a dispute">
         <p className="text-[14px] text-ink">
-          This stops the review clock and freezes the <span className="t-num font-semibold">{money(held, cur)}</span> still held. Nothing more
+          This stops the review clock and freezes the{' '}
+          <span className="t-num font-semibold">{money(held, cur)}</span> still held. Nothing more
           releases on silence until the dispute is settled.
         </p>
         <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -378,20 +515,37 @@ export default function ReviewClockCard({
         </div>
       </Modal>
 
-      <Modal open={dialog === 'changes'} onClose={close} title={reply ? 'Paid change order' : 'Request changes'}>
+      <Modal
+        open={dialog === 'changes'}
+        onClose={close}
+        title={reply ? 'Paid change order' : 'Request changes'}
+      >
         {reply ? (
           <div data-testid="change-order-result">
             <div className="flex items-start gap-2.5 rounded-[10px] border border-st-production/25 bg-st-production-bg px-3 py-2.5">
-              <Receipt size={16} className="mt-0.5 shrink-0 text-st-production" aria-hidden="true" />
+              <Receipt
+                size={16}
+                className="mt-0.5 shrink-0 text-st-production"
+                aria-hidden="true"
+              />
               <p className="text-[13.5px] text-ink">
                 {reply.changeOrder ? (
                   <>
-                    All {v.includedRevisionRounds} included rounds are used, so this is a paid change order:{' '}
-                    <span className="t-num font-semibold">{money((reply.changeOrder as any).amountMinor, cur)}</span> from the signed rate card,{' '}
-                    {reply.invoice?.outcome === 'done' ? 'invoiced in PayPal.' : 'not invoiced yet.'}
+                    All {v.includedRevisionRounds} included rounds are used, so this is a paid
+                    change order:{' '}
+                    <span className="t-num font-semibold">
+                      {money((reply.changeOrder as any).amountMinor, cur)}
+                    </span>{' '}
+                    from the signed rate card,{' '}
+                    {reply.invoice?.outcome === 'done'
+                      ? 'invoiced in PayPal.'
+                      : 'not invoiced yet.'}
                   </>
                 ) : (
-                  <>All included rounds are used and {reply.reason || 'no change order could be priced'}.</>
+                  <>
+                    All included rounds are used and{' '}
+                    {reply.reason || 'no change order could be priced'}.
+                  </>
                 )}
               </p>
             </div>
@@ -410,14 +564,15 @@ export default function ReviewClockCard({
             data-testid="change-picker"
           >
             <fieldset>
-              <legend className="label">What is this change about? (required)</legend>
-              <p className="mt-1 text-[12.5px] text-umber">Every change request cites a line of the signed brief or a failed check.</p>
+              <legend className="label">Cite the brief line or failed check</legend>
               <div className="mt-2 max-h-[38vh] space-y-1.5 overflow-y-auto pr-1" role="radiogroup">
                 {options.map((o) => (
                   <label
                     key={o.id}
                     className={`flex cursor-pointer items-start gap-2.5 rounded-[10px] border px-3 py-2 text-[13.5px] ${
-                      citation === o.id ? 'border-teal bg-tint' : 'border-line hover:border-line-strong'
+                      citation === o.id
+                        ? 'border-teal bg-tint'
+                        : 'border-line hover:border-line-strong'
                     }`}
                   >
                     <input
@@ -432,7 +587,11 @@ export default function ReviewClockCard({
                       className="mt-1 accent-[#035E5E]"
                     />
                     <span className="min-w-0 flex-1 text-ink">{o.text}</span>
-                    <span className={`chip shrink-0 ${o.kind === 'failed' ? 'chip-danger' : 'chip-neutral'}`}>{o.kind === 'failed' ? 'Failed check' : 'Brief'}</span>
+                    <span
+                      className={`chip shrink-0 ${o.kind === 'failed' ? 'chip-danger' : 'chip-neutral'}`}
+                    >
+                      {o.kind === 'failed' ? 'Failed check' : 'Brief'}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -450,16 +609,25 @@ export default function ReviewClockCard({
             />
             {roundsLeft <= 0 ? (
               <p className="mt-3 rounded-[10px] bg-st-production-bg px-3 py-2 text-[12.5px] text-st-production">
-                All {v.includedRevisionRounds} included rounds are used. This becomes a paid change order
-                {roundItem ? ` of ${money(roundItem.unitPriceMinor, cur)} from the signed rate card` : ''}.
+                All {v.includedRevisionRounds} included rounds are used. This becomes a paid change
+                order
+                {roundItem
+                  ? ` of ${money(roundItem.unitPriceMinor, cur)} from the signed rate card`
+                  : ''}
+                .
               </p>
             ) : (
               <p className="mt-3 text-[12.5px] text-umber">
-                Uses round {v.revisionsUsed + 1} of {v.includedRevisionRounds}. The clock pauses until the editor redelivers.
+                Uses round {v.revisionsUsed + 1} of {v.includedRevisionRounds}. The clock pauses
+                until the editor redelivers.
               </p>
             )}
             {pickError && (
-              <p className="mt-3 text-[12.5px] text-danger" role="alert" data-testid="change-picker-error">
+              <p
+                className="mt-3 text-[12.5px] text-danger"
+                role="alert"
+                data-testid="change-picker-error"
+              >
                 {pickError}
               </p>
             )}
@@ -467,7 +635,12 @@ export default function ReviewClockCard({
               <button type="button" className="btn-secondary" onClick={close}>
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" disabled={busy} data-testid="send-changes">
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={busy}
+                data-testid="send-changes"
+              >
                 Send change request
               </button>
             </div>

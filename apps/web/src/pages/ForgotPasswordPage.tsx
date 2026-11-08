@@ -30,10 +30,12 @@ export default function ForgotPasswordPage() {
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success">
               <CheckCircle2 size={22} strokeWidth={1.75} />
             </span>
-            <h1 className="mt-5 font-headline text-[28px] font-semibold tracking-[-0.03em] text-ink">Check your inbox</h1>
+            <h1 className="mt-5 font-headline text-[28px] font-semibold tracking-[-0.03em] text-ink">
+              Check your inbox
+            </h1>
             <p className="mt-2 text-sm leading-relaxed text-umber">
-              If an account exists for <span className="font-medium text-ink">{email}</span>, we’ve sent a reset link. It
-              expires in 30 minutes.
+              If an account exists for <span className="font-medium text-ink">{email}</span>, we’ve
+              sent a reset link. It expires in 30 minutes.
             </p>
             <Link to="/login" className="btn-primary mt-7 w-full">
               Back to sign in
@@ -42,7 +44,6 @@ export default function ForgotPasswordPage() {
         ) : (
           <div className="stagger">
             <h1 className="t-display">Reset your password</h1>
-            <p className="mt-2 text-sm text-umber">Enter your work email and we’ll send you a reset link.</p>
 
             <form onSubmit={submit} className="mt-7 space-y-5" noValidate>
               <div>
@@ -50,7 +51,11 @@ export default function ForgotPasswordPage() {
                   Work email
                 </label>
                 <div className="relative">
-                  <Mail size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                  <Mail
+                    size={16}
+                    strokeWidth={1.75}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                  />
                   <input
                     id="fp-email"
                     type="email"

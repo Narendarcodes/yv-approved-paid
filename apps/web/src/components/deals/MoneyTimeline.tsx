@@ -176,9 +176,7 @@ export default function MoneyTimeline({
           )}
 
           {entries.length === 0 ? (
-            <p className="mt-4 text-[13px] text-umber">
-              No money has moved yet. The first line appears when the client funds a milestone.
-            </p>
+            <p className="mt-4 text-[13px] text-umber">No money has moved yet</p>
           ) : (
             <ol className="relative mt-5 space-y-4 border-l border-line pl-5" aria-label="Ledger">
               {entries.map((e) => (

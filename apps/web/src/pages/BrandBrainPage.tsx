@@ -116,10 +116,7 @@ export default function BrandBrainPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Brand Brain"
-        subtitle="Ask about your brand and your numbers. Every answer cites posts and metrics, and says what the data can't tell you."
-      />
+      <PageHeader title="Brand Brain" />
       {error && <ErrorBanner message={error} />}
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <section className="flex min-h-[520px] flex-col rounded-xl border border-black/10 bg-white">

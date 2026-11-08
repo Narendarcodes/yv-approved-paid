@@ -36,7 +36,8 @@ export default function ReviewMergeCard({
   const { terms, runtime } = pair
   const lineText = (id?: string) => terms.checklist.find((c) => c.id === id)?.text
   const sent = !!p && runtime.changeRequests.some((r) => r.versionId === p.versionId)
-  const canSend = !!p && p.decision.allowed && !sent && deal.me === 'client' && runtime.state === 'IN_REVIEW'
+  const canSend =
+    !!p && p.decision.allowed && !sent && deal.me === 'client' && runtime.state === 'IN_REVIEW'
 
   const send = async () => {
     if (!p) return
@@ -46,7 +47,12 @@ export default function ReviewMergeCard({
         orgId,
         deal.id,
         milestoneKey,
-        p.items.map(({ text, tag, checklistId, disputed }) => ({ text, tag, checklistId, disputed })),
+        p.items.map(({ text, tag, checklistId, disputed }) => ({
+          text,
+          tag,
+          checklistId,
+          disputed,
+        })),
       )
       toast('success', 'Changes sent', 'The editor sees each item tagged Fix or Taste.')
       onChanged?.()
@@ -62,7 +68,11 @@ export default function ReviewMergeCard({
       testId="review-merge-card"
       label="Review merge"
       title={terms.title}
-      meta={p ? <span className="font-mono text-[11px] text-label">VERSION {p.versionId}</span> : undefined}
+      meta={
+        p ? (
+          <span className="font-mono text-[11px] text-label">VERSION {p.versionId}</span>
+        ) : undefined
+      }
       footer={
         canSend ? (
           <button className="btn-primary" disabled={busy} onClick={send}>
@@ -75,9 +85,7 @@ export default function ReviewMergeCard({
       }
     >
       {!p ? (
-        <p className="text-[13px] text-umber">
-          No review merge yet. Reviewer notes are merged here once a version is in review.
-        </p>
+        <p className="text-[13px] text-umber">No review merge yet</p>
       ) : (
         <>
           <ul className="divide-y divide-line">
@@ -90,7 +98,8 @@ export default function ReviewMergeCard({
                     {it.tag === 'fix'
                       ? `Cites the failed line: ${lineText(it.checklistId) ?? it.checklistId}`
                       : 'Taste: costs a revision round, not pay.'}
-                    {p.downgraded.includes(it.text) && ' Downgraded to Taste: the line it cites passed.'}
+                    {p.downgraded.includes(it.text) &&
+                      ' Downgraded to Taste: the line it cites passed.'}
                   </p>
                 </div>
               </li>
@@ -101,7 +110,8 @@ export default function ReviewMergeCard({
               {p.contradictions.map((c, i) => (
                 <p key={i} className="flex items-start gap-1.5 text-[12px] text-warning">
                   <AlertTriangle size={13} strokeWidth={2} className="mt-0.5 shrink-0" />
-                  Items {c.a + 1} and {c.b + 1} pull opposite ways{c.why ? `: ${c.why}` : ''}. People settle this.
+                  Items {c.a + 1} and {c.b + 1} pull opposite ways{c.why ? `: ${c.why}` : ''}.
+                  People settle this.
                 </p>
               ))}
             </div>
@@ -114,7 +124,10 @@ export default function ReviewMergeCard({
           </p>
           {!p.decision.allowed && (
             <div className="mt-3">
-              <PolicyBlockedChip violations={p.decision.violations} currency={deal.terms.currency} />
+              <PolicyBlockedChip
+                violations={p.decision.violations}
+                currency={deal.terms.currency}
+              />
             </div>
           )}
         </>

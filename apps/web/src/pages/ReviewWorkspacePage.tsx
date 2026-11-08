@@ -7,8 +7,15 @@ import { formatTime, projectStatusLabel } from '../lib/format'
 import { useViewer, can } from '../lib/viewer'
 import { useProject, useTeam, useMe, invalidateProjectData } from '../lib/data'
 import {
-  listVersions, versionFileUrl, listComments, addComment, setCommentResolved, approveVersion,
-  requestRevision as apiRequestRevision, lockReview, type ProjectVersion,
+  listVersions,
+  versionFileUrl,
+  listComments,
+  addComment,
+  setCommentResolved,
+  approveVersion,
+  requestRevision as apiRequestRevision,
+  lockReview,
+  type ProjectVersion,
 } from '../services/api'
 import { useToast } from '../components/toast'
 import { pickVersion } from '../lib/reviewVersions'
@@ -40,7 +47,8 @@ export default function ReviewWorkspacePage() {
     if (!id) return
     try {
       const raw: any[] = await listComments(id)
-      const sid = (v: any) => (v && typeof v === 'object' ? String(v._id ?? v.id) : v ? String(v) : '')
+      const sid = (v: any) =>
+        v && typeof v === 'object' ? String(v._id ?? v.id) : v ? String(v) : ''
       const top = raw.filter((c) => !c.parentId)
       setComments(
         top.map((c) => ({
@@ -50,7 +58,12 @@ export default function ReviewWorkspacePage() {
           time: typeof c.timecode === 'number' ? c.timecode : 0,
           body: c.body,
           resolved: !!c.resolved,
-          createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '',
+          createdAt: c.createdAt
+            ? new Date(c.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+              })
+            : '',
           replies: raw
             .filter((r) => sid(r.parentId) === String(c.id))
             .map((r) => ({ id: String(r.id), author: sid(r.author), body: r.body })),
@@ -100,7 +113,12 @@ export default function ReviewWorkspacePage() {
 
   const review = {
     fileName: versionEntries[0]?.filename ?? 'draft.mp4',
-    versions: versionEntries.map((v) => ({ id: v.id, label: v.label, url: v.url, summary: v.summary })),
+    versions: versionEntries.map((v) => ({
+      id: v.id,
+      label: v.label,
+      url: v.url,
+      summary: v.summary,
+    })),
   }
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -133,7 +151,9 @@ export default function ReviewWorkspacePage() {
       <div className="fade-in card p-12 text-center">
         <h1 className="font-headline text-lg font-semibold text-ink">Project not found</h1>
         <p className="mt-1 text-sm text-umber">This project doesn&apos;t exist or was removed.</p>
-        <Link to="/projects" className="btn-secondary mt-5 inline-flex">Back to projects</Link>
+        <Link to="/projects" className="btn-secondary mt-5 inline-flex">
+          Back to projects
+        </Link>
       </div>
     )
   }
@@ -169,7 +189,16 @@ export default function ReviewWorkspacePage() {
     // optimistic row, replaced by the server copy on reload
     setComments((prev) => [
       ...prev,
-      { id: `c-${Date.now()}`, versionId: realVersionId, author: me?.id ?? viewer.id, time: t, body, replies: [], resolved: false, createdAt: 'Just now' },
+      {
+        id: `c-${Date.now()}`,
+        versionId: realVersionId,
+        author: me?.id ?? viewer.id,
+        time: t,
+        body,
+        replies: [],
+        resolved: false,
+        createdAt: 'Just now',
+      },
     ])
     setDraft('')
     setDraftTime(null)
@@ -199,7 +228,9 @@ export default function ReviewWorkspacePage() {
   const toggleResolve = async (commentId: string) => {
     const c = comments.find((x) => x.id === commentId)
     if (!c) return
-    setComments((prev) => prev.map((x) => (x.id === commentId ? { ...x, resolved: !x.resolved } : x)))
+    setComments((prev) =>
+      prev.map((x) => (x.id === commentId ? { ...x, resolved: !x.resolved } : x)),
+    )
     try {
       await setCommentResolved(project.id, commentId, !c.resolved)
       invalidateProjectData(project.id)
@@ -228,7 +259,11 @@ export default function ReviewWorkspacePage() {
       await approveVersion(project.id, realVersionId)
       setApproved(true)
       invalidateProjectData(project.id)
-      toast('success', `${version?.label ?? 'Version'} approved`, 'Locked as the exact version to publish.')
+      toast(
+        'success',
+        `${version?.label ?? 'Version'} approved`,
+        'Locked as the exact version to publish.',
+      )
     } catch (err: any) {
       toast('danger', 'Approval failed', err?.message || 'Try again')
     }
@@ -243,7 +278,11 @@ export default function ReviewWorkspacePage() {
       const items = (res.revision?.scopeItems ?? []).map((i: any) => String(i.body))
       setLockedScope({ number: res.revision?.revisionNumber ?? 1, items })
       invalidateProjectData(project.id)
-      toast('success', 'Feedback locked', `${res.lockedCommentCount} comment(s) are now the revision scope.`)
+      toast(
+        'success',
+        'Feedback locked',
+        `${res.lockedCommentCount} comment(s) are now the revision scope.`,
+      )
       void reloadComments()
     } catch (err: any) {
       toast('danger', 'Could not lock feedback', err?.message || 'Try again')
@@ -258,9 +297,13 @@ export default function ReviewWorkspacePage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <nav className="micro-label flex items-center gap-1.5">
-            <Link to="/projects" className="hover:text-teal">Projects</Link>
+            <Link to="/projects" className="hover:text-teal">
+              Projects
+            </Link>
             <span>/</span>
-            <Link to={`/projects/${project.id}`} className="hover:text-teal">{project.title}</Link>
+            <Link to={`/projects/${project.id}`} className="hover:text-teal">
+              {project.title}
+            </Link>
             <span>/</span>
             <span className="text-ink">Review</span>
           </nav>
@@ -271,7 +314,14 @@ export default function ReviewWorkspacePage() {
           </div>
           <p className="mt-1 text-sm text-umber">
             {version
-              ? [version.label, 'uploadedAt' in version && version.uploadedAt ? `uploaded ${version.uploadedAt}` : ''].filter(Boolean).join(' · ') || version.label
+              ? [
+                  version.label,
+                  'uploadedAt' in version && version.uploadedAt
+                    ? `uploaded ${version.uploadedAt}`
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || version.label
               : 'No draft uploaded yet'}
           </p>
         </div>
@@ -281,7 +331,13 @@ export default function ReviewWorkspacePage() {
             className="btn-secondary"
             onClick={() => can(viewer, 'upload') && setRevisionOpen(true)}
             disabled={!can(viewer, 'upload') || !version}
-            title={!can(viewer, 'upload') ? 'Only editors can request a revision' : !version ? 'No draft to revise yet' : undefined}
+            title={
+              !can(viewer, 'upload')
+                ? 'Only editors can request a revision'
+                : !version
+                  ? 'No draft to revise yet'
+                  : undefined
+            }
           >
             Request revision
           </button>
@@ -289,7 +345,13 @@ export default function ReviewWorkspacePage() {
             className="btn-primary"
             onClick={() => void approve()}
             disabled={!canApprove || !version}
-            title={!canApprove ? 'Only reviewers can approve' : !version ? 'Nothing to approve yet' : undefined}
+            title={
+              !canApprove
+                ? 'Only reviewers can approve'
+                : !version
+                  ? 'Nothing to approve yet'
+                  : undefined
+            }
           >
             Approve {version ? version.label : '—'}
           </button>
@@ -300,7 +362,9 @@ export default function ReviewWorkspacePage() {
       {notice && (
         <div className="flex items-center justify-between rounded-[8px] border border-line bg-tint/60 px-4 py-2.5 text-sm text-ink">
           <span>{notice}</span>
-          <button onClick={() => setNotice(null)} className="text-xs text-teal hover:underline">Dismiss</button>
+          <button onClick={() => setNotice(null)} className="text-xs text-teal hover:underline">
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -333,12 +397,18 @@ export default function ReviewWorkspacePage() {
                   <Clock size={20} strokeWidth={1.75} aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="font-headline text-sm font-medium text-white">No draft uploaded yet</p>
+                  <p className="font-headline text-sm font-medium text-white">
+                    No draft uploaded yet
+                  </p>
                   <p className="mt-1 max-w-sm text-xs leading-relaxed text-white/60">
-                    This project has no video versions. Upload a cut from the project page to enable frame-accurate comments.
+                    This project has no video versions. Upload a cut from the project page to enable
+                    frame-accurate comments.
                   </p>
                 </div>
-                <Link to={`/projects/${project.id}`} className="btn-secondary btn-sm mt-2 !bg-white !text-ink hover:!bg-white/90">
+                <Link
+                  to={`/projects/${project.id}`}
+                  className="btn-secondary btn-sm mt-2 !bg-white !text-ink hover:!bg-white/90"
+                >
                   Go to project
                 </Link>
               </div>
@@ -358,7 +428,8 @@ export default function ReviewWorkspacePage() {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="font-mono text-xs text-label">
-              Playhead <span className="text-ink">{formatTime(currentTime)}</span> · {review.fileName}
+              Playhead <span className="text-ink">{formatTime(currentTime)}</span> ·{' '}
+              {review.fileName}
             </p>
             <button className="btn-secondary btn-sm" onClick={captureTime} disabled={!canComment}>
               <Clock size={15} strokeWidth={1.75} />
@@ -375,7 +446,11 @@ export default function ReviewWorkspacePage() {
               >
                 <Clock size={11} strokeWidth={2} />
                 {formatTime(draftTime)}
-                <Minus size={11} strokeWidth={2} className="ml-0.5 text-umber transition-colors hover:text-ink" />
+                <Minus
+                  size={11}
+                  strokeWidth={2}
+                  className="ml-0.5 text-umber transition-colors hover:text-ink"
+                />
               </button>
             )}
             <textarea
@@ -384,14 +459,22 @@ export default function ReviewWorkspacePage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitComment()
               }}
-              placeholder={canComment ? 'Leave feedback for the editor - use “Comment at time” to anchor it to the video…' : 'You don’t have comment permission for this project.'}
+              placeholder={
+                canComment
+                  ? 'Leave feedback for the editor - use “Comment at time” to anchor it to the video…'
+                  : 'You don’t have comment permission for this project.'
+              }
               disabled={!canComment}
               rows={3}
               className="w-full resize-none bg-transparent text-sm text-ink outline-none placeholder:text-label"
             />
             <div className="mt-2 flex items-center justify-between">
               <p className="text-[11px] text-label">⌘/Ctrl + Enter to send</p>
-              <button className="btn-primary btn-sm" onClick={submitComment} disabled={!draft.trim() || !canComment}>
+              <button
+                className="btn-primary btn-sm"
+                onClick={submitComment}
+                disabled={!draft.trim() || !canComment}
+              >
                 Send comment
               </button>
             </div>
@@ -410,7 +493,11 @@ export default function ReviewWorkspacePage() {
                 className="btn-secondary btn-sm"
                 onClick={() => void lockFeedback()}
                 disabled={!realVersionId || locking || lockable.length === 0}
-                title={lockable.length ? 'Turn open feedback on this version into a fixed revision scope' : 'No open feedback on this version'}
+                title={
+                  lockable.length
+                    ? 'Turn open feedback on this version into a fixed revision scope'
+                    : 'No open feedback on this version'
+                }
                 data-testid="lock-feedback"
               >
                 <Lock size={13} strokeWidth={1.75} />
@@ -425,16 +512,23 @@ export default function ReviewWorkspacePage() {
               </p>
               <ul className="mt-1.5 space-y-1">
                 {lockedScope.items.map((t, i) => (
-                  <li key={i} className="text-[13px] leading-snug text-ink/80">• {t}</li>
+                  <li key={i} className="text-[13px] leading-snug text-ink/80">
+                    • {t}
+                  </li>
                 ))}
               </ul>
-              <p className="mt-1.5 text-[11px] text-umber">New feedback after this point needs a new round - no scope creep.</p>
+              <p className="mt-1.5 text-[11px] text-umber">
+                New feedback after this point needs a new round - no scope creep.
+              </p>
             </div>
           )}
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
             {comments.length ? (
               comments.map((c) => (
-                <article key={c.id} className={`rounded-[8px] border p-4 ${c.resolved ? 'border-line bg-canvas/40 opacity-70' : 'border-line bg-surface'}`}>
+                <article
+                  key={c.id}
+                  className={`rounded-[8px] border p-4 ${c.resolved ? 'border-line bg-canvas/40 opacity-70' : 'border-line bg-surface'}`}
+                >
                   <div className="flex items-start gap-3">
                     <Avatar initials={memberOf(c.author)?.initials ?? '?'} size="sm" tone="teal" />
                     <div className="min-w-0 flex-1">
@@ -454,9 +548,15 @@ export default function ReviewWorkspacePage() {
 
                       {c.replies.map((r) => (
                         <div key={r.id} className="mt-3 flex gap-2.5 border-l-2 border-line pl-3">
-                          <Avatar initials={memberOf(r.author)?.initials ?? '?'} size="xs" tone="tint" />
+                          <Avatar
+                            initials={memberOf(r.author)?.initials ?? '?'}
+                            size="xs"
+                            tone="tint"
+                          />
                           <div>
-                            <p className="text-xs font-medium text-ink">{memberOf(r.author)?.name}</p>
+                            <p className="text-xs font-medium text-ink">
+                              {memberOf(r.author)?.name}
+                            </p>
                             <p className="text-sm leading-relaxed text-ink/80">{r.body}</p>
                           </div>
                         </div>
@@ -464,11 +564,17 @@ export default function ReviewWorkspacePage() {
 
                       <div className="mt-3 flex items-center gap-3">
                         {canComment && (
-                          <button onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)} className="text-xs font-medium text-teal hover:underline">
+                          <button
+                            onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
+                            className="text-xs font-medium text-teal hover:underline"
+                          >
                             {replyingTo === c.id ? 'Cancel' : 'Reply'}
                           </button>
                         )}
-                        <button onClick={() => toggleResolve(c.id)} className="text-xs font-medium text-umber hover:text-ink">
+                        <button
+                          onClick={() => toggleResolve(c.id)}
+                          className="text-xs font-medium text-umber hover:text-ink"
+                        >
                           {c.resolved ? 'Reopen' : 'Resolve'}
                         </button>
                       </div>
@@ -478,12 +584,18 @@ export default function ReviewWorkspacePage() {
                           <input
                             value={replyText}
                             onChange={(e) => setReplyText(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') submitReply(c.id) }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') submitReply(c.id)
+                            }}
                             placeholder="Reply…"
                             className="input !h-9 flex-1"
                             autoFocus
                           />
-                          <button className="btn-primary btn-sm" onClick={() => submitReply(c.id)} disabled={!replyText.trim()}>
+                          <button
+                            className="btn-primary btn-sm"
+                            onClick={() => submitReply(c.id)}
+                            disabled={!replyText.trim()}
+                          >
                             Send
                           </button>
                         </div>
@@ -493,7 +605,7 @@ export default function ReviewWorkspacePage() {
                 </article>
               ))
             ) : (
-              <p className="py-10 text-center text-sm text-umber">No comments yet. Watch the video and leave feedback at any moment.</p>
+              <p className="py-10 text-center text-sm text-umber">No comments yet</p>
             )}
           </div>
         </div>
@@ -501,7 +613,6 @@ export default function ReviewWorkspacePage() {
 
       {/* Revision modal */}
       <Modal open={revisionOpen} onClose={() => setRevisionOpen(false)} title="Request a revision">
-        <p className="text-sm text-umber">Tell the editor what needs to change. Open comments on this draft stay attached to the revision.</p>
         <textarea
           value={revisionReason}
           onChange={(e) => setRevisionReason(e.target.value)}
@@ -510,8 +621,14 @@ export default function ReviewWorkspacePage() {
           className="input mt-4 w-full"
         />
         <div className="mt-5 flex justify-end gap-2">
-          <button className="btn-ghost" onClick={() => setRevisionOpen(false)}>Cancel</button>
-          <button className="btn-primary" onClick={requestRevision} disabled={!revisionReason.trim()}>
+          <button className="btn-ghost" onClick={() => setRevisionOpen(false)}>
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            onClick={requestRevision}
+            disabled={!revisionReason.trim()}
+          >
             Send revision request
           </button>
         </div>

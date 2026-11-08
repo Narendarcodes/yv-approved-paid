@@ -8,14 +8,32 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Receipt, Send, CircleCheck, Ban, AlarmClock, Wallet, FileText, ArrowUpRight } from 'lucide-react'
+import {
+  Plus,
+  Receipt,
+  Send,
+  CircleCheck,
+  Ban,
+  AlarmClock,
+  Wallet,
+  FileText,
+  ArrowUpRight,
+} from 'lucide-react'
 import Chip, { Modal, StatCard, EmptyState } from '../components/primitives'
 import { PageHeader } from '../components/ui'
 import { ErrorBanner, ListSkeleton } from '../components/states'
 import { useToast } from '../components/toast'
 import { PaypalInvoiceId } from '../components/deals/common'
 import { primaryOrgId, useProjects } from '../lib/data'
-import { INVOICE_STATUS, dateOnly, dealOrgId, invoiceSent, money as moneyMinor, moneyMajor, type InvoiceStatus } from '../lib/deals'
+import {
+  INVOICE_STATUS,
+  dateOnly,
+  dealOrgId,
+  invoiceSent,
+  money as moneyMinor,
+  moneyMajor,
+  type InvoiceStatus,
+} from '../lib/deals'
 import {
   createInvoice,
   invoiceAction,
@@ -107,7 +125,14 @@ export default function InvoicesPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | InvoiceStatus>('all')
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ number: '', projectId: '', amount: '', currency: 'INR', dueDate: plusDays(30), note: '' })
+  const [form, setForm] = useState({
+    number: '',
+    projectId: '',
+    amount: '',
+    currency: 'INR',
+    dueDate: plusDays(30),
+    note: '',
+  })
 
   const load = useCallback(async () => {
     setError(false)
@@ -131,7 +156,10 @@ export default function InvoicesPage() {
     void load()
   }, [load])
 
-  const projectTitle = useCallback((pid?: string | null) => projects.find((p) => p.id === pid)?.title, [projects])
+  const projectTitle = useCallback(
+    (pid?: string | null) => projects.find((p) => p.id === pid)?.title,
+    [projects],
+  )
 
   const rows: Row[] = useMemo(() => {
     const studio: Row[] = invoices.map((inv) => ({
@@ -149,7 +177,9 @@ export default function InvoicesPage() {
       paidAt: inv.paidAt,
       inv,
     }))
-    return [...studio, ...dealRows(deals)].sort((a, b) => new Date(b.issued ?? 0).getTime() - new Date(a.issued ?? 0).getTime())
+    return [...studio, ...dealRows(deals)].sort(
+      (a, b) => new Date(b.issued ?? 0).getTime() - new Date(a.issued ?? 0).getTime(),
+    )
   }, [invoices, deals, projectTitle])
 
   const counts = useMemo(() => {
@@ -162,7 +192,14 @@ export default function InvoicesPage() {
 
   const openNew = () => {
     const n = invoices.length + 1
-    setForm({ number: `INV-${String(n).padStart(4, '0')}`, projectId: projects[0]?.id ?? '', amount: '', currency: 'INR', dueDate: plusDays(30), note: '' })
+    setForm({
+      number: `INV-${String(n).padStart(4, '0')}`,
+      projectId: projects[0]?.id ?? '',
+      amount: '',
+      currency: 'INR',
+      dueDate: plusDays(30),
+      note: '',
+    })
     setOpen(true)
   }
 
@@ -189,8 +226,21 @@ export default function InvoicesPage() {
     if (!orgId) return
     setBusyId(inv.id)
     try {
-      await invoiceAction(orgId, inv.id, action, action === 'pay' ? { paymentMethod: 'Bank transfer' } : undefined)
-      toast('success', action === 'pay' ? 'Payment recorded' : action === 'send' ? 'Invoice sent' : 'Invoice voided', inv.number)
+      await invoiceAction(
+        orgId,
+        inv.id,
+        action,
+        action === 'pay' ? { paymentMethod: 'Bank transfer' } : undefined,
+      )
+      toast(
+        'success',
+        action === 'pay'
+          ? 'Payment recorded'
+          : action === 'send'
+            ? 'Invoice sent'
+            : 'Invoice voided',
+        inv.number,
+      )
       await load()
     } catch (err: any) {
       toast('danger', 'Action failed', err?.message || 'Try again')
@@ -202,7 +252,11 @@ export default function InvoicesPage() {
   const actions = (r: Row) => {
     if (r.source === 'deal')
       return (
-        <Link to={`/deals/${encodeURIComponent(r.dealId!)}`} className="btn-secondary btn-xs" data-testid="open-deal-invoice">
+        <Link
+          to={`/deals/${encodeURIComponent(r.dealId!)}`}
+          className="btn-secondary btn-xs"
+          data-testid="open-deal-invoice"
+        >
           Open deal <ArrowUpRight size={13} strokeWidth={2} />
         </Link>
       )
@@ -211,17 +265,33 @@ export default function InvoicesPage() {
     return (
       <>
         {inv.status === 'draft' && (
-          <button className="btn-primary btn-xs" disabled={busy} onClick={() => void act(inv, 'send')} data-testid="send-invoice">
+          <button
+            className="btn-primary btn-xs"
+            disabled={busy}
+            onClick={() => void act(inv, 'send')}
+            data-testid="send-invoice"
+          >
             <Send size={13} strokeWidth={1.75} /> Send
           </button>
         )}
         {(inv.status === 'sent' || inv.status === 'overdue') && (
-          <button className="btn-primary btn-xs" disabled={busy} onClick={() => void act(inv, 'pay')} data-testid="pay-invoice">
+          <button
+            className="btn-primary btn-xs"
+            disabled={busy}
+            onClick={() => void act(inv, 'pay')}
+            data-testid="pay-invoice"
+          >
             <CircleCheck size={13} strokeWidth={1.75} /> Mark paid
           </button>
         )}
         {inv.status !== 'paid' && inv.status !== 'void' && (
-          <button className="btn-ghost btn-xs" disabled={busy} onClick={() => void act(inv, 'void')} aria-label={`Void ${inv.number}`} title="Void">
+          <button
+            className="btn-ghost btn-xs"
+            disabled={busy}
+            onClick={() => void act(inv, 'void')}
+            aria-label={`Void ${inv.number}`}
+            title="Void"
+          >
             <Ban size={13} strokeWidth={1.75} />
           </button>
         )}
@@ -247,13 +317,16 @@ export default function InvoicesPage() {
   )
 
   const numberCell = (r: Row) =>
-    r.source === 'deal' ? <PaypalInvoiceId id={r.number} /> : <span className="font-mono text-[13px] font-medium text-ink">{r.number}</span>
+    r.source === 'deal' ? (
+      <PaypalInvoiceId id={r.number} />
+    ) : (
+      <span className="font-mono text-[13px] font-medium text-ink">{r.number}</span>
+    )
 
   return (
     <div className="fade-in">
       <PageHeader
         title="Invoices"
-        subtitle="Everything you have billed: studio invoices and change orders invoiced through PayPal from a deal."
         actions={
           <button className="btn-primary" onClick={openNew} data-testid="new-invoice">
             <Plus size={15} strokeWidth={1.75} /> New invoice
@@ -262,10 +335,29 @@ export default function InvoicesPage() {
       />
 
       <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Outstanding" value={sumByCurrency(outstanding)} icon={<Wallet size={18} strokeWidth={1.75} />} />
-        <StatCard label="Overdue" value={sumByCurrency(rows.filter((r) => r.status === 'overdue'))} icon={<AlarmClock size={18} strokeWidth={1.75} />} tone="danger" />
-        <StatCard label="Paid" value={sumByCurrency(rows.filter((r) => r.status === 'paid'))} icon={<CircleCheck size={18} strokeWidth={1.75} />} tone="success" />
-        <StatCard label="Drafts" value={sumByCurrency(rows.filter((r) => r.status === 'draft'))} icon={<FileText size={18} strokeWidth={1.75} />} tone="warning" />
+        <StatCard
+          label="Outstanding"
+          value={sumByCurrency(outstanding)}
+          icon={<Wallet size={18} strokeWidth={1.75} />}
+        />
+        <StatCard
+          label="Overdue"
+          value={sumByCurrency(rows.filter((r) => r.status === 'overdue'))}
+          icon={<AlarmClock size={18} strokeWidth={1.75} />}
+          tone="danger"
+        />
+        <StatCard
+          label="Paid"
+          value={sumByCurrency(rows.filter((r) => r.status === 'paid'))}
+          icon={<CircleCheck size={18} strokeWidth={1.75} />}
+          tone="success"
+        />
+        <StatCard
+          label="Drafts"
+          value={sumByCurrency(rows.filter((r) => r.status === 'draft'))}
+          icon={<FileText size={18} strokeWidth={1.75} />}
+          tone="warning"
+        />
       </section>
 
       {error ? (
@@ -277,26 +369,56 @@ export default function InvoicesPage() {
           icon={<Receipt size={22} strokeWidth={1.75} />}
           title="No invoices yet"
           description="Create one when a project is delivered. When a client accepts a change order on a deal, its PayPal invoice shows up here too."
-          action={<button className="btn-primary" onClick={openNew}>New invoice</button>}
+          action={
+            <button className="btn-primary" onClick={openNew}>
+              New invoice
+            </button>
+          }
         />
       ) : (
         <>
           <div className="mb-3 -mx-1 overflow-x-auto px-1 pb-1">
-            <div className="seg" role="tablist" aria-label="Filter by status" data-testid="invoice-filters">
+            <div
+              className="seg"
+              role="tablist"
+              aria-label="Filter by status"
+              data-testid="invoice-filters"
+            >
               {FILTERS.map((f) => (
-                <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)} className="whitespace-nowrap">
+                <button
+                  key={f}
+                  role="tab"
+                  aria-selected={filter === f}
+                  onClick={() => setFilter(f)}
+                  className="whitespace-nowrap"
+                >
                   {f === 'all' ? 'All' : INVOICE_STATUS[f].label}
-                  <span className="ml-1.5 font-mono text-[10.5px] opacity-70">{counts[f] ?? 0}</span>
+                  <span className="ml-1.5 font-mono text-[10.5px] opacity-70">
+                    {counts[f] ?? 0}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
 
           {shown.length === 0 ? (
-            <div className="card flex flex-col items-center px-6 py-10 text-center" data-testid="invoices-filter-empty">
-              <p className="t-title">No {filter === 'all' ? '' : INVOICE_STATUS[filter as InvoiceStatus].label.toLowerCase()} invoices</p>
-              <p className="mt-1 text-[13px] text-umber">{filter === 'overdue' ? 'Nothing is late. Nice.' : 'Try another status.'}</p>
-              <button className="btn-ghost btn-xs mt-3" onClick={() => setFilter('all')}>Show all</button>
+            <div
+              className="card flex flex-col items-center px-6 py-10 text-center"
+              data-testid="invoices-filter-empty"
+            >
+              <p className="t-title">
+                No{' '}
+                {filter === 'all'
+                  ? ''
+                  : INVOICE_STATUS[filter as InvoiceStatus].label.toLowerCase()}{' '}
+                invoices
+              </p>
+              <p className="mt-1 text-[13px] text-umber">
+                {filter === 'overdue' ? 'Nothing is late. Nice.' : 'Try another status.'}
+              </p>
+              <button className="btn-ghost btn-xs mt-3" onClick={() => setFilter('all')}>
+                Show all
+              </button>
             </div>
           ) : (
             <>
@@ -311,21 +433,35 @@ export default function InvoicesPage() {
                       <th className="table-head">Issued</th>
                       <th className="table-head">Due</th>
                       <th className="table-head text-right">Amount</th>
-                      <th className="table-head text-right"><span className="sr-only">Actions</span></th>
+                      <th className="table-head text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
                     {shown.map((r) => (
-                      <tr key={r.key} className="align-top transition-colors hover:bg-ink/[0.02]" data-testid={`invoice-${r.number}`}>
+                      <tr
+                        key={r.key}
+                        className="align-top transition-colors hover:bg-ink/[0.02]"
+                        data-testid={`invoice-${r.number}`}
+                      >
                         <td className="max-w-[300px] px-5 py-3.5">
                           {numberCell(r)}
-                          <p className="mt-0.5 truncate text-xs text-umber" title={r.description}>{r.description}</p>
+                          <p className="mt-0.5 truncate text-xs text-umber" title={r.description}>
+                            {r.description}
+                          </p>
                         </td>
                         <td className="px-5 py-3.5 text-[13px] text-ink/85">{r.billedTo}</td>
                         <td className="px-5 py-3.5">{statusChip(r.status)}</td>
-                        <td className="whitespace-nowrap px-5 py-3.5 text-[13px] text-ink/80">{dateOnly(r.issued)}</td>
-                        <td className="whitespace-nowrap px-5 py-3.5 text-[13px] text-ink/80">{dateCell(r)}</td>
-                        <td className="t-num whitespace-nowrap px-5 py-3.5 text-right !text-[14px]">{r.amountLabel}</td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-[13px] text-ink/80">
+                          {dateOnly(r.issued)}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-[13px] text-ink/80">
+                          {dateCell(r)}
+                        </td>
+                        <td className="t-num whitespace-nowrap px-5 py-3.5 text-right !text-[14px]">
+                          {r.amountLabel}
+                        </td>
                         <td className="px-5 py-3">
                           <div className="flex justify-end gap-1.5">{actions(r)}</div>
                         </td>
@@ -364,47 +500,106 @@ export default function InvoicesPage() {
         <div className="space-y-3 px-6 py-5">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label" htmlFor="inv-number">Number</label>
-              <input id="inv-number" className="input font-mono" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} />
+              <label className="label" htmlFor="inv-number">
+                Number
+              </label>
+              <input
+                id="inv-number"
+                className="input font-mono"
+                value={form.number}
+                onChange={(e) => setForm({ ...form, number: e.target.value })}
+              />
             </div>
             <div>
-              <label className="label" htmlFor="inv-project">Project</label>
-              <select id="inv-project" className="input" value={form.projectId} onChange={(e) => setForm({ ...form, projectId: e.target.value })}>
+              <label className="label" htmlFor="inv-project">
+                Project
+              </label>
+              <select
+                id="inv-project"
+                className="input"
+                value={form.projectId}
+                onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+              >
                 <option value="">No project</option>
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="inv-amount">Amount</label>
-              <input id="inv-amount" type="number" min={0} step="0.01" className="input" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+              <label className="label" htmlFor="inv-amount">
+                Amount
+              </label>
+              <input
+                id="inv-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                className="input"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
             </div>
             <div>
-              <label className="label" htmlFor="inv-currency">Currency</label>
-              <select id="inv-currency" className="input" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+              <label className="label" htmlFor="inv-currency">
+                Currency
+              </label>
+              <select
+                id="inv-currency"
+                className="input"
+                value={form.currency}
+                onChange={(e) => setForm({ ...form, currency: e.target.value })}
+              >
                 {['INR', 'USD', 'EUR', 'GBP'].map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="label" htmlFor="inv-due">Due date</label>
-              <input id="inv-due" type="date" className="input w-auto" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+              <label className="label" htmlFor="inv-due">
+                Due date
+              </label>
+              <input
+                id="inv-due"
+                type="date"
+                className="input w-auto"
+                value={form.dueDate}
+                onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              />
             </div>
             <div className="col-span-2">
-              <label className="label" htmlFor="inv-note">What it is for</label>
-              <input id="inv-note" className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="e.g. 4 reels + 2 carousels, October" />
+              <label className="label" htmlFor="inv-note">
+                What it is for
+              </label>
+              <input
+                id="inv-note"
+                className="input"
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+                placeholder="e.g. 4 reels + 2 carousels, October"
+              />
             </div>
           </div>
           {form.amount && Number(form.amount) > 0 && (
             <p className="text-[13px] text-umber">
-              Total <span className="t-num text-ink">{moneyMajor(Number(form.amount), form.currency)}</span>
+              Total{' '}
+              <span className="t-num text-ink">
+                {moneyMajor(Number(form.amount), form.currency)}
+              </span>
             </p>
           )}
           <div className="flex justify-end gap-2 pt-2">
-            <button className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
-            <button className="btn-primary" onClick={() => void submit()} disabled={!form.number.trim() || !form.amount} data-testid="create-invoice">
+            <button className="btn-ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => void submit()}
+              disabled={!form.number.trim() || !form.amount}
+              data-testid="create-invoice"
+            >
               Create draft
             </button>
           </div>

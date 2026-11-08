@@ -26,7 +26,9 @@ export function SimulatedBadge({ title }: { title?: string }) {
   return (
     <span
       className="status-chip shrink-0 bg-st-production-bg text-st-production"
-      title={title || 'No money left PayPal for this line: PayPal Payouts is simulated for this account.'}
+      title={
+        title || 'No money left PayPal for this line: PayPal Payouts is simulated for this account.'
+      }
       data-testid="simulated-payout-badge"
     >
       Simulated payout
@@ -38,10 +40,25 @@ function shortId(id: string) {
   return id.length > 22 ? `${id.slice(0, 20)}…` : id
 }
 
-function Line({ l, currency, showName }: { l: PayoutReceiptLine; currency: string; showName: boolean }) {
+function Line({
+  l,
+  currency,
+  showName,
+}: {
+  l: PayoutReceiptLine
+  currency: string
+  showName: boolean
+}) {
   return (
     <li className="flex items-start gap-3 px-3 py-2.5" data-testid="team-payout-line">
-      {showName && <Avatar initials={initialsOf(l.displayName)} size="sm" tone="tint" className="mt-0.5 shrink-0" />}
+      {showName && (
+        <Avatar
+          initials={initialsOf(l.displayName)}
+          size="sm"
+          tone="tint"
+          className="mt-0.5 shrink-0"
+        />
+      )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-ink">
           {showName ? l.displayName : l.stepLabel}
@@ -65,11 +82,16 @@ function Line({ l, currency, showName }: { l: PayoutReceiptLine; currency: strin
 function Body({ r }: { r: PayoutReceipts }) {
   const cur = r.currency
   const all = r.scope === 'all'
-  const simulatedReason = r.batches.find((b) => b.simulated)?.reason || r.lines.find((l) => l.simulated && l.reason)?.reason
+  const simulatedReason =
+    r.batches.find((b) => b.simulated)?.reason ||
+    r.lines.find((l) => l.simulated && l.reason)?.reason
   return (
     <div className="space-y-4">
       {r.me && (
-        <div className="rounded-xl border border-teal/20 bg-tint px-4 py-3" data-testid="your-share">
+        <div
+          className="rounded-xl border border-teal/20 bg-tint px-4 py-3"
+          data-testid="your-share"
+        >
           <p className="micro-label !text-teal">Your share</p>
           <p className="mt-0.5 font-headline text-[19px] font-semibold text-ink">
             Your share: <span className="t-num">{money(r.me.shareOfMilestoneMinor, cur)}</span>{' '}
@@ -84,12 +106,16 @@ function Body({ r }: { r: PayoutReceipts }) {
       )}
 
       {all && r.team.length > 0 && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-umber" data-testid="team-split">
+        <div
+          className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-umber"
+          data-testid="team-split"
+        >
           {r.team.map((m) => (
             <span key={m.userId}>
               <span className="text-ink">{m.displayName}</span> {pctText(m.shareBp)}
               {m.role === 'lead' ? ' (lead)' : ''}:{' '}
-              <span className="t-num">{money(m.paidMinor, cur)}</span> of <span className="t-num">{money(m.shareOfMilestoneMinor, cur)}</span>
+              <span className="t-num">{money(m.paidMinor, cur)}</span> of{' '}
+              <span className="t-num">{money(m.shareOfMilestoneMinor, cur)}</span>
             </span>
           ))}
         </div>
@@ -97,17 +123,26 @@ function Body({ r }: { r: PayoutReceipts }) {
 
       {r.lines.length === 0 ? (
         <p className="rounded-xl border border-dashed border-line px-4 py-3 text-[12.5px] text-umber">
-          Nothing paid out yet. Each release pays the whole team in one PayPal Payouts batch, split by the signed shares.
+          Nothing paid out yet
         </p>
       ) : all && r.batches.length ? (
         <div className="space-y-3">
           {r.batches.map((b) => {
             const lines = r.lines.filter((l) => l.batchId === b.batchId)
             return (
-              <div key={b.batchId} className="overflow-hidden rounded-xl border border-line" data-testid="team-payout-batch">
+              <div
+                key={b.batchId}
+                className="overflow-hidden rounded-xl border border-line"
+                data-testid="team-payout-batch"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-canvas/60 px-3 py-2">
                   <p className="flex min-w-0 items-center gap-1.5 text-[12.5px] font-medium text-ink">
-                    <Layers size={13} strokeWidth={1.75} className="shrink-0 text-umber" aria-hidden="true" />
+                    <Layers
+                      size={13}
+                      strokeWidth={1.75}
+                      className="shrink-0 text-umber"
+                      aria-hidden="true"
+                    />
                     {b.stepLabel}
                     <span className="font-normal text-umber">
                       · {b.members} {b.members === 1 ? 'person' : 'people'}
@@ -137,7 +172,9 @@ function Body({ r }: { r: PayoutReceipts }) {
           <Info size={13} strokeWidth={1.75} className="mt-px shrink-0" aria-hidden="true" />
           <span>
             Simulated payout: the batch and every receipt are recorded, but no money left PayPal.{' '}
-            {simulatedReason ? `Why: ${simulatedReason}.` : 'PayPal Payouts is not available to this sandbox account.'}
+            {simulatedReason
+              ? `Why: ${simulatedReason}.`
+              : 'PayPal Payouts is not available to this sandbox account.'}
           </span>
         </p>
       )}
@@ -157,7 +194,14 @@ export default function TeamPayoutCard({
   const m = deal.milestones.find((x) => x.key === milestoneKey)
   // refetch when money moves on this milestone
   const q = useQuery({
-    queryKey: ['payout-receipts', orgId, deal.id, milestoneKey, m?.paidOutMinor ?? 0, m?.payouts?.length ?? 0],
+    queryKey: [
+      'payout-receipts',
+      orgId,
+      deal.id,
+      milestoneKey,
+      m?.paidOutMinor ?? 0,
+      m?.payouts?.length ?? 0,
+    ],
     queryFn: () => api.getPayoutReceipts(orgId, deal.id, milestoneKey),
     enabled: !!orgId,
     staleTime: 10_000,

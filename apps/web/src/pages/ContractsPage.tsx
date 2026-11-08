@@ -105,7 +105,6 @@ export default function ContractsPage() {
     <div className="fade-in">
       <PageHeader
         title="Contracts"
-        subtitle="Send scopes and retainers, see when clients open them, and capture the signature - all next to the work."
         actions={
           <button
             className="btn-primary"

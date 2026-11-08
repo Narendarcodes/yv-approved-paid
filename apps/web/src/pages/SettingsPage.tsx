@@ -87,7 +87,6 @@ export default function SettingsPage() {
     <div className="fade-in mx-auto max-w-2xl">
       <header className="mb-6">
         <h1 className="t-display">Settings</h1>
-        <p className="mt-1 text-sm text-umber">Manage your workspace and notifications</p>
       </header>
 
       <div className="space-y-6">
@@ -104,7 +103,6 @@ export default function SettingsPage() {
                 className="input bg-canvas/60 text-umber"
                 data-testid="org-name"
               />
-              <p className="mt-1 text-[12px] text-label">Set when the workspace was created.</p>
             </div>
             <div>
               <label className="label">Workspace slug</label>
@@ -121,10 +119,6 @@ export default function SettingsPage() {
         <section className="card overflow-hidden">
           <header className="border-b border-line px-6 py-4">
             <h2 className="card-title">Roles & permissions</h2>
-            <p className="mt-0.5 text-[13px] text-umber">
-              What each role can do in this workspace - this mirrors the permissions the backend
-              enforces.
-            </p>
           </header>
           <div className="divide-y divide-line">
             {ROLES.map((r) => (

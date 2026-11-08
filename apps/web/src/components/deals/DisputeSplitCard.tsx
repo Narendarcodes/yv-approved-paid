@@ -39,14 +39,23 @@ export default function DisputeSplitCard({
   const agreed = split.client !== undefined && split.client === split.worker
   const mine = deal.me ? split[deal.me] : undefined
   const canAccept =
-    !!p && !!deal.me && runtime.state === 'DISPUTED' && p.decision.allowed && mine !== p.workerMinor && !agreed
+    !!p &&
+    !!deal.me &&
+    runtime.state === 'DISPUTED' &&
+    p.decision.allowed &&
+    mine !== p.workerMinor &&
+    !agreed
 
   const accept = async () => {
     if (!p) return
     setBusy(true)
     try {
       await api.acceptDealSplit(orgId, deal.id, milestoneKey, p.workerMinor)
-      toast('success', 'Split accepted', 'When both sides match, the Money Agent captures it and releases the rest.')
+      toast(
+        'success',
+        'Split accepted',
+        'When both sides match, the Money Agent captures it and releases the rest.',
+      )
       onChanged?.()
     } catch (e: any) {
       toast('danger', 'Could not accept the split', e?.message || 'Try again')
@@ -60,7 +69,11 @@ export default function DisputeSplitCard({
       testId="dispute-split-card"
       label="Dispute split"
       title={terms.title}
-      meta={agreed ? <span className="status-chip bg-st-scheduled-bg text-st-scheduled">Agreed</span> : undefined}
+      meta={
+        agreed ? (
+          <span className="status-chip bg-st-scheduled-bg text-st-scheduled">Agreed</span>
+        ) : undefined
+      }
       footer={
         canAccept ? (
           <button className="btn-primary" disabled={busy} onClick={accept}>
@@ -71,14 +84,15 @@ export default function DisputeSplitCard({
       }
     >
       {!p ? (
-        <p className="text-[13px] text-umber">No split proposed yet. Opening a dispute builds the evidence pack and a split from the checklist.</p>
+        <p className="text-[13px] text-umber">No split proposed</p>
       ) : (
         <>
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
             <div>
               <p className="micro-label">Checklist</p>
               <p className="t-num text-[18px]">
-                {p.basis.passedChecks} of {p.basis.totalChecks} met → {(p.basis.shareBp / 100).toFixed(0)}%
+                {p.basis.passedChecks} of {p.basis.totalChecks} met →{' '}
+                {(p.basis.shareBp / 100).toFixed(0)}%
               </p>
             </div>
             <div>
@@ -91,7 +105,9 @@ export default function DisputeSplitCard({
             </div>
           </div>
           <p className="mt-1 text-[12px] text-umber">
-            {(p.basis.shareBp / 100).toFixed(0)}% of the signed {money(p.basis.amountMinor, cur)}, capped at what is still held ({money(p.basis.remainingMinor, cur)}). Arithmetic, not an AI number.
+            {(p.basis.shareBp / 100).toFixed(0)}% of the signed {money(p.basis.amountMinor, cur)},
+            capped at what is still held ({money(p.basis.remainingMinor, cur)}). Arithmetic, not an
+            AI number.
           </p>
 
           <ul className="mt-4 divide-y divide-line">
@@ -103,9 +119,10 @@ export default function DisputeSplitCard({
             ))}
           </ul>
           <p className="mt-2 text-[12px] text-umber">
-            Rounds used {p.evidence.rounds.used} of {p.evidence.rounds.included} · {p.evidence.versions} version(s) ·{' '}
-            {p.evidence.changeRequests.length} change request(s)
-            {p.evidence.tasteLines.length > 0 && ` · taste lines (people decide): ${p.evidence.tasteLines.join('; ')}`}
+            Rounds used {p.evidence.rounds.used} of {p.evidence.rounds.included} ·{' '}
+            {p.evidence.versions} version(s) · {p.evidence.changeRequests.length} change request(s)
+            {p.evidence.tasteLines.length > 0 &&
+              ` · taste lines (people decide): ${p.evidence.tasteLines.join('; ')}`}
           </p>
 
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[13px]">
@@ -120,14 +137,19 @@ export default function DisputeSplitCard({
                   )}
                   {roleWord(side)}
                   {deal.me === side && <span className="text-umber">(you)</span>}:{' '}
-                  <span className="text-umber">{v === undefined ? 'not yet' : `accepted ${money(v, cur)}`}</span>
+                  <span className="text-umber">
+                    {v === undefined ? 'not yet' : `accepted ${money(v, cur)}`}
+                  </span>
                 </span>
               )
             })}
           </div>
           {!p.decision.allowed && (
             <div className="mt-3">
-              <PolicyBlockedChip violations={p.decision.violations} currency={deal.terms.currency} />
+              <PolicyBlockedChip
+                violations={p.decision.violations}
+                currency={deal.terms.currency}
+              />
             </div>
           )}
         </>

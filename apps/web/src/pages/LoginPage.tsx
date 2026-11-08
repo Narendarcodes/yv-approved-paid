@@ -4,16 +4,16 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail, PlayCircle } from 'lucide-react'
 import { StatusDot, type Stage } from '../components/status'
 import { useToast } from '../components/toast'
 import { login as apiLogin, demoLogin, LoginError } from '../services/api'
-import { MOTTO, rememberDealOrg } from '../lib/deals'
+import { rememberDealOrg } from '../lib/deals'
 import BrandLogo from '../components/BrandLogo'
 
-const PIPE: { label: string; hint: string; stage: Stage }[] = [
-  { label: 'Idea', hint: 'Concepts & votes', stage: 'idea' },
-  { label: 'Brief', hint: 'Inputs & owners', stage: 'brief' },
-  { label: 'Production', hint: 'Drafts & versions', stage: 'production' },
-  { label: 'Review', hint: 'Frame-accurate notes', stage: 'review' },
-  { label: 'Scheduled', hint: 'Every channel', stage: 'scheduled' },
-  { label: 'Live', hint: 'Results flow back', stage: 'live' },
+const PIPE: { label: string; stage: Stage }[] = [
+  { label: 'Idea', stage: 'idea' },
+  { label: 'Brief', stage: 'brief' },
+  { label: 'Production', stage: 'production' },
+  { label: 'Review', stage: 'review' },
+  { label: 'Scheduled', stage: 'scheduled' },
+  { label: 'Live', stage: 'live' },
 ]
 
 export default function LoginPage() {
@@ -95,27 +95,27 @@ export default function LoginPage() {
         <BrandLogo to="/" size={36} />
 
         <div>
-          <p className="micro-label">Content operations</p>
-          <h1 className="mt-4 max-w-md font-headline text-[36px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink">
+          <h1 className=" max-w-md text-[32px] font-medium leading-[1.15] tracking-[-0.01em] text-ink">
             From idea to live post, in one calm workspace.
           </h1>
-          <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-umber">
-            Briefs, drafts, reviews, scheduling and results - with the whole team on the same page.
-          </p>
 
-          <ol className="mt-10 max-w-sm divide-y divide-line border-y border-line" aria-label="The yv. pipeline">
+          <ol
+            className="mt-10 max-w-sm divide-y divide-line border-y border-line"
+            aria-label="The yv. pipeline"
+          >
             {PIPE.map((st, i) => (
               <li key={st.label} className="flex items-center gap-3 py-2.5">
-                <span className="w-5 font-mono text-[11px] text-label">{String(i + 1).padStart(2, '0')}</span>
+                <span className="w-5 font-mono text-[11px] text-label">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
                 <StatusDot stage={st.stage} />
                 <span className="text-sm font-medium text-ink">{st.label}</span>
-                <span className="ml-auto text-xs text-umber">{st.hint}</span>
               </li>
             ))}
           </ol>
         </div>
 
-        <p className="font-mono text-[11px] text-label">Role-based access · Secure sign-in</p>
+        <span />
       </div>
 
       {/* Right: form */}
@@ -128,14 +128,19 @@ export default function LoginPage() {
           <div className="stagger rounded-[16px] border border-line bg-surface p-6 shadow-card sm:p-8">
             <div>
               <h2 className="t-display !text-[26px]">Sign in</h2>
-              <p className="mt-1.5 text-sm text-umber">Welcome back. Pick up where you left off.</p>
             </div>
 
             <form onSubmit={submit} className="mt-7 space-y-5" noValidate>
               <div>
-                <label htmlFor="email" className="label">Work email</label>
+                <label htmlFor="email" className="label">
+                  Work email
+                </label>
                 <div className="relative">
-                  <Mail size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                  <Mail
+                    size={16}
+                    strokeWidth={1.75}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                  />
                   <input
                     id="email"
                     type="email"
@@ -153,13 +158,22 @@ export default function LoginPage() {
               </div>
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="password" className="label !mb-0">Password</label>
-                  <Link to="/forgot-password" className="text-xs font-medium text-teal transition-opacity hover:opacity-80">
+                  <label htmlFor="password" className="label !mb-0">
+                    Password
+                  </label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs font-medium text-teal transition-opacity hover:opacity-80"
+                  >
                     Forgot password?
                   </Link>
                 </div>
                 <div className="relative">
-                  <Lock size={16} strokeWidth={1.75} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label" />
+                  <Lock
+                    size={16}
+                    strokeWidth={1.75}
+                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-label"
+                  />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -174,7 +188,11 @@ export default function LoginPage() {
                     className="icon-btn icon-btn-sm absolute right-1.5 top-1/2 -translate-y-1/2"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
+                    {showPassword ? (
+                      <EyeOff size={15} strokeWidth={1.75} />
+                    ) : (
+                      <Eye size={15} strokeWidth={1.75} />
+                    )}
                   </button>
                 </div>
                 {passwordError && (
@@ -193,25 +211,39 @@ export default function LoginPage() {
               )}
               <button type="submit" disabled={busy} className="btn-primary group w-full btn-lg">
                 {busy ? 'Signing in…' : 'Sign in'}
-                {!busy && <ArrowRight size={16} strokeWidth={2} className="transition-transform group-hover:translate-x-0.5" />}
+                {!busy && (
+                  <ArrowRight
+                    size={16}
+                    strokeWidth={2}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
+                )}
               </button>
             </form>
 
             {demoAvailable !== false && (
               <div className="mt-6 border-t border-line pt-5" data-testid="demo-login">
-                <button type="button" onClick={tryDemo} disabled={demoBusy || busy} className="btn-secondary w-full btn-lg">
+                <button
+                  type="button"
+                  onClick={tryDemo}
+                  disabled={demoBusy || busy}
+                  className="btn-secondary w-full btn-lg"
+                >
                   <PlayCircle size={16} strokeWidth={2} />
                   {demoBusy ? 'Opening the demo…' : 'Try the demo'}
                 </button>
-                <p className="mt-2 text-center text-[12px] leading-relaxed text-umber">
-                  Approved = Paid on a seeded demo deal (no real money). {MOTTO}
+                <p className="mt-2 text-center text-xs text-umber">
+                  Seeded demo deal, no real money
                 </p>
               </div>
             )}
           </div>
           <p className="mt-6 text-center text-sm text-umber">
             New to yv.?{' '}
-            <Link to="/register" className="font-medium text-teal underline-offset-4 hover:underline">
+            <Link
+              to="/register"
+              className="font-medium text-teal underline-offset-4 hover:underline"
+            >
               Create your organization
             </Link>
           </p>

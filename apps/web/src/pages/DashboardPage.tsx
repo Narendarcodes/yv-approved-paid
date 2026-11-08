@@ -8,7 +8,6 @@ import {
   Inbox,
   Megaphone,
   MessageSquare,
-  Shield,
 } from 'lucide-react'
 import Chip from '../components/primitives'
 import { AssigneeAvatar } from '../components/ui'
@@ -17,7 +16,6 @@ import { PipelineOverview } from '../components/PipelineOverview'
 import { type Project } from '../lib/types'
 import { projectStatusLabel, statusLabel } from '../lib/format'
 import { useViewer } from '../lib/viewer'
-import { roleOf } from '../lib/roles'
 import { useTeam, useProjects, primaryOrgId } from '../lib/data'
 import { listOrgActivity, listScheduledPosts, type ScheduledPost } from '../services/api'
 import { Skeleton } from '../components/states'
@@ -515,8 +513,6 @@ function PublishedCard({ p }: { p: Project }) {
 
 export default function DashboardPage() {
   const viewer = useViewer()
-  const firstName = viewer.name.split(' ')[0]
-  const info = roleOf(viewer)
 
   const { projects, error: projectsError } = useProjects()
   const { team } = useTeam()
@@ -549,37 +545,9 @@ export default function DashboardPage() {
   // Published work is no longer waiting to go out - only SCHEDULED counts here.
   const scheduled = projects.filter((p) => p.status === 'SCHEDULED')
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
-
   return (
     <div className="space-y-8">
-      {/* Greeting + role identity */}
-      <div className="stagger flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="t-display">
-            {greeting}, {firstName}
-          </h1>
-          <p className="mt-2 text-sm text-umber">
-            {viewer.role === 'admin'
-              ? 'Here’s what the team is working on across your organization today.'
-              : `Your ${info.desk.toLowerCase()} - ${info.blurb}`}
-          </p>
-        </div>
-        <Link
-          to="/profile"
-          className="group flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 shadow-card transition-colors hover:border-line-strong"
-        >
-          <Shield size={13} strokeWidth={1.75} className="text-teal" />
-          <span className="micro-label">Viewing as</span>
-          <span className="text-xs font-semibold text-ink">{info.label}</span>
-          <ArrowRight
-            size={12}
-            strokeWidth={1.75}
-            className="text-umber/40 transition-transform group-hover:translate-x-0.5"
-          />
-        </Link>
-      </div>
+      <h1 className="t-display">Dashboard</h1>
 
       {/* Pipeline: stage strip, waiting on, going live today, last week's best */}
       {projectsError ? (

@@ -150,7 +150,6 @@ export default function CommandPalette({
           {results.length === 0 ? (
             <div className="px-4 py-10 text-center">
               <p className="font-headline text-sm font-medium text-ink">No projects found</p>
-              <p className="mt-1 text-xs text-umber">Try a different title, type, or status.</p>
               {q && <p className="mt-2 font-mono text-xs text-label">“{q}”</p>}
             </div>
           ) : (

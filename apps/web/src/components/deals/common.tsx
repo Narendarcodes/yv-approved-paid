@@ -3,21 +3,7 @@
  * AI checks facts, people own taste, the deal decides the money.
  */
 import type { ReactNode } from 'react'
-import { ShieldCheck } from 'lucide-react'
-import { MOTTO, PAYPAL_ENV, paypalEnv } from '../../lib/deals'
-
-/** The motto line every deal screen carries. */
-export function Motto({ className = '' }: { className?: string }) {
-  return (
-    <p
-      className={`flex items-center gap-1.5 font-mono text-[11px] text-label ${className}`}
-      data-testid="deal-motto"
-    >
-      <ShieldCheck size={13} strokeWidth={1.75} className="text-teal" aria-hidden="true" />
-      {MOTTO}
-    </p>
-  )
-}
+import { PAYPAL_ENV, paypalEnv } from '../../lib/deals'
 
 /** A deal card: white surface, hairline border, header row with title + right-side meta. */
 export function DealCardShell({
