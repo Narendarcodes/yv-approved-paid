@@ -61,3 +61,23 @@ export const EMPTY_LINE = {
 /** Channels, Compose and Calendar while social publishing is in build. */
 export const PUBLISHING_IN_BUILD = 'Social publishing is in build. Accounts connect on our side.'
 export const PUBLISHING_PREVIEW = 'Preview: drafts and slots are saved, nothing posts yet.'
+
+/** Dashboard: one helper line per section, and the one-line empty state each collapses to. */
+export const DASH_LINE = {
+  attention: 'Money and deadlines to watch this week.',
+  stages: 'Every reel by stage. Tap a stage to list it.',
+  waitingOn: 'Who holds the next step, and on what.',
+  goingLive: 'Posts going out today, then the schedule.',
+  review: 'Cuts waiting on a decision, nearest deadline first.',
+  best: "Last week's top post by engagement.",
+  activity: 'The latest moves, uploads and approvals.',
+} as const
+
+export const DASH_EMPTY = {
+  attention: 'No money is held yet. It shows here once a brand funds a reel.',
+  waitingOn: 'Nobody is waiting on anyone.',
+  goingLive: 'Nothing today, and nothing scheduled.',
+  review: 'No cuts are waiting on review.',
+  best: 'No posts went live last week.',
+  activity: 'No project activity yet.',
+} as const

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  Activity,
   ArrowRight,
   BadgeCheck,
   Clapperboard,
@@ -12,7 +13,24 @@ import {
 import Chip from '../components/primitives'
 import { AssigneeAvatar } from '../components/ui'
 import { ErrorBanner } from '../components/states'
-import { PipelineOverview } from '../components/PipelineOverview'
+import {
+  GoingLive,
+  LastWeekBest,
+  PipelineOverview,
+  PipelineSkeleton,
+  StageStrip,
+  WaitingOn,
+  usePipeline,
+  type ScheduledRow,
+} from '../components/PipelineOverview'
+import {
+  AttentionStrip,
+  useMoneyBoard,
+  type MoneyBoard,
+} from '../components/dashboard/AttentionStrip'
+import { DashSection } from '../components/dashboard/Section'
+import { awaitingReview, isOverdue } from '../lib/attention'
+import { money } from '../lib/deals'
 import { type Project } from '../lib/types'
 import { projectStatusLabel, statusLabel } from '../lib/format'
 import { useViewer } from '../lib/viewer'
@@ -23,7 +41,7 @@ import Avatar from '../components/ui'
 import { useEffect, useState } from 'react'
 import { StatusChip, PlatformIcons } from '../components/status'
 import { initialsOf } from '../lib/initials'
-import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
+import { PAGE_LINE, EMPTY_LINE, DASH_LINE, DASH_EMPTY } from '../lib/copy'
 
 const iconProps = { size: 18, strokeWidth: 1.75 }
 
@@ -402,83 +420,218 @@ function ActivityCard({
   const shown = showAll ? grouped.slice(0, 30) : grouped.slice(0, ACTIVITY_CAP)
   if (hideEmpty && !loading && !shown.length) return null
 
-  return (
-    <div className={`card flex flex-col overflow-hidden ${className}`} data-testid="activity-card">
-      <header className="card-head">
-        <h2 className="card-title">Recent activity</h2>
-        {grouped.length > ACTIVITY_CAP && (
-          <button
-            className="card-link group ml-auto"
-            onClick={() => setShowAll((v) => !v)}
-            aria-expanded={showAll}
-            data-testid="activity-view-all"
-          >
-            {showAll ? 'Show less' : 'View all'}
-            <ArrowRight
-              size={13}
-              strokeWidth={2}
-              className={`transition-transform ${showAll ? '-rotate-90' : 'rotate-90'}`}
-            />
-          </button>
-        )}
-      </header>
-      {loading ? (
-        <div className="space-y-4 px-5 py-4" aria-busy="true">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex gap-3">
-              <Skeleton className="h-7 w-7 !rounded-full" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-3 w-3/4" />
-                <Skeleton className="h-2.5 w-1/4" />
-              </div>
+  if (loading) {
+    return (
+      <div
+        className={`card space-y-4 px-5 py-4 ${className}`}
+        aria-busy="true"
+        data-testid="activity-card"
+      >
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="flex gap-3">
+            <Skeleton className="h-7 w-7 !rounded-full" />
+            <div className="flex-1 space-y-1.5">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-2.5 w-1/4" />
             </div>
-          ))}
-        </div>
-      ) : shown.length ? (
-        <ul
-          className="grid grid-cols-1 divide-y divide-line md:grid-cols-2 md:divide-y-0"
-          data-testid="activity-list"
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <DashSection
+      title="Recent activity"
+      icon={<Activity size={16} strokeWidth={1.75} />}
+      helper={DASH_LINE.activity}
+      empty={DASH_EMPTY.activity}
+      isEmpty={!shown.length}
+      className={className}
+      testId="activity-card"
+    >
+      <ul
+        className="grid grid-cols-1 divide-y divide-line md:grid-cols-2 md:divide-y-0"
+        data-testid="activity-list"
+      >
+        {shown.map(({ e, count }) => {
+          const actor = e.actor?.name ?? 'Someone'
+          const project = e.projectId?.title
+          const pid = e.projectId?._id ?? e.projectId?.id
+          const body = (
+            <>
+              <Avatar initials={initialsOf(actor)} size="xs" tone="tint" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-snug text-ink">
+                  <span className="font-medium">{actor}</span> {describeAction(e)}
+                  {count > 1 && (
+                    <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 text-xs text-umber">
+                      ×{count}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-umber">
+                  {project && <span className="text-ink/80">{project}</span>}
+                  {project && ' · '}
+                  {e.createdAt ? relTime(e.createdAt) : ''}
+                </p>
+              </div>
+            </>
+          )
+          return (
+            <li key={String(e.id)} className="md:border-b md:border-line md:odd:border-r">
+              {pid ? (
+                <Link to={`/projects/${pid}`} className="row-link flex gap-3 px-5 py-3">
+                  {body}
+                </Link>
+              ) : (
+                <div className="flex gap-3 px-5 py-3">{body}</div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      {grouped.length > ACTIVITY_CAP && (
+        <button
+          className="card-link group justify-center border-t border-line py-2.5"
+          onClick={() => setShowAll((v) => !v)}
+          aria-expanded={showAll}
+          data-testid="activity-view-all"
         >
-          {shown.map(({ e, count }) => {
-            const actor = e.actor?.name ?? 'Someone'
-            const project = e.projectId?.title
-            const pid = e.projectId?._id ?? e.projectId?.id
-            const body = (
-              <>
-                <Avatar initials={initialsOf(actor)} size="xs" tone="tint" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-snug text-ink">
-                    <span className="font-medium">{actor}</span> {describeAction(e)}
-                    {count > 1 && (
-                      <span className="ml-1 rounded-full bg-ink/[0.05] px-1.5 text-xs text-umber">
-                        ×{count}
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-umber">
-                    {project && <span className="text-ink/80">{project}</span>}
-                    {project && ' · '}
-                    {e.createdAt ? relTime(e.createdAt) : ''}
-                  </p>
-                </div>
-              </>
-            )
-            return (
-              <li key={String(e.id)} className="md:border-b md:border-line md:odd:border-r">
-                {pid ? (
-                  <Link to={`/projects/${pid}`} className="row-link flex gap-3 px-5 py-3">
-                    {body}
-                  </Link>
-                ) : (
-                  <div className="flex gap-3 px-5 py-3">{body}</div>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-      ) : (
-        <InlineEmpty text="No project activity yet" />
+          {showAll ? 'Show less' : `View all ${Math.min(grouped.length, 30)}`}
+          <ArrowRight
+            size={13}
+            strokeWidth={2}
+            className={`transition-transform ${showAll ? '-rotate-90' : 'rotate-90'}`}
+          />
+        </button>
       )}
+    </DashSection>
+  )
+}
+
+/** Awaiting review: reels whose cut waits on the brand (with their clock and held money), then projects in review. */
+function AwaitingReviewCard({
+  board,
+  projects,
+}: {
+  board: MoneyBoard | null
+  projects: Project[]
+}) {
+  const reels = board ? awaitingReview(board.payables) : []
+  const total = reels.length + projects.length
+  const clockText = (r: (typeof reels)[number]) =>
+    isOverdue(r)
+      ? 'Past the review deadline'
+      : r.clockStatus === 'waiting_checks'
+        ? 'Clock starts after checks'
+        : r.clockStatus === 'paused'
+          ? `Paused · ${r.businessDaysLeft ?? 0} business days left`
+          : r.businessDaysLeft !== null
+            ? `${r.businessDaysLeft} business day${r.businessDaysLeft === 1 ? '' : 's'} left`
+            : 'No review clock'
+  return (
+    <DashSection
+      title="Awaiting review"
+      icon={<MessageSquare size={16} strokeWidth={1.75} />}
+      helper={DASH_LINE.review}
+      empty={DASH_EMPTY.review}
+      isEmpty={board !== null && total === 0}
+      count={total || undefined}
+      to="/review"
+      action="Open review"
+      testId="awaiting-review"
+    >
+      <ul className="divide-y divide-line">
+        {reels.slice(0, 5).map((r) => (
+          <li key={`${r.dealId}:${r.milestoneKey}`}>
+            <Link
+              to={`/deals/${encodeURIComponent(r.dealId)}?reel=${encodeURIComponent(r.milestoneKey)}`}
+              className="row-link flex items-center gap-3 px-5 py-2.5"
+              data-testid="awaiting-review-reel"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] text-ink">{r.title}</p>
+                <p
+                  className={`text-[12px] sm:truncate ${isOverdue(r) ? 'text-danger' : 'text-umber'}`}
+                >
+                  {r.dealTitle} · {clockText(r)}
+                </p>
+              </div>
+              {r.heldMinor > 0 && (
+                <span className="t-num shrink-0 text-[12.5px] text-umber">
+                  {money(r.heldMinor, r.currency)} held
+                </span>
+              )}
+            </Link>
+          </li>
+        ))}
+        {projects.slice(0, Math.max(0, 6 - Math.min(reels.length, 5))).map((p) => (
+          <li key={p.id}>
+            <Link to={`/projects/${p.id}`} className="row-link flex items-center gap-3 px-5 py-2.5">
+              <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{p.title}</span>
+              <StatusChip status={p.status} label={projectStatusLabel(p)} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </DashSection>
+  )
+}
+
+/** Scheduled projects with their channels and next post time (for Going live today + Scheduled). */
+function useScheduledRows(items: Project[]): ScheduledRow[] {
+  const posts = useUpcomingPosts()
+  return items
+    .map((p) => {
+      const mine = (posts ?? []).filter((x) => x.projectId === p.id && x.status !== 'cancelled')
+      const next = mine
+        .filter((x) => x.status === 'scheduled' && x.scheduledFor)
+        .map((x) => new Date(x.scheduledFor as string))
+        .sort((a, b) => a.getTime() - b.getTime())[0]
+      return {
+        key: p.id,
+        title: p.title,
+        to: `/projects/${p.id}`,
+        when: next
+          ? fmtWhen(next)
+          : p.scheduleDate
+            ? `Scheduled ${p.scheduleDate}`
+            : 'Time not set',
+        platforms: mine.map((x) => x.channel?.platform || x.platform).filter(Boolean) as string[],
+        at: next?.getTime() ?? Infinity,
+        right: mine.some((x) => x.status === 'failed') ? <StatusChip status="failed" /> : undefined,
+      }
+    })
+    .sort((a, b) => a.at - b.at)
+}
+
+/** Admin: money strip, stages, then the six insight sections in two columns. */
+function AdminOverview({ inReview, scheduled }: { inReview: Project[]; scheduled: Project[] }) {
+  const board = useMoneyBoard()
+  const { data, error } = usePipeline()
+  const scheduledRows = useScheduledRows(scheduled)
+  return (
+    <div className="space-y-4">
+      <AttentionStrip board={board} />
+      {error && !data ? null : !data ? (
+        <PipelineSkeleton />
+      ) : (
+        <div className="space-y-4" data-testid="pipeline">
+          <StageStrip data={data} />
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+            <div className="space-y-4">
+              <WaitingOn data={data} />
+              <AwaitingReviewCard board={board} projects={inReview} />
+            </div>
+            <div className="space-y-4">
+              <GoingLive data={data} scheduled={scheduledRows} />
+              <LastWeekBest data={data} />
+            </div>
+          </div>
+        </div>
+      )}
+      <ActivityCard />
     </div>
   )
 }
@@ -510,6 +663,16 @@ function PublishedCard({ p }: { p: Project }) {
         <Chip label="Published" tone="success" />
       </div>
     </Link>
+  )
+}
+
+function RoleOverview() {
+  const board = useMoneyBoard()
+  return (
+    <div className="space-y-4">
+      <AttentionStrip board={board} />
+      <PipelineOverview />
+    </div>
   )
 }
 
@@ -556,20 +719,19 @@ export default function DashboardPage() {
         <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/dashboard']}</p>
       </div>
 
-      {/* Pipeline: stage strip, waiting on, going live today, last week's best */}
+      {/* Admin: money strip, stages, waiting on, going live + scheduled, awaiting review,
+          last week's best, recent activity. Other roles: money strip + pipeline, then their desk. */}
       {projectsError ? (
         <ErrorBanner onRetry={() => window.location.reload()} />
+      ) : viewer.role === 'admin' ? (
+        <AdminOverview inReview={allInReview} scheduled={scheduled} />
       ) : (
-        <PipelineOverview
-          review={viewer.role === 'admin' ? allInReview : undefined}
-          scheduled={viewer.role === 'admin' ? scheduled : undefined}
-        />
+        <RoleOverview />
       )}
 
       {/* ---------------- Admin: team overview ---------------- */}
       {viewer.role === 'admin' && (
         <>
-          <ActivityCard hideEmpty />
           {myWork.length > 0 && (
             <section>
               <header className="mb-3 flex items-center justify-between">
