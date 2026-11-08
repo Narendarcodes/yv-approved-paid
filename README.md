@@ -733,6 +733,10 @@ This repo: `github.com/Narendarcodes/yv-approved-paid` (the PayPal AI Hackathon 
 
 ---
 
+## Credits
+
+Illustrations: [unDraw](https://undraw.co) by Katerina Limpitsouni (free licence, no attribution required), recoloured to the yv. teal.
+
 ## License
 
 Private — all rights reserved. Not licensed for public use.

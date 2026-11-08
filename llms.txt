@@ -16,7 +16,7 @@
 ## Run
 - API tests: cd apps/api && npx jest --runInBand
 - Web tests: cd apps/web && npm test · Build: npx vite build · Typecheck: npm run typecheck
-- Smoke: DEMO_MODE=1 PAYPAL_MODE=mock API + web dev, /login → Try the demo, open /deals/deal_demo_diwali, /payables, /my-money.
+- Smoke: DEMO_MODE=1 PAYPAL_MODE=mock API + web dev, /login → Try the demo, open /deals/deal_demo_diwali (?reel=<key>&open=checks,payout,changes,money,terms|all), /payables, /my-money.
 
 ## Never
 - Change money logic, let a model produce amounts, commit secrets, move money on the live demo, force-push/merge/deploy without the owner, remove routes.

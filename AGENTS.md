@@ -21,7 +21,9 @@ yv. turns a signed content deal into a payday the code keeps: brands fund each m
 | Top bar / avatar menu | `/notifications`, `/profile`, `/settings` (admin) | `NotificationsPage`, `ProfilePage`, `SettingsPage` | `routes/notifications`, `routes/users`, `routes/organizations` |
 | Public | `/`, `/login`, `/register`, `/forgot-password` | `LandingPage`, `LoginPage`, … | `routes/auth` |
 
-Nav lives in `apps/web/src/layouts/AppShell.tsx` (grouped by job, role-gated). Design tokens: `apps/web/src/styles/tokens.css` only. The deal copilot is `services/agent` (FastAPI). The clock workflow is `workflows/fair-clock`.
+Nav lives in `apps/web/src/layouts/AppShell.tsx` (grouped by job, role-gated).
+
+Deal page: `DealPage` = one-line header + `ReelRail` + `ReelPanel` (components/deals). The URL holds the view: `/deals/:id?reel=reel3&open=checks,payout,changes,money,terms` (or `open=all`), so tests and agents deep-link instead of scrolling. Cards inside a `DealSection` render frameless via the `BareCards` context. Empty states, auth panels, the landing, the 404 and the Paid moment use `<Illustration name=… />` (8 unDraw SVGs in `apps/web/public/illustrations`); keep them off working screens. Design tokens: `apps/web/src/styles/tokens.css` only. The deal copilot is `services/agent` (FastAPI). The clock workflow is `workflows/fair-clock`.
 
 ## Money rules (never break)
 
@@ -41,7 +43,7 @@ cd apps/web && npx vite build              # web build (CI runs tsc -b && vite b
 cd services/agent && python -m pytest -q   # deal agent
 ```
 
-Smoke run (local): API with `DEMO_MODE=1 PAYPAL_MODE=mock npm run dev`, web with `npm run dev`, then `/login` → "Try the demo". Check: `/deals/deal_demo_diwali` shows reels 1 to 4 and the money timeline; the copilot answers "Capture $450 on reel 1" with "No money moved"; `/payables` loads its grid and exports CSV; `/my-money` loads.
+Smoke run (local): API with `DEMO_MODE=1 PAYPAL_MODE=mock npm run dev`, web with `npm run dev`, then `/login` → "Try the demo". Check: `/deals/deal_demo_diwali` shows reels 1 to 4 in the rail and `?open=money` shows the money timeline; the copilot answers "Capture $450 on reel 1" with "No money moved"; `/payables` loads its grid and exports CSV; `/my-money` loads.
 
 ## Never do
 
