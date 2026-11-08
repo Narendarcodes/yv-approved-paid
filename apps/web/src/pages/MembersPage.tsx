@@ -113,13 +113,13 @@ export default function MembersPage() {
             </div>
           ) : (
             <>
-              <table className="w-full min-w-[680px] text-left">
+              <table className="w-full text-left sm:min-w-[680px]">
                 <thead>
                   <tr className="border-b border-line">
                     <th className="table-head">Member</th>
-                    <th className="table-head">Email</th>
+                    <th className="table-head hidden sm:table-cell">Email</th>
                     <th className="table-head">Role</th>
-                    <th className="table-head">Last active</th>
+                    <th className="table-head hidden sm:table-cell">Last active</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -132,17 +132,26 @@ export default function MembersPage() {
                             size="md"
                             tone={m.role === 'Admin' ? 'ink' : 'tint'}
                           />
-                          <span className="font-medium text-ink">{m.name}</span>
+                          <span className="min-w-0">
+                            <span className="block font-medium text-ink">{m.name}</span>
+                            <span className="block truncate text-xs text-umber sm:hidden">
+                              {m.email}
+                            </span>
+                          </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-sm text-umber">{m.email}</td>
+                      <td className="hidden px-5 py-3.5 text-sm text-umber sm:table-cell">
+                        {m.email}
+                      </td>
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-1.5">
                           <Chip label={m.role} tone={roleTone[m.role] ?? 'neutral'} />
                           {m.pending && <Chip label="Pending" tone="warning" />}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-xs text-label">{m.lastActive}</td>
+                      <td className="hidden px-5 py-3.5 font-mono text-xs text-label sm:table-cell">
+                        {m.lastActive}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

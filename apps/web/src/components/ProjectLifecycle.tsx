@@ -156,11 +156,11 @@ export function ProjectLifecycle({
           const done = !cancelled && i < current
           const active = !cancelled && i === current
           return (
-            <li key={s.key} className="min-w-0">
+            <li key={s.key} className="min-w-0" title={s.label}>
               <div
                 className={`h-1.5 rounded-full transition-colors duration-500 ${done ? 'bg-teal' : active ? 'bg-teal/60' : 'bg-line'}`}
               />
-              <div className="mt-2 flex items-center gap-1.5">
+              <div className="mt-2 hidden items-center gap-1.5 sm:flex">
                 <span
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs ${
                     done

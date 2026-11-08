@@ -166,7 +166,7 @@ export default function ProjectsPage() {
             </button>
           ))}
         </div>
-        <div className="relative w-56">
+        <div className="relative w-full sm:w-56">
           <Search
             size={15}
             strokeWidth={1.75}
@@ -228,13 +228,13 @@ function ProjectListView({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-left">
+          <table className="w-full text-left sm:min-w-[680px]">
             <thead>
               <tr className="border-b border-line">
                 <th className="table-head">Project</th>
                 <th className="table-head">Status</th>
-                <th className="table-head">Assignee</th>
-                <th className="table-head">Updated</th>
+                <th className="table-head hidden sm:table-cell">Assignee</th>
+                <th className="table-head hidden sm:table-cell">Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -244,7 +244,7 @@ function ProjectListView({
                     <Link to={`/projects/${p.id}`} className="font-medium text-ink hover:text-teal">
                       {p.title}
                     </Link>
-                    <span className="ml-2 text-xs text-label">{p.type}</span>
+                    <span className="block text-xs text-label sm:ml-2 sm:inline">{p.type}</span>
                     {p.status === 'PUBLISHED' && p.postUrl && (
                       <a
                         href={p.postUrl}
@@ -259,7 +259,7 @@ function ProjectListView({
                   <td className="px-5 py-3.5">
                     <StatusChip status={p.status} label={projectStatusLabel(p)} />
                   </td>
-                  <td className="px-5 py-3.5">
+                  <td className="hidden px-5 py-3.5 sm:table-cell">
                     <span className="flex items-center gap-2">
                       <AssigneeAvatar member={memberOf(p.assignee)} size="xs" />
                       {memberOf(p.assignee) && (
@@ -267,7 +267,9 @@ function ProjectListView({
                       )}
                     </span>
                   </td>
-                  <td className="px-5 py-3.5 font-mono text-xs text-label">{p.updated}</td>
+                  <td className="hidden px-5 py-3.5 font-mono text-xs text-label sm:table-cell">
+                    {p.updated}
+                  </td>
                 </tr>
               ))}
             </tbody>

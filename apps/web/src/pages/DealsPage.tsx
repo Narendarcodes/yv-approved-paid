@@ -29,9 +29,9 @@ export default function DealsPage() {
               <li key={d.id}>
                 <Link
                   to={`/deals/${encodeURIComponent(d.id)}`}
-                  className="row-link flex items-center gap-4 px-5 py-3.5"
+                  className="row-link flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 sm:flex-nowrap"
                 >
-                  <span className="min-w-0 flex-1 truncate text-[15px] text-ink">
+                  <span className="min-w-0 basis-full truncate text-[15px] text-ink sm:flex-1 sm:basis-auto">
                     {d.terms.title}
                   </span>
                   {!d.termsHash && <StatusChip status="DRAFT" label="Draft" />}
@@ -45,7 +45,7 @@ export default function DealsPage() {
                       </span>
                     ))}
                   </span>
-                  <span className="t-num w-[170px] text-right text-[14px] text-umber">
+                  <span className="t-num ml-auto text-right text-[14px] text-umber sm:ml-0 sm:w-[170px]">
                     <span className="text-ink">{money(captured, d.terms.currency)}</span> of{' '}
                     {money(total, d.terms.currency)}
                   </span>
