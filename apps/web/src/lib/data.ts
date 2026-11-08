@@ -126,6 +126,13 @@ const projectsListeners = new Set<() => void>()
 function emitProjectsChanged() {
   projectsListeners.forEach((l) => l())
 }
+/** Run `listener` whenever a mutation invalidates project data; returns the unsubscribe. */
+export function onProjectsChanged(listener: () => void): () => void {
+  projectsListeners.add(listener)
+  return () => {
+    projectsListeners.delete(listener)
+  }
+}
 
 let projectsPromise: Promise<Project[]> | null = null
 export async function loadProjects(): Promise<Project[]> {

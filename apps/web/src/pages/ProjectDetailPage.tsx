@@ -238,7 +238,10 @@ export default function ProjectDetailPage() {
             <StatusChip status={project.status} label={projectStatusLabel(project)} />
             <Chip label={project.type} tone="neutral" />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-umber">
+          <div
+            id="assign"
+            className="mt-2 flex scroll-mt-20 flex-wrap items-center gap-2 text-sm text-umber"
+          >
             <span className="micro-label">Responsible</span>
             <AssignPicker
               team={team}
@@ -648,7 +651,7 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Versions timeline */}
-        <div className="card h-fit p-5">
+        <div id="versions" className="card h-fit scroll-mt-20 p-5">
           <header className="mb-4 flex items-center justify-between">
             <h2 className="card-title">Versions</h2>
             {hasReview && (

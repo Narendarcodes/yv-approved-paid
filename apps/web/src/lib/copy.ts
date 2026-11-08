@@ -81,3 +81,10 @@ export const DASH_EMPTY = {
   best: 'No posts went live last week.',
   activity: 'No project activity yet.',
 } as const
+
+/** Project lifecycle: the stage gate's helper line and the checklist heading. */
+export const GATE_LINE = {
+  locked: 'Each stage opens once the work of the one before it is done.',
+  heading: "What's missing",
+  ready: 'Everything for the next stage is done.',
+} as const

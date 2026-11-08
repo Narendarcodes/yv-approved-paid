@@ -425,7 +425,12 @@ export async function addMember(
   orgId: string,
   email: string,
   role: string,
-): Promise<{ pending?: boolean; emailSent?: boolean; role: string; user?: { _id: string; name: string; email: string } }> {
+): Promise<{
+  pending?: boolean
+  emailSent?: boolean
+  role: string
+  user?: { _id: string; name: string; email: string }
+}> {
   return sendJson('POST', `/organizations/${encodeURIComponent(orgId)}/members`, { email, role })
 }
 
@@ -963,6 +968,34 @@ async function getJson<T>(path: string): Promise<T> {
 export async function transitionProject(projectId: string, status: string) {
   return normalize(await sendJson<any>('POST', `/projects/${projectId}/transition`, { status }))
 }
+/** One line of a stage gate's checklist (GET /projects/:id/gate). */
+export type GateItem = { key: string; label: string; done: boolean; href: string; action: string }
+export type ProjectGate = {
+  status: string
+  next: string | null
+  from: string | null
+  to: string | null
+  gated: boolean
+  ready: boolean
+  items: GateItem[]
+  missing: GateItem[]
+}
+export function getProjectGate(projectId: string): Promise<ProjectGate> {
+  return getJson<ProjectGate>(`/projects/${projectId}/gate`)
+}
+/** Link (or unlink with null) the deal milestone this project delivers. */
+export async function linkProjectDeal(
+  projectId: string,
+  dealId: string | null,
+  milestoneKey?: string | null,
+) {
+  return normalize(
+    await sendJson<any>('PUT', `/projects/${projectId}/deal`, {
+      dealId,
+      milestoneKey: milestoneKey ?? null,
+    }),
+  )
+}
 export async function approveVersion(projectId: string, versionId: string) {
   return normalize(await sendJson<any>('POST', `/projects/${projectId}/approve`, { versionId }))
 }
@@ -1067,7 +1100,9 @@ export async function assignProject(projectId: string, assigneeId: string) {
 }
 /** Reassign a task (needs task.update); the assignee must be an active member of the org. */
 export async function assignTask(projectId: string, taskId: string, assignee: string | null) {
-  return normalize(await sendJson<any>('PATCH', `/projects/${projectId}/tasks/${taskId}`, { assignee })) as TaskItem
+  return normalize(
+    await sendJson<any>('PATCH', `/projects/${projectId}/tasks/${taskId}`, { assignee }),
+  ) as TaskItem
 }
 
 /* Contracts */
@@ -1732,7 +1767,12 @@ export function signDeal(orgId: string, dealId: string, termsHash: string): Prom
 export function fundMilestone(orgId: string, dealId: string, key: string): Promise<DealView> {
   return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/fund'))
 }
-export function approveMilestone(orgId: string, dealId: string, key: string, versionId: string): Promise<DealView> {
+export function approveMilestone(
+  orgId: string,
+  dealId: string,
+  key: string,
+  versionId: string,
+): Promise<DealView> {
   return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/approve'), { versionId })
 }
 export function requestDealChanges(
@@ -1747,7 +1787,12 @@ export function openDealDispute(orgId: string, dealId: string, key: string): Pro
   return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/dispute'))
 }
 /** Accept the dispute split the API proposed (workerMinor is the proposal's number, never typed). */
-export function acceptDealSplit(orgId: string, dealId: string, key: string, workerMinor: number): Promise<DealView> {
+export function acceptDealSplit(
+  orgId: string,
+  dealId: string,
+  key: string,
+  workerMinor: number,
+): Promise<DealView> {
   return sendJson<DealView>('POST', msPath(orgId, dealId, key, '/split'), { workerMinor })
 }
 export function decideChangeOrder(
@@ -1756,9 +1801,16 @@ export function decideChangeOrder(
   coId: string,
   verb: 'accept' | 'decline',
 ): Promise<{ deal: DealView; result: { outcome?: string } | null }> {
-  return sendJson('POST', dealPath(orgId, dealId, `/change-orders/${encodeURIComponent(coId)}/${verb}`))
+  return sendJson(
+    'POST',
+    dealPath(orgId, dealId, `/change-orders/${encodeURIComponent(coId)}/${verb}`),
+  )
 }
-export function approvePending(orgId: string, dealId: string, approvalKey: string): Promise<{ deal: DealView }> {
+export function approvePending(
+  orgId: string,
+  dealId: string,
+  approvalKey: string,
+): Promise<{ deal: DealView }> {
   return sendJson('POST', dealPath(orgId, dealId, `/approvals/${encodeURIComponent(approvalKey)}`))
 }
 /** Nudge the Money Agent (it also runs every minute on its own). */
@@ -1778,14 +1830,31 @@ export type DealTeamPlan = {
   amountMinor: number
   totalBp: number
   clearsSignatures: boolean
-  payees: { userId: string; email: string; shareBp: number; displayName?: string; name: string; amountMinor: number }[]
+  payees: {
+    userId: string
+    email: string
+    shareBp: number
+    displayName?: string
+    name: string
+    amountMinor: number
+  }[]
 }
 export type DealTeamInput = { payees: { userId: string; shareBp: number; label?: string }[] }
-export function checkDealTeam(orgId: string, dealId: string, key: string, input: DealTeamInput): Promise<DealTeamPlan> {
+export function checkDealTeam(
+  orgId: string,
+  dealId: string,
+  key: string,
+  input: DealTeamInput,
+): Promise<DealTeamPlan> {
   return sendJson('POST', msPath(orgId, dealId, key, '/team/check'), input)
 }
 /** Client only, unsigned deals only (a signed deal answers 409 deal_locked). Clears signatures. */
-export function setDealTeam(orgId: string, dealId: string, key: string, input: DealTeamInput): Promise<DealView> {
+export function setDealTeam(
+  orgId: string,
+  dealId: string,
+  key: string,
+  input: DealTeamInput,
+): Promise<DealView> {
   return sendJson('PUT', msPath(orgId, dealId, key, '/team'), input)
 }
 export type { DealChangeOrder }
@@ -1804,7 +1873,11 @@ export type DealCopilotReply =
   | { source: 'offline'; reason: string }
 
 /** Ask the live deal copilot. Never throws for "agent off": the API answers { source: 'offline' }. */
-export function dealCopilot(orgId: string, dealId: string, question: string): Promise<DealCopilotReply> {
+export function dealCopilot(
+  orgId: string,
+  dealId: string,
+  question: string,
+): Promise<DealCopilotReply> {
   return sendJson('POST', dealPath(orgId, dealId, '/copilot'), { question })
 }
 
@@ -1812,7 +1885,11 @@ export function dealCopilot(orgId: string, dealId: string, question: string): Pr
  * One-tap judge login (DEMO_MODE=1 only). Resolves null when the API has no
  * demo (404) so the login page can hide the button; throws on other failures.
  */
-export async function demoLogin(): Promise<{ session: Session; dealId: string; organizationId: string | null } | null> {
+export async function demoLogin(): Promise<{
+  session: Session
+  dealId: string
+  organizationId: string | null
+} | null> {
   const res = await fetch(`${API_BASE}/auth/demo-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1824,7 +1901,10 @@ export async function demoLogin(): Promise<{ session: Session; dealId: string; o
   if (!res.ok) throw new Error(readableError(res, body, `Demo sign-in failed (HTTP ${res.status})`))
   csrfToken = body?.data?.csrfToken ?? readCookie('csrfToken')
   const u = (body?.data?.user ?? {}) as SessionUser & { _id?: string }
-  const session: Session = { user: { ...u, id: u.id ?? u._id ?? '' }, loggedInAt: new Date().toISOString() }
+  const session: Session = {
+    user: { ...u, id: u.id ?? u._id ?? '' },
+    loggedInAt: new Date().toISOString(),
+  }
   // Profile only (tokens are httpOnly cookies). No storage event here: the
   // caller navigates first, so the login page's redirect cannot race it.
   try {
@@ -1839,7 +1919,11 @@ export async function demoLogin(): Promise<{ session: Session; dealId: string; o
   }
 }
 /** PayPal return: the buyer approved the hold; ask the API to place the authorization. */
-export function confirmDealFunding(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; result: { outcome?: string } }> {
+export function confirmDealFunding(
+  orgId: string,
+  dealId: string,
+  key: string,
+): Promise<{ deal: DealView; result: { outcome?: string } }> {
   return sendJson('POST', msPath(orgId, dealId, key, '/fund/confirm'))
 }
 
@@ -1860,7 +1944,14 @@ export type ClockTermsEffective = Required<Omit<ClockTermsSpec, 'backupReviewerI
   country: 'IN' | 'US'
   tz: string
 }
-export type ClockEvent = { at: string; kind: 'step' | 'action'; id: string; by?: string; amountMinor?: number; note?: string }
+export type ClockEvent = {
+  at: string
+  kind: 'step' | 'action'
+  id: string
+  by?: string
+  amountMinor?: number
+  note?: string
+}
 export type ClockView = {
   milestoneKey: string
   milestoneState: string
@@ -1880,7 +1971,12 @@ export type ClockView = {
   includedRevisionRounds: number
   startedAt: string | null
   pausedMs: number
-  amounts: { amountMinor: number; partialAmountCents: number; remainderCents: number; currency: string } | null
+  amounts: {
+    amountMinor: number
+    partialAmountCents: number
+    remainderCents: number
+    currency: string
+  } | null
   doneSteps: string[]
   timeline: ClockEvent[]
 }
@@ -1894,15 +1990,29 @@ export type ClockChangesReply = {
 }
 
 /** The clock on a milestone, or null when the milestone has no clock terms (404 no_clock). */
-export async function getMilestoneClock(orgId: string, dealId: string, key: string): Promise<ClockView | null> {
-  const res = await authFetch(`${API_BASE}${msPath(orgId, dealId, key, '/clock')}`, { credentials: 'include' })
+export async function getMilestoneClock(
+  orgId: string,
+  dealId: string,
+  key: string,
+): Promise<ClockView | null> {
+  const res = await authFetch(`${API_BASE}${msPath(orgId, dealId, key, '/clock')}`, {
+    credentials: 'include',
+  })
   const body = await res.json().catch(() => null)
   if (res.status === 404 && body?.error?.code === 'no_clock') return null
-  if (!res.ok) throw new ApiError(readableError(res, body, `Request failed (${res.status})`), body?.error?.code)
+  if (!res.ok)
+    throw new ApiError(
+      readableError(res, body, `Request failed (${res.status})`),
+      body?.error?.code,
+    )
   return body?.data as ClockView
 }
 /** Brand: approve the latest version; the full amount still held releases now. */
-export function clockApprove(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; clock: ClockView | null }> {
+export function clockApprove(
+  orgId: string,
+  dealId: string,
+  key: string,
+): Promise<{ deal: DealView; clock: ClockView | null }> {
   return sendJson('POST', msPath(orgId, dealId, key, '/clock/approve'))
 }
 /** Brand: ask for changes. `citation` is a brief item id or a failed check id (422 citation_required / citation_unknown). */
@@ -1915,7 +2025,11 @@ export function clockRequestChanges(
   return sendJson('POST', msPath(orgId, dealId, key, '/clock/changes'), input)
 }
 /** Either party: dispute; the clock stops and what is still held stays frozen. */
-export function clockDispute(orgId: string, dealId: string, key: string): Promise<{ deal: DealView; clock: ClockView | null }> {
+export function clockDispute(
+  orgId: string,
+  dealId: string,
+  key: string,
+): Promise<{ deal: DealView; clock: ClockView | null }> {
   return sendJson('POST', msPath(orgId, dealId, key, '/clock/dispute'))
 }
 export type ClockTermsPlan = {
@@ -1938,7 +2052,12 @@ export type ClockTermsPlan = {
   } | null
 }
 /** Dry run of clock terms on a draft milestone (read-only): problems + "if you deliver today, review ends ...". */
-export function checkClockTerms(orgId: string, dealId: string, key: string, clock: ClockTermsSpec | null): Promise<ClockTermsPlan> {
+export function checkClockTerms(
+  orgId: string,
+  dealId: string,
+  key: string,
+  clock: ClockTermsSpec | null,
+): Promise<ClockTermsPlan> {
   return sendJson('POST', msPath(orgId, dealId, key, '/clock-terms/check'), { clock })
 }
 /** Save clock terms on a draft (unsigned deals only; clears signatures). */
@@ -1999,10 +2118,20 @@ export type PayoutReceipts = {
   lines: PayoutReceiptLine[]
 }
 
-export async function getPayoutReceipts(orgId: string, dealId: string, key: string): Promise<PayoutReceipts> {
-  const res = await authFetch(`${API_BASE}${msPath(orgId, dealId, key, '/payout-receipts')}`, { credentials: 'include' })
+export async function getPayoutReceipts(
+  orgId: string,
+  dealId: string,
+  key: string,
+): Promise<PayoutReceipts> {
+  const res = await authFetch(`${API_BASE}${msPath(orgId, dealId, key, '/payout-receipts')}`, {
+    credentials: 'include',
+  })
   const body = await res.json().catch(() => null)
-  if (!res.ok) throw new ApiError(readableError(res, body, `Request failed (${res.status})`), body?.error?.code)
+  if (!res.ok)
+    throw new ApiError(
+      readableError(res, body, `Request failed (${res.status})`),
+      body?.error?.code,
+    )
   return body?.data as PayoutReceipts
 }
 
@@ -2107,9 +2236,21 @@ export function getPayables(orgId: string): Promise<PayablesView> {
 export function getMyMoney(orgId: string): Promise<MyMoneyView> {
   return getJson<MyMoneyView>(dealsPath(orgId, '/my-money'))
 }
-export function bulkApproveDryRun(orgId: string, items: { dealId: string; milestoneKey: string }[]): Promise<BulkDryRun> {
-  return sendJson<BulkDryRun>('POST', dealsPath(orgId, '/payables/bulk-approve'), { items, dryRun: true })
+export function bulkApproveDryRun(
+  orgId: string,
+  items: { dealId: string; milestoneKey: string }[],
+): Promise<BulkDryRun> {
+  return sendJson<BulkDryRun>('POST', dealsPath(orgId, '/payables/bulk-approve'), {
+    items,
+    dryRun: true,
+  })
 }
-export function bulkApprove(orgId: string, items: { dealId: string; milestoneKey: string }[]): Promise<BulkResult> {
-  return sendJson<BulkResult>('POST', dealsPath(orgId, '/payables/bulk-approve'), { items, dryRun: false })
+export function bulkApprove(
+  orgId: string,
+  items: { dealId: string; milestoneKey: string }[],
+): Promise<BulkResult> {
+  return sendJson<BulkResult>('POST', dealsPath(orgId, '/payables/bulk-approve'), {
+    items,
+    dryRun: false,
+  })
 }

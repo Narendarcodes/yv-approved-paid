@@ -4,21 +4,26 @@
  * GET/PUT brief) and invalidate cached project data after every write.
  */
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, FileText, Pencil } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Check, Circle, FileText, Lock, Pencil } from 'lucide-react'
 import { statusLabel, projectStatusLabel, type PublishProgress } from '../lib/format'
 import { can, type Viewer } from '../lib/viewer'
 import { useToast } from './toast'
-import { invalidateProjectData } from '../lib/data'
+import { invalidateProjectData, onProjectsChanged } from '../lib/data'
 import {
   approveVersion,
   getBrief,
+  getProjectGate,
+  linkProjectDeal,
   listVersions,
   saveBrief,
   transitionProject,
   type Brief,
+  type ProjectGate,
 } from '../services/api'
-import { EMPTY_LINE } from '../lib/copy'
+import { EMPTY_LINE, GATE_LINE } from '../lib/copy'
+import { advanceState, dealOptions, gateRows, type GateRow } from '../lib/gates'
+import { useDeals } from '../lib/deals'
 
 /** Macro stages shown in the stepper, each owning a set of backend statuses. */
 const STAGES: { key: string; label: string; statuses: string[] }[] = [
@@ -81,6 +86,22 @@ export function ProjectLifecycle({
   const next = NEXT[status]
   const cancelled = status === 'CANCELLED'
 
+  // Stage gate: what the next move needs (the API refuses it with the same list).
+  const [gate, setGate] = useState<ProjectGate | null>(null)
+  const [gateTick, setGateTick] = useState(0)
+  useEffect(() => {
+    let active = true
+    getProjectGate(projectId)
+      .then((g) => active && setGate(g))
+      .catch(() => active && setGate(null))
+    return () => {
+      active = false
+    }
+  }, [projectId, status, gateTick])
+  useEffect(() => onProjectsChanged(() => setGateTick((t) => t + 1)), [])
+  const gateState = advanceState(gate)
+  const rows = gateRows(gate, projectId)
+
   const allowed = (() => {
     if (!next) return false
     if (next === 'APPROVED') return can(viewer, 'approve')
@@ -114,6 +135,7 @@ export function ProjectLifecycle({
       toast('success', 'Project moved', `Now: ${statusLabel(next)}`)
     } catch (err: any) {
       toast('danger', 'Could not move project', err?.message || 'Try again')
+      setGateTick((t) => t + 1)
     } finally {
       setBusy(false)
     }
@@ -132,11 +154,20 @@ export function ProjectLifecycle({
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={advance}
-              disabled={!allowed || busy}
+              disabled={!allowed || busy || gateState.locked}
               className="btn-primary"
               data-testid="advance-stage"
-              title={allowed ? undefined : 'Your role cannot make this move'}
+              data-locked={gateState.locked ? 'true' : 'false'}
+              aria-describedby={gateState.locked ? 'gate-checklist' : undefined}
+              title={
+                gateState.locked
+                  ? `${gateState.open} of ${gateState.total} still to do`
+                  : allowed
+                    ? undefined
+                    : 'Your role cannot make this move'
+              }
             >
+              {gateState.locked && !busy && <Lock size={13} strokeWidth={1.75} />}
               {busy
                 ? 'Moving…'
                 : next === 'APPROVED'
@@ -151,6 +182,16 @@ export function ProjectLifecycle({
           </div>
         )}
       </div>
+
+      {!cancelled && rows.length > 0 && gate && (
+        <GateChecklist
+          rows={rows}
+          locked={gateState.locked}
+          projectId={projectId}
+          canLink={can(viewer, 'upload')}
+          onLinked={() => setGateTick((t) => t + 1)}
+        />
+      )}
 
       <ol className="mt-5 grid grid-cols-7 gap-2">
         {STAGES.map((s, i) => {
@@ -185,6 +226,141 @@ export function ProjectLifecycle({
         })}
       </ol>
     </section>
+  )
+}
+
+/**
+ * "What's missing": one row per thing the next stage needs, each linking to
+ * where it gets done (a section of this page, or the deal / review / composer).
+ * Ready: one line. The deal row carries an inline picker when no deal is linked.
+ */
+function GateChecklist({
+  rows,
+  locked,
+  projectId,
+  canLink,
+  onLinked,
+}: {
+  rows: GateRow[]
+  locked: boolean
+  projectId: string
+  canLink: boolean
+  onLinked: () => void
+}) {
+  if (!locked) {
+    return (
+      <p className="mt-4 flex items-center gap-2 text-sm text-ink/80" data-testid="gate-ready">
+        <Check size={14} strokeWidth={2} className="text-teal" /> {GATE_LINE.ready}
+      </p>
+    )
+  }
+  const scrollTo = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  return (
+    <div
+      id="gate-checklist"
+      className="mt-4 rounded-xl border border-line bg-canvas/60 px-4 py-3"
+      data-testid="gate-checklist"
+    >
+      <p className="micro-label">{GATE_LINE.heading}</p>
+      <p className="mt-0.5 text-xs text-umber">{GATE_LINE.locked}</p>
+      <ul className="mt-2.5 space-y-2">
+        {rows.map((r) => (
+          <li
+            key={r.key}
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+            data-testid={`gate-item-${r.key}`}
+            data-done={r.done ? 'true' : 'false'}
+          >
+            {r.done ? (
+              <Check size={14} strokeWidth={2} className="shrink-0 text-teal" aria-label="Done" />
+            ) : (
+              <Circle
+                size={14}
+                strokeWidth={1.75}
+                className="shrink-0 text-label"
+                aria-label="To do"
+              />
+            )}
+            <span className={r.done ? 'text-umber line-through' : 'text-ink'}>{r.label}</span>
+            {!r.done && r.key === 'deal_linked' && canLink ? (
+              <DealPicker projectId={projectId} onLinked={onLinked} />
+            ) : (
+              !r.done &&
+              (r.target.kind === 'anchor' ? (
+                <button
+                  type="button"
+                  onClick={() => scrollTo((r.target as { id: string }).id)}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-teal hover:underline"
+                >
+                  {r.action} <ArrowRight size={12} strokeWidth={1.75} />
+                </button>
+              ) : (
+                <Link
+                  to={r.target.to}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-teal hover:underline"
+                >
+                  {r.action} <ArrowRight size={12} strokeWidth={1.75} />
+                </Link>
+              ))
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Inline picker: link one milestone of a deal in this workspace to the project. */
+function DealPicker({ projectId, onLinked }: { projectId: string; onLinked: () => void }) {
+  const toast = useToast()
+  const { data: deals, isLoading } = useDeals()
+  const [saving, setSaving] = useState(false)
+  const options = dealOptions((deals as any[]) || [])
+  const pick = async (value: string) => {
+    const o = options.find((x) => x.value === value)
+    if (!o) return
+    setSaving(true)
+    try {
+      await linkProjectDeal(projectId, o.dealId, o.milestoneKey)
+      invalidateProjectData(projectId)
+      onLinked()
+      toast('success', 'Deal linked', o.label)
+    } catch (err: any) {
+      toast('danger', 'Could not link the deal', err?.message || 'Try again')
+    } finally {
+      setSaving(false)
+    }
+  }
+  if (!isLoading && !options.length) {
+    return (
+      <Link
+        to="/deals"
+        className="inline-flex items-center gap-1 text-xs font-medium text-teal hover:underline"
+      >
+        Open deals <ArrowRight size={12} strokeWidth={1.75} />
+      </Link>
+    )
+  }
+  return (
+    <select
+      id="deal"
+      aria-label="Link a deal"
+      className="input h-8 w-full max-w-xs py-0 text-xs sm:w-auto"
+      defaultValue=""
+      disabled={saving || isLoading}
+      onChange={(e) => pick(e.target.value)}
+      data-testid="gate-deal-picker"
+    >
+      <option value="" disabled>
+        {isLoading ? 'Loading deals…' : 'Link a deal…'}
+      </option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -243,6 +419,7 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
       }
       const saved = await saveBrief(projectId, payload)
       setBrief(saved)
+      invalidateProjectData(projectId) // the stage gate reads the brief items
       setEditing(false)
       toast('success', 'Brief saved', 'Everyone on the project sees the same brief.')
     } catch (err: any) {
@@ -255,7 +432,7 @@ export function BriefCard({ projectId, viewer }: { projectId: string; viewer: Vi
   const deadline = brief?.deadline ? new Date(brief.deadline) : null
 
   return (
-    <div className="card p-0" data-testid="brief-card">
+    <div id="brief" className="card scroll-mt-20 p-0" data-testid="brief-card">
       <header className="card-head justify-between">
         <h2 className="card-title flex items-center gap-2">
           <FileText size={16} strokeWidth={1.75} className="text-teal" /> Creative brief
