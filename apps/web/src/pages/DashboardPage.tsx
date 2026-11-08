@@ -86,14 +86,10 @@ function ProjectRow({ p, icon }: { p: Project; icon: ReactNode }) {
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-ink/[0.04] text-umber transition-colors group-hover:bg-tint group-hover:text-teal">
           {icon}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">{p.title}</p>
-          <p className="truncate text-xs text-umber">
-            {[assignee?.name ?? 'Unassigned', p.approvedVersion, p.updated]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        </div>
+        <p className="min-w-0 flex-1 truncate text-sm text-ink">{p.title}</p>
+        <span className="hidden truncate text-[13px] text-umber sm:inline">
+          {assignee?.name ?? 'Unassigned'}
+        </span>
         <StatusChip status={p.status} label={projectStatusLabel(p)} />
         <ArrowRight
           size={15}
@@ -363,7 +359,13 @@ function groupActivity(events: any[]) {
   return out
 }
 
-function ActivityCard({ className = '' }: { className?: string }) {
+function ActivityCard({
+  className = '',
+  hideEmpty = false,
+}: {
+  className?: string
+  hideEmpty?: boolean
+}) {
   // REAL events from the org-wide feed (/organizations/:id/activity), not
   // notifications. Team Chat chatter is excluded - this is a work log.
   const [events, setEvents] = useState<any[]>([])
@@ -397,6 +399,7 @@ function ActivityCard({ className = '' }: { className?: string }) {
   )
   const grouped = groupActivity(work)
   const shown = showAll ? grouped.slice(0, 30) : grouped.slice(0, ACTIVITY_CAP)
+  if (hideEmpty && !loading && !shown.length) return null
 
   return (
     <div className={`card flex flex-col overflow-hidden ${className}`} data-testid="activity-card">
@@ -553,24 +556,16 @@ export default function DashboardPage() {
       {projectsError ? (
         <ErrorBanner onRetry={() => window.location.reload()} />
       ) : (
-        <PipelineOverview />
+        <PipelineOverview
+          review={viewer.role === 'admin' ? allInReview : undefined}
+          scheduled={viewer.role === 'admin' ? scheduled : undefined}
+        />
       )}
 
       {/* ---------------- Admin: team overview ---------------- */}
       {viewer.role === 'admin' && (
         <>
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2" data-testid="admin-row">
-            <ProjectListCard
-              title="Awaiting review"
-              to="/review"
-              action="Open review"
-              icon={<MessageSquare {...iconProps} />}
-              items={allInReview}
-              empty="Nothing waiting on review right now."
-            />
-            <ScheduledCard items={scheduled} />
-          </section>
-          <ActivityCard />
+          <ActivityCard hideEmpty />
           {myWork.length > 0 && (
             <section>
               <header className="mb-3 flex items-center justify-between">
