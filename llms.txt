@@ -1,0 +1,24 @@
+# yv. Approved = Paid
+
+> A signed content deal becomes a payday the code keeps: PayPal holds per milestone, a review clock in the contract, crew paid their signed shares.
+
+## Map
+- Web (React + Vite): apps/web. Nav: src/layouts/AppShell.tsx. Tokens: src/styles/tokens.css.
+- Home /dashboard · Create /projects /concepts /review /brand-brain · Publish /publishing/{calendar,compose,channels} /analytics /reports/performance · Money /deals /payables /my-money /invoices /contracts · Team /my-work /chat /members · Top bar /notifications · Avatar menu /profile /settings
+- API (Node + Express, the only writer to MongoDB): apps/api. Money: apps/api/src/modules/deals.
+- Deal copilot (FastAPI): services/agent. Clock workflow: workflows/fair-clock.
+
+## Money rules
+- AI never sets an amount or a verdict; amounts come from signed terms, computed in Node.
+- Every money move is dry-run through policy rules P1-P9; blocked attempts log "No money moved".
+- Only the Money Agent moves money; big captures and refunds need a human tap. Ledger is hash-chained.
+
+## Run
+- API tests: cd apps/api && npx jest --runInBand
+- Web tests: cd apps/web && npm test · Build: npx vite build · Typecheck: npm run typecheck
+- Smoke: DEMO_MODE=1 PAYPAL_MODE=mock API + web dev, /login → Try the demo, open /deals/deal_demo_diwali, /payables, /my-money.
+
+## Never
+- Change money logic, let a model produce amounts, commit secrets, move money on the live demo, force-push/merge/deploy without the owner, remove routes.
+
+More: AGENTS.md, ARCHITECTURE.md, README.md
