@@ -26,7 +26,7 @@ export default function ReviewPage() {
 
   return (
     <div className="fade-in space-y-8">
-      <PageHeader title="Review" subtitle={PAGE_LINE['/review']} />
+      <PageHeader title="Review" subtitle={PAGE_LINE['/review']} tour="review" />
 
       {loading && !projects.length ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">

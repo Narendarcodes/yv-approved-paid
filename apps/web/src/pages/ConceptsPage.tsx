@@ -166,6 +166,7 @@ export default function ConceptsPage() {
     <div className="fade-in space-y-8">
       <PageHeader
         title="Concepts"
+        tour="concepts"
         subtitle={PAGE_LINE['/concepts']}
         actions={
           mayManage ? (

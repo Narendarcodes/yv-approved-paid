@@ -68,31 +68,70 @@ test('every missing step in a row ends the tour, never loops', () => {
   assert.equal(s.status, 'done')
 })
 
-test('demo user walks the money story on the deal', () => {
-  const ids = stepsFor('admin', { demoDeal: '/deals/deal_demo_diwali' }).map((x) => x.id)
-  assert.deepEqual(ids, [
-    'home',
-    'held',
-    'payday',
-    'checks',
-    'clock',
-    'payables',
-    'chat',
-    'brand-brain',
-    'again',
-  ])
-  const route = Object.fromEntries(demoDealSteps('/deals/d1').map((x) => [x.id, x.route]))
-  assert.deepEqual(route, {
+test('demo user walks the content-ops flow, 13 steps at most', () => {
+  const steps = stepsFor('admin', {
+    demoDeal: '/deals/deal_demo_diwali',
+    demoProject: '/projects/p9',
+  })
+  assert.deepEqual(
+    steps.map((x) => x.id),
+    [
+      'home',
+      'concepts',
+      'projects',
+      'held',
+      'checks',
+      'clock',
+      'review',
+      'calendar',
+      'payday',
+      'payables',
+      'chat',
+      'brand-brain',
+      'again',
+    ],
+  )
+  assert.ok(steps.length <= 13)
+  const route = Object.fromEntries(steps.map((x) => [x.id, x.route]))
+  assert.equal(route.concepts, '/concepts')
+  assert.equal(route.projects, '/projects/p9')
+  assert.equal(route.held, '/deals/deal_demo_diwali')
+  assert.equal(route.checks, '/deals/deal_demo_diwali?reel=reel3')
+  assert.equal(route.clock, '/deals/deal_demo_diwali?reel=reel3')
+  assert.equal(route.review, '/review')
+  assert.equal(route.calendar, '/publishing/calendar')
+  assert.equal(route.payday, '/deals/deal_demo_diwali?reel=reel1')
+  assert.equal(route.payables, '/payables')
+  const byId = Object.fromEntries(steps.map((x) => [x.id, x]))
+  assert.equal(byId.projects.target, '[data-testid="lifecycle"]')
+  assert.match(byId.held.body, /PayPal holds/)
+  assert.match(byId.clock.body, /business days/)
+  assert.match(byId.review.body, /brief item/)
+  // without the demo project the step points at the Projects page
+  const plain = stepsFor('admin', { demoDeal: '/deals/d1' }).find((x) => x.id === 'projects')
+  assert.deepEqual([plain.route, plain.target], ['/projects', '[data-tour="page-projects"]'])
+  const deal = demoDealSteps('/deals/d1')
+  assert.deepEqual(Object.fromEntries(Object.entries(deal).map(([k, v]) => [k, v.route])), {
     held: '/deals/d1',
-    payday: '/deals/d1?reel=reel1',
     checks: '/deals/d1?reel=reel3',
     clock: '/deals/d1?reel=reel3',
+    payday: '/deals/d1?reel=reel1',
   })
 })
 
 test('each role gets steps that only point at nav it can see', () => {
   const navOf = {
-    admin: ['/dashboard', '/deals', '/review', '/payables', '/chat', '/brand-brain'],
+    admin: [
+      '/dashboard',
+      '/concepts',
+      '/projects',
+      '/review',
+      '/publishing/calendar',
+      '/deals',
+      '/payables',
+      '/chat',
+      '/brand-brain',
+    ],
     editor: ['/dashboard', '/my-work', '/projects', '/deals', '/my-money', '/chat', '/brand-brain'],
     reviewer: ['/dashboard', '/review', '/deals', '/payables', '/chat', '/brand-brain'],
     publisher: [
@@ -109,6 +148,7 @@ test('each role gets steps that only point at nav it can see', () => {
     const targets = steps.map((x) => /nav-([^"]+)"/.exec(x.target)?.[1]).filter(Boolean)
     assert.deepEqual(targets, nav, role)
     assert.equal(steps.at(-1).id, 'again', role)
+    assert.ok(steps.length <= 10, role)
   }
   assert.ok(stepsFor('member').length >= 3)
   // nav steps fall back to the menu button on a phone, where the sidebar has no box
@@ -120,6 +160,7 @@ test('copy: one short sentence each, sentence case, no emoji', () => {
   const all = ['admin', 'editor', 'reviewer', 'publisher', 'member']
     .flatMap((r) => stepsFor(r))
     .concat(stepsFor('admin', { demoDeal: '/deals/x' }))
+    .concat(stepsFor('admin', { demoDeal: '/deals/x', demoProject: '/projects/y' }))
   for (const s of all) {
     assert.match(s.body, /^[A-Z][^.!?]*\.$/, s.id)
     assert.ok(s.body.split(/\s+/).length <= 14, `${s.id}: ${s.body}`)

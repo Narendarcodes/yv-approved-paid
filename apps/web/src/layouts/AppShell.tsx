@@ -405,7 +405,7 @@ export default function AppShell() {
       </div>
 
       {/* First-visit guided tour (restart: avatar menu) */}
-      <Tour />
+      <Tour projects={projects} />
 
       {/* Global command palette */}
       <CommandPalette

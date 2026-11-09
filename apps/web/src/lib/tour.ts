@@ -113,6 +113,13 @@ const S = {
     title: 'Payables',
     body: 'Payables lists every payment your team is owed.',
   },
+  concepts: {
+    id: 'concepts',
+    target: nav('/concepts'),
+    fallback: NAV_MENU,
+    title: 'Concepts',
+    body: 'Ideas become concepts, and an approved concept starts a project.',
+  },
   myMoney: {
     id: 'my-money',
     target: nav('/my-money'),
@@ -170,60 +177,142 @@ const S = {
   },
 } satisfies Record<string, TourStep>
 
+/** The demo project whose locked stage gate shows "What's missing" (seeded by the API demo). */
+export const DEMO_GATE_PROJECT = 'Holiday gift reel (team draft)'
+
 /**
- * The demo deal's money story: the money held, payday on a paid-out reel, then
- * checks and the review clock on a reel in review. Each step names its reel,
- * since the reel shown first can be a disputed one with no payout.
+ * The demo deal's steps: the money held, checks and the review clock on a reel
+ * in review, then payday on a paid-out reel. Each step names its reel, since
+ * the reel shown first can be a disputed one with no payout.
  */
 export function demoDealSteps(
   dealPath: string,
   paidReel = 'reel1',
   clockReel = 'reel3',
-): TourStep[] {
+): { held: TourStep; checks: TourStep; clock: TourStep; payday: TourStep } {
   const paid = `${dealPath}?reel=${paidReel}`
   const reel = `${dealPath}?reel=${clockReel}`
-  return [
-    {
+  return {
+    held: {
       id: 'held',
       target: '[data-testid="deal-held"]',
       route: dealPath,
-      title: 'Held money',
+      title: 'Deal: held money',
       body: "PayPal holds the brand's money for this deal until each reel is approved.",
     },
-    {
-      id: 'payday',
-      target: '[data-testid="section-payout"]',
-      route: paid,
-      title: 'Payday',
-      body: 'Team payout shows what each person was paid once the reel was approved.',
-    },
-    {
+    checks: {
       id: 'checks',
       target: '[data-testid="section-checks"]',
       route: reel,
       title: 'Checks on a reel',
-      body: 'Every cut is checked against the brief before anyone reviews it.',
+      body: 'AI checks the facts in every cut against the brief.',
     },
-    {
+    clock: {
       id: 'clock',
       target: '[data-testid="review-clock-card"]',
       route: reel,
       title: 'Review clock',
-      body: 'No decision by the deadline releases the money on the signed schedule.',
+      body: 'The clock counts business days, and silence releases the money.',
     },
+    payday: {
+      id: 'payday',
+      target: '[data-testid="section-payout"]',
+      route: paid,
+      title: 'Payday',
+      body: 'Reel 1 was approved, so its team payout shows what each person got.',
+    },
+  }
+}
+
+/**
+ * The demo user's tour follows the content-ops flow: concept, project and its
+ * gates, the deal's held money, checks, the review clock, the review queue,
+ * the calendar, payday, payables, chat and Brand Brain. projectPath is the
+ * demo project with a locked gate; without it the step points at Projects.
+ */
+export function demoSteps(dealPath: string, projectPath?: string | null): TourStep[] {
+  const d = demoDealSteps(dealPath)
+  const project: TourStep = projectPath
+    ? {
+        id: 'projects',
+        target: '[data-testid="lifecycle"]',
+        route: projectPath,
+        title: 'Projects',
+        body: "Each project moves through stage gates, and What's missing lists what's left.",
+      }
+    : {
+        id: 'projects',
+        target: '[data-tour="page-projects"]',
+        route: '/projects',
+        title: 'Projects',
+        body: "Each project moves through stage gates, and What's missing lists what's left.",
+      }
+  return [
+    S.home,
+    {
+      id: 'concepts',
+      target: '[data-tour="page-concepts"]',
+      route: '/concepts',
+      title: 'Concepts',
+      body: 'Ideas from Brand Brain become concepts, and an approved one starts a project.',
+    },
+    project,
+    d.held,
+    d.checks,
+    d.clock,
+    {
+      id: 'review',
+      target: '[data-tour="page-review"]',
+      route: '/review',
+      title: 'Review queue',
+      body: 'People own taste here, and every change they ask for cites a brief item.',
+    },
+    {
+      id: 'calendar',
+      target: '[data-testid="calendar-grid"]',
+      route: '/publishing/calendar',
+      title: 'Calendar',
+      body: 'Approved reels get scheduled on the calendar.',
+    },
+    d.payday,
+    {
+      id: 'payables',
+      target: '[data-tour="page-payables"]',
+      route: '/payables',
+      title: 'Payables',
+      body: 'Payables lists every payment your team is owed.',
+    },
+    S.chat,
+    S.brandBrain,
+    S.again,
   ]
 }
 
 /**
  * The steps for a viewer. demoDeal is the seeded demo deal's path when the
- * viewer is the demo user; that tour walks the deal itself.
+ * viewer is the demo user; that tour walks the content-ops flow on the demo
+ * data, and demoProject (optional) is the demo project with a locked gate.
  */
-export function stepsFor(role: string, opts: { demoDeal?: string | null } = {}): TourStep[] {
+export function stepsFor(
+  role: string,
+  opts: { demoDeal?: string | null; demoProject?: string | null } = {},
+): TourStep[] {
   switch (role) {
     case 'admin':
       return opts.demoDeal
-        ? [S.home, ...demoDealSteps(opts.demoDeal), S.payables, S.chat, S.brandBrain, S.again]
-        : [S.home, S.deals, S.review, S.payables, S.chat, S.brandBrain, S.again]
+        ? demoSteps(opts.demoDeal, opts.demoProject)
+        : [
+            S.home,
+            S.concepts,
+            S.projects,
+            S.review,
+            S.calendar,
+            S.deals,
+            S.payables,
+            S.chat,
+            S.brandBrain,
+            S.again,
+          ]
     case 'editor':
       return [S.home, S.myWork, S.projects, S.deals, S.myMoney, S.chat, S.brandBrain, S.again]
     case 'reviewer':

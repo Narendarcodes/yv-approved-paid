@@ -103,6 +103,7 @@ export default function ProjectsPage() {
     <div className="fade-in">
       <PageHeader
         title="Projects"
+        tour="projects"
         subtitle={PAGE_LINE['/projects']}
         actions={
           <div className="flex items-center gap-2">

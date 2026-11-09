@@ -14,6 +14,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useViewer } from '../lib/viewer'
 import { DEMO_DEAL_PATH, isDemoJudge } from '../lib/deals'
 import {
+  DEMO_GATE_PROJECT,
   TOUR_START_EVENT,
   atRoute,
   initialTour,
@@ -65,7 +66,12 @@ function writeSeen(userId: string) {
   }
 }
 
-export default function Tour() {
+export default function Tour({
+  projects = [],
+}: {
+  /** The shell's project list, to find the demo project with a locked gate. */
+  projects?: { id: string; title: string }[]
+}) {
   const viewer = useViewer()
   const location = useLocation()
   const navigate = useNavigate()
@@ -83,7 +89,9 @@ export default function Tour() {
   loc.current = location
 
   const demoDeal = isDemoJudge(viewer.email) ? DEMO_DEAL_PATH : null
-  const steps = stepsFor(viewer.role, { demoDeal })
+  const gateProject = demoDeal ? projects.find((p) => p.title === DEMO_GATE_PROJECT) : undefined
+  const demoProject = gateProject ? `/projects/${gateProject.id}` : null
+  const steps = stepsFor(viewer.role, { demoDeal, demoProject })
   const running = state.status === 'running'
   const step = running ? steps[state.index] : null
 

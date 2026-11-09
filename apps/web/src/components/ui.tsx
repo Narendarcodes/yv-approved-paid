@@ -118,14 +118,20 @@ export function PageHeader({
   title,
   subtitle,
   actions,
+  tour,
 }: {
   title: string
   /** One plain line (8 words or fewer) saying what the page is for. */
   subtitle?: string
   actions?: ReactNode
+  /** Anchor for the first-visit tour: data-tour="page-<tour>". */
+  tour?: string
 }) {
   return (
-    <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+    <header
+      className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-4"
+      data-tour={tour ? `page-${tour}` : undefined}
+    >
       <div className="min-w-0 flex-1 basis-[320px]">
         <h1 className="t-display">{title}</h1>
         {subtitle && (

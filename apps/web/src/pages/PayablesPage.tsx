@@ -591,6 +591,7 @@ export default function PayablesPage() {
     <div className="fade-in" data-testid="payables-page">
       <PageHeader
         title="Payables"
+        tour="payables"
         subtitle={PAGE_LINE['/payables']}
         actions={
           <>
