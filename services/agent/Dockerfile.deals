@@ -1,4 +1,5 @@
-# Lean image for the deal copilot agent (Render free web service: 512 MB RAM).
+# Lean image for the deal copilot AND Brand Brain chat (/v1/chat) (Render free web service: 512 MB RAM).
+# Brand Brain here: in-process brand index (app/lite_index.py) and httpx streaming, no qdrant/litellm.
 # Build from services/agent:  docker build -f Dockerfile.deals -t yv-deals-agent .
 # Only app/ code is copied; fixtures/evals/media deps stay out (~40-60 MB RSS at runtime).
 # Health: GET /health (Render healthCheckPath).

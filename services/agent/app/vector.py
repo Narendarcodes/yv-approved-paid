@@ -1,28 +1,14 @@
 """Qdrant brand-knowledge index. Every search/upsert REQUIRES an org_id and applies an orgId
 payload filter; there is no code path that queries across orgs."""
 from __future__ import annotations
-import hashlib
-import math
-import re
 import uuid
 
 from qdrant_client import QdrantClient, models as qm
 
 from .config import get_settings
+from .embed import hash_embed
 
-_TOKEN = re.compile(r"[\w']+", re.UNICODE)
-
-
-def hash_embed(text: str, dim: int) -> list[float]:
-    """Dependency-free hashing-trick embedding (unigrams + bigrams). Swap via EMBED_MODEL."""
-    v = [0.0] * dim
-    toks = [t.lower() for t in _TOKEN.findall(text)]
-    feats = toks + [a + "_" + b for a, b in zip(toks, toks[1:])]
-    for f in feats:
-        h = int(hashlib.md5(f.encode()).hexdigest(), 16)
-        v[h % dim] += 1.0 if (h >> 64) & 1 else -1.0
-    n = math.sqrt(sum(x * x for x in v)) or 1.0
-    return [x / n for x in v]
+__all__ = ["BrandIndex", "hash_embed"]
 
 
 class BrandIndex:

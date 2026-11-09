@@ -30,6 +30,11 @@ services:
         value: "12"
       - key: LLM_CALLER
         value: httpx
+      # Brand Brain chat (POST /v1/chat) on this same service: see docs/go-live.md section 3b.
+      - key: SERVICE_JWT_SECRET # secret; SAME value as on the API service; the agent verifies chat tokens with it
+        sync: false
+      - key: LLM_MODEL # chain = River -> NIM (LLM_CHAIN) for Brand Brain answers
+        value: chain
 
 # Fair Review Clock driver (workflows/fair-clock, a Render Workflow on @renderinc/sdk 1.7).
 # NOT active: uncomment to create it. It POSTs the API's idempotent
