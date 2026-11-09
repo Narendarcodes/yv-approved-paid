@@ -132,6 +132,8 @@ module.exports = {
     jobsStream: process.env.JOBS_STREAM || 'yv:jobs',
     deadLetterStream: process.env.JOBS_DLQ_STREAM || 'yv:jobs:dead',
     chatTimeoutMs: parseInt(process.env.AGENT_CHAT_TIMEOUT_MS || '120000', 10),
+    // No SSE headers from the agent within this -> 504 "waking up" (the agent sends meta at once).
+    chatFirstByteMs: parseInt(process.env.AGENT_CHAT_FIRST_BYTE_MS || '30000', 10),
     // Live deal copilot (modules/deals/copilot.cts): Node -> lean deal agent, server to
     // server, with this shared secret in X-Agent-Secret (same value on the agent).
     // Unset -> the copilot answers { source: 'offline' } and the web replays offline.

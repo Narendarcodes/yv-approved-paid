@@ -272,6 +272,68 @@ describe('chat SSE proxy', () => {
     }
   });
 
+  test('pushes the org brand context and the shared secret (lean agent: no /internal callback)', async () => {
+    let seen;
+    const fakeAgent = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        seen = { headers: req.headers, body: JSON.parse(raw) };
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        res.end('event: meta\ndata: {"flow":"brand_qa"}\n\nevent: done\ndata: {}\n\n');
+      });
+    });
+    await new Promise((r) => fakeAgent.listen(0, '127.0.0.1', r));
+    const prev = { url: config.agent.url, secret: config.agent.sharedSecret };
+    config.agent.url = `http://127.0.0.1:${fakeAgent.address().port}`;
+    config.agent.sharedSecret = 'k'.repeat(40);
+    try {
+      const r = await request(app)
+        .post(`/api/v1/organizations/${seed.orgId}/agent/chat`)
+        .set({ Authorization: `Bearer ${userToken}` })
+        .send({ message: 'Where does the logo go?' });
+      expect(r.status).toBe(200);
+      expect(seen.headers['x-agent-secret']).toBe('k'.repeat(40));
+      const ctx = seen.body.context;
+      expect(ctx.brandRules.length).toBeGreaterThan(0);
+      expect(ctx.brandRules[0]).toEqual(expect.objectContaining({ id: expect.any(String), title: expect.any(String), body: expect.any(String) }));
+      expect(ctx.posts.every((p) => p.orgId === String(seed.orgId))).toBe(true);
+      const postIds = new Set(ctx.posts.map((p) => p.id));
+      expect(ctx.metrics.every((m) => postIds.has(m.postId))).toBe(true);
+      expect(ctx.reviewComments.every((c) => postIds.has(c.postId))).toBe(true);
+    } finally {
+      config.agent.url = prev.url;
+      config.agent.sharedSecret = prev.secret;
+      fakeAgent.close();
+    }
+  });
+
+  test('an agent that sends nothing within chatFirstByteMs gets a readable 504, not a hang', async () => {
+    const fakeAgent = http.createServer(() => {
+      /* never answers */
+    });
+    await new Promise((r) => fakeAgent.listen(0, '127.0.0.1', r));
+    const prev = { url: config.agent.url, fb: config.agent.chatFirstByteMs };
+    config.agent.url = `http://127.0.0.1:${fakeAgent.address().port}`;
+    config.agent.chatFirstByteMs = 300;
+    try {
+      const t0 = Date.now();
+      const r = await request(app)
+        .post(`/api/v1/organizations/${seed.orgId}/agent/chat`)
+        .set({ Authorization: `Bearer ${userToken}` })
+        .send({ message: 'hi' });
+      expect(Date.now() - t0).toBeLessThan(5000);
+      expect(r.status).toBe(504);
+      expect(r.body.error.code).toBe('agent_timeout');
+      expect(r.body.error.message).toMatch(/waking up/);
+    } finally {
+      config.agent.url = prev.url;
+      config.agent.chatFirstByteMs = prev.fb;
+      fakeAgent.closeAllConnections?.();
+      fakeAgent.close();
+    }
+  });
+
   test('returns 502 when the agent is down', async () => {
     const prev = config.agent.url;
     config.agent.url = 'http://127.0.0.1:9';
