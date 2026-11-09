@@ -25,6 +25,7 @@ import {
   Handshake,
   Landmark,
   Wallet,
+  Compass,
 } from 'lucide-react'
 import Avatar from '../components/ui'
 import { useViewer } from '../lib/viewer'
@@ -34,6 +35,8 @@ import { useProjects } from '../lib/data'
 import CommandPalette from '../components/CommandPalette'
 import BrandLogo from '../components/BrandLogo'
 import { API_ORIGIN } from '../services/api'
+import Tour from '../components/Tour'
+import { TOUR_START_EVENT } from '../lib/tour'
 
 // one icon size and stroke across the shell
 const iconProps = { size: 16, strokeWidth: 1.5 }
@@ -191,6 +194,7 @@ export default function AppShell() {
                   key={item.to}
                   to={item.to}
                   end={item.end}
+                  data-tour={`nav-${item.to}`}
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 >
                   <item.icon />
@@ -332,6 +336,7 @@ export default function AppShell() {
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               data-testid="avatar-menu-button"
+              data-tour="avatar"
             >
               <Avatar initials={viewer.initials} size="sm" tone="ink" src={avatarUrl} />
             </button>
@@ -351,6 +356,18 @@ export default function AppShell() {
                 <button role="menuitem" className="menu-item" onClick={() => navigate('/profile')}>
                   <UserRound {...iconProps} />
                   Profile
+                </button>
+                <button
+                  role="menuitem"
+                  className="menu-item"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    window.dispatchEvent(new Event(TOUR_START_EVENT))
+                  }}
+                  data-testid="take-tour"
+                >
+                  <Compass {...iconProps} />
+                  Take the tour
                 </button>
                 {viewer.role === 'admin' && (
                   <button
@@ -386,6 +403,9 @@ export default function AppShell() {
           </div>
         </main>
       </div>
+
+      {/* First-visit guided tour (restart: avatar menu) */}
+      <Tour />
 
       {/* Global command palette */}
       <CommandPalette
