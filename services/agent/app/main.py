@@ -2,6 +2,8 @@
 Incoming requests carry a Node-minted service JWT; we verify it by asking Node (/internal/whoami)
 so the agent never holds the signing secret, and we take orgId from Node's answer."""
 from __future__ import annotations
+import asyncio
+import contextlib
 import hashlib
 import json
 import logging
@@ -19,7 +21,15 @@ from .node_client import NodeClient, NodeError
 
 log = logging.getLogger("yv.agent")
 telemetry.init("yv-agent")
-app = FastAPI(title="yv. agent", version="1.0.0")
+
+
+@contextlib.asynccontextmanager
+async def _lifespan(_app):
+    asyncio.get_running_loop().create_task(llm().warm())  # cold `import litellm` is >1 min; never on a request
+    yield
+
+
+app = FastAPI(title="yv. agent", version="1.0.0", lifespan=_lifespan)
 _verified: dict[str, tuple[dict, float]] = {}
 
 
