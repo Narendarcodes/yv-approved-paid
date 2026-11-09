@@ -1714,37 +1714,64 @@ export const enqueueAgentJob = (
     body: '{}',
   })
 
-/** POST a chat message and stream SSE events (meta/token/answer/error/done) from Node. */
+/** Longest silence (no bytes) the chat accepts before it gives up; the API and agent cap themselves sooner. */
+export const AGENT_CHAT_IDLE_MS = 35_000
+
+/** POST a chat message and stream SSE events (meta/token/answer/error/done) from Node.
+ * Never hangs: if nothing arrives for AGENT_CHAT_IDLE_MS the request is aborted and it throws. */
 export async function streamAgentChat(
   orgId: string,
   message: string,
   onEvent: (event: string, data: any) => void,
   signal?: AbortSignal,
+  idleMs: number = AGENT_CHAT_IDLE_MS,
 ) {
-  const res = await authFetch(`${API_BASE}/organizations/${orgId}/agent/chat`, {
-    method: 'POST',
-    body: JSON.stringify({ message }),
-    signal,
-  })
-  if (!res.ok || !res.body) {
-    const body = await res.json().catch(() => null)
-    throw new Error(readableError(res, body, 'Agent unavailable'))
+  const ac = new AbortController()
+  let idle = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const arm = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      idle = true
+      ac.abort()
+    }, idleMs)
   }
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  for (;;) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    let i
-    while ((i = buf.indexOf('\n\n')) >= 0) {
-      const block = buf.slice(0, i)
-      buf = buf.slice(i + 2)
-      const ev = /^event: (.*)$/m.exec(block)?.[1]
-      const data = /^data: (.*)$/m.exec(block)?.[1]
-      if (ev) onEvent(ev, data ? JSON.parse(data) : {})
+  const onOuterAbort = () => ac.abort()
+  signal?.addEventListener('abort', onOuterAbort)
+  arm()
+  try {
+    const res = await authFetch(`${API_BASE}/organizations/${orgId}/agent/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+      signal: ac.signal,
+    })
+    if (!res.ok || !res.body) {
+      const body = await res.json().catch(() => null)
+      throw new Error(readableError(res, body, 'Agent unavailable'))
     }
+    const reader = res.body.getReader()
+    const dec = new TextDecoder()
+    let buf = ''
+    for (;;) {
+      arm()
+      const { value, done } = await reader.read()
+      if (done) break
+      buf += dec.decode(value, { stream: true })
+      let i
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const block = buf.slice(0, i)
+        buf = buf.slice(i + 2)
+        const ev = /^event: (.*)$/m.exec(block)?.[1]
+        const data = /^data: (.*)$/m.exec(block)?.[1]
+        if (ev) onEvent(ev, data ? JSON.parse(data) : {})
+      }
+    }
+  } catch (e) {
+    if (idle) throw new Error('The assistant took too long to answer (timed out).')
+    throw e
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', onOuterAbort)
   }
 }
 

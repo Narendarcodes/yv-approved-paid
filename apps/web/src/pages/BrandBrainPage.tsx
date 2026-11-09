@@ -30,6 +30,7 @@ import {
   type AgentPost,
 } from '../services/api'
 import { PAGE_LINE } from '../lib/copy'
+import { citationHint, citationLabel } from '../lib/citations'
 
 interface Turn {
   q: string
@@ -49,6 +50,8 @@ function friendlyError(raw: string): string {
     return 'The assistant is out of model credit right now. Brand memory is still listed on the side.'
   if (/410|404|not found|gone/i.test(m))
     return 'The assistant’s model is unavailable right now. Brand memory is still listed on the side.'
+  if (/took too long/i.test(m))
+    return 'The assistant took too long to answer. Try again; brand memory is still listed on the side.'
   if (/not configured|unavailable|waking|agent service|503|502|timeout|timed out/i.test(m))
     return 'The assistant is offline right now. Try again in a minute; brand memory is still listed on the side.'
   return 'The assistant could not answer this time. Try again in a moment.'
@@ -323,10 +326,10 @@ export default function BrandBrainPage() {
                       {t.answer.citations.map((c, j) => (
                         <span
                           key={j}
-                          title={c.note || ''}
+                          title={citationHint(c) || undefined}
                           className="rounded-sm border border-line px-2 py-0.5 text-[12px] text-umber"
                         >
-                          {titleOf(c.postId)} · {c.metric} = {String(c.value)}
+                          {citationLabel(c, titleOf)}
                         </span>
                       ))}
                     </div>
