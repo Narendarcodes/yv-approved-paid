@@ -32,6 +32,7 @@ import {
 } from '../lib/data'
 import { StatusChip } from '../components/status'
 import { CardSkeleton, Skeleton } from '../components/states'
+import { EMPTY_LINE } from '../lib/copy'
 
 function strId(v: unknown): string {
   if (!v) return ''
@@ -237,7 +238,10 @@ export default function ProjectDetailPage() {
             <StatusChip status={project.status} label={projectStatusLabel(project)} />
             <Chip label={project.type} tone="neutral" />
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-umber">
+          <div
+            id="assign"
+            className="mt-2 flex scroll-mt-20 flex-wrap items-center gap-2 text-sm text-umber"
+          >
             <span className="micro-label">Responsible</span>
             <AssignPicker
               team={team}
@@ -639,13 +643,15 @@ export default function ProjectDetailPage() {
                 ))}
               </ul>
             ) : (
-              <p className="px-5 py-8 text-center text-sm text-umber">No activity recorded yet.</p>
+              <p className="px-5 py-8 text-center text-sm text-umber">
+                No activity recorded yet. {EMPTY_LINE.activity}
+              </p>
             )}
           </div>
         </div>
 
         {/* Versions timeline */}
-        <div className="card h-fit p-5">
+        <div id="versions" className="card h-fit scroll-mt-20 p-5">
           <header className="mb-4 flex items-center justify-between">
             <h2 className="card-title">Versions</h2>
             {hasReview && (

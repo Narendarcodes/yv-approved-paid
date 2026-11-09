@@ -33,6 +33,7 @@ import {
   type Heatmap,
 } from '../services/api'
 import { PlatformIcon } from '../components/status'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 const WINDOWS = [7, 30, 90] as const
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -116,6 +117,7 @@ export default function AnalyticsPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Analytics"
+        subtitle={PAGE_LINE['/analytics']}
         actions={
           <>
             <div className="seg" role="group" aria-label="Time window" data-testid="window-toggle">
@@ -160,6 +162,7 @@ export default function AnalyticsPage() {
         <EmptyState
           icon={<BarChart3 size={22} strokeWidth={1.5} />}
           title="No performance data yet"
+          description={EMPTY_LINE.analytics}
           action={
             <Link to="/publishing/compose" className="btn-primary">
               <Send size={14} strokeWidth={1.75} /> Schedule a post

@@ -1,18 +1,23 @@
 """Router + flows. Each flow gathers facts through Node tools, computes everything numeric in
 code, then asks the LLM only to phrase it. Citations and data limits are attached in code."""
 from __future__ import annotations
+import logging
 import re
 from dataclasses import dataclass, field
-from typing import AsyncIterator
+from typing import TYPE_CHECKING, AsyncIterator
 
 from . import analysis as A
 from .config import get_settings
 from .contracts.AgentAnswer import AgentAnswer
 from .contracts.Citation import Citation
 from .contracts.Insight import Insight
-from .llm import LLM
+from .llm import LLM, BudgetExceeded, LLMStalled, stub_write
 from .node_client import NodeClient
-from .vector import BrandIndex
+
+if TYPE_CHECKING:  # qdrant-client is not in the lean image; any index with count/reindex/search works
+    from .vector import BrandIndex
+
+log = logging.getLogger("yv.flows")
 
 ROUTES = [
     ("review_digest", r"\breview|feedback|comments?\b|change request|reviewers?|digest"),
@@ -34,7 +39,7 @@ def route(message: str) -> str:
 class Ctx:
     org_id: str
     node: NodeClient
-    index: BrandIndex
+    index: "BrandIndex"
     llm: LLM
 
 
@@ -60,6 +65,12 @@ def _resolve_post(message: str, posts, post_id: str | None):
     return best if score >= 2 else None
 
 
+def _rule_fact(h: dict) -> dict:
+    """What the model reads about a brand rule: title and text only. Rule ids stay in the citations
+    (attached in code), so they never leak into the prose."""
+    return {"title": h["title"], "body": h["body"]}
+
+
 async def _ensure_index(ctx: Ctx):
     if ctx.index.count(ctx.org_id) == 0:
         ctx.index.reindex(ctx.org_id, await ctx.node.get_brand_rules())
@@ -71,7 +82,7 @@ async def brand_qa(ctx: Ctx, message: str, post_id: str | None = None) -> Prepar
     facts = {
         "headline": f"From your brand hub ({len(hits)} most relevant entries):",
         "bullets": [f"{h['title']}: {h['body']}" for h in hits],
-        "rules": [{"ruleId": h["ruleId"], "title": h["title"], "body": h["body"], "kind": h["kind"]} for h in hits],
+        "rules": [_rule_fact(h) for h in hits],
     }
     cites = [Citation(postId="brand", metric="brandRule", value=h["ruleId"], note=h["title"]) for h in hits]
     limits = [f"Answered only from the organisation's brand knowledge hub ({ctx.index.count(ctx.org_id)} entries); anything not written there is unknown."]
@@ -163,7 +174,7 @@ async def planner(ctx: Ctx, message: str, post_id: str | None = None) -> Prepare
     limits = [A.INSTAGRAM_LIMIT, "Plans extrapolate from this org's past winners; they are suggestions, not forecasts."]
     if any(getattr(x, "source", "") == "fixture" for x in metrics):
         limits.append(A.FIXTURE_LIMIT)
-    facts = {"headline": "Plan built from your past winners and brand rules:", "bullets": bullets, "winners": wins, "brandRules": rules, "baseline": base}
+    facts = {"headline": "Plan built from your past winners and brand rules:", "bullets": bullets, "winners": wins, "brandRules": [_rule_fact(r) for r in rules], "baseline": base}
     return Prepared("planner", "Propose a 1-week content plan (3-4 posts) that reuses what made the winners work and obeys the brand rules. Cite the winner post IDs.", facts, cites, limits)
 
 
@@ -190,7 +201,7 @@ async def review_digest(ctx: Ctx, message: str, post_id: str | None = None, stor
     cites += [Citation(postId="brand", metric="brandRule", value=r["ruleId"], note=r["title"]) for r in rules]
     facts = {"headline": f"Final change list for \"{post.title}\" ({len(comments)} comments -> {len(clusters)} changes):", "bullets": bullets,
              "post": {"id": post.id, "title": post.title},
-             "clusters": clusters, "brandRules": rules}
+             "clusters": clusters, "brandRules": [_rule_fact(r) for r in rules]}
     limits = ["Digest covers only comments stored in yv. for this post; verbal feedback is not included."]
     ins = None
     if store:
@@ -206,10 +217,28 @@ async def answer_stream(ctx: Ctx, message: str, post_id: str | None = None) -> A
     yield {"event": "meta", "data": {"flow": flow}}
     prep = await FLOWS[flow](ctx, message, post_id)
     parts = []
-    async for piece in ctx.llm.stream(ctx.org_id, prep.task, prep.facts, message):
-        parts.append(piece)
-        yield {"event": "token", "data": {"text": piece}}
-    ans = AgentAnswer(flow=prep.flow, answer="".join(parts).strip(), citations=prep.citations, dataLimits=prep.data_limits, model=ctx.llm.model)
+    model = ctx.llm.model
+    limits = list(prep.data_limits)
+    try:
+        async for piece in ctx.llm.stream(ctx.org_id, prep.task, prep.facts, message):
+            parts.append(piece)
+            yield {"event": "token", "data": {"text": piece}}
+    except BudgetExceeded:
+        raise
+    except LLMStalled:  # the reader already has most of the answer; close the turn instead of hanging
+        limits.append("The language model stopped mid-answer; the cited entries below hold the full text.")
+    except Exception as e:
+        if parts:  # mid-answer failure: the reader already has text, surface the error as before
+            raise
+        # No model answered in time (provider down, out of credit, too slow): answer from the computed
+        # facts themselves so the reader is never left on "Thinking...".
+        log.warning("flow %s: LLM unavailable, answering from the facts: %s", prep.flow, str(e)[:200])
+        text = stub_write(prep.task, prep.facts)
+        parts.append(text)
+        model = "facts-only"
+        limits.append("The language model did not answer in time, so this lists the matching entries word for word.")
+        yield {"event": "token", "data": {"text": text}}
+    ans = AgentAnswer(flow=prep.flow, answer="".join(parts).strip(), citations=prep.citations, dataLimits=limits, model=model)
     yield {"event": "answer", "data": ans.model_dump(mode="json", exclude_none=True)}
 
 

@@ -25,6 +25,7 @@ import {
   Handshake,
   Landmark,
   Wallet,
+  Compass,
 } from 'lucide-react'
 import Avatar from '../components/ui'
 import { useViewer } from '../lib/viewer'
@@ -34,6 +35,8 @@ import { useProjects } from '../lib/data'
 import CommandPalette from '../components/CommandPalette'
 import BrandLogo from '../components/BrandLogo'
 import { API_ORIGIN } from '../services/api'
+import Tour from '../components/Tour'
+import { TOUR_START_EVENT } from '../lib/tour'
 
 // one icon size and stroke across the shell
 const iconProps = { size: 16, strokeWidth: 1.5 }
@@ -134,6 +137,16 @@ export default function AppShell() {
     )
   }
 
+  // A role-gated nav item opened by URL: a calm note instead of a page whose API answers 403
+  const gated = navGroups
+    .flatMap((g) => g.items)
+    .find(
+      (i) =>
+        i.roles &&
+        !i.roles.includes(viewer.role) &&
+        (location.pathname === i.to || location.pathname.startsWith(`${i.to}/`)),
+    )
+
   const visibleGroups = navGroups
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(viewer.role)) }))
     .filter((g) => g.items.length > 0)
@@ -181,6 +194,7 @@ export default function AppShell() {
                   key={item.to}
                   to={item.to}
                   end={item.end}
+                  data-tour={`nav-${item.to}`}
                   className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 >
                   <item.icon />
@@ -322,6 +336,7 @@ export default function AppShell() {
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               data-testid="avatar-menu-button"
+              data-tour="avatar"
             >
               <Avatar initials={viewer.initials} size="sm" tone="ink" src={avatarUrl} />
             </button>
@@ -341,6 +356,18 @@ export default function AppShell() {
                 <button role="menuitem" className="menu-item" onClick={() => navigate('/profile')}>
                   <UserRound {...iconProps} />
                   Profile
+                </button>
+                <button
+                  role="menuitem"
+                  className="menu-item"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    window.dispatchEvent(new Event(TOUR_START_EVENT))
+                  }}
+                  data-testid="take-tour"
+                >
+                  <Compass {...iconProps} />
+                  Take the tour
                 </button>
                 {viewer.role === 'admin' && (
                   <button
@@ -372,10 +399,13 @@ export default function AppShell() {
         {/* Page content */}
         <main className="flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">
           <div className="page-enter mx-auto max-w-[1440px]">
-            <Outlet />
+            {gated ? <NotForRole label={gated.label} /> : <Outlet />}
           </div>
         </main>
       </div>
+
+      {/* First-visit guided tour (restart: avatar menu) */}
+      <Tour projects={projects} />
 
       {/* Global command palette */}
       <CommandPalette
@@ -490,3 +520,18 @@ const navGroups: { section: string; items: NavItem[] }[] = [
     ],
   },
 ]
+
+/** Shown when a role opens a page its nav does not offer (the route stays; the page is not for this role). */
+function NotForRole({ label }: { label: string }) {
+  return (
+    <div className="mx-auto max-w-md py-16 text-center" data-testid="not-for-role">
+      <h1 className="text-[20px] font-medium text-ink">{label} isn&apos;t part of your role</h1>
+      <p className="mt-2 text-[14px] text-umber">
+        Your workspace admin can change your role on the Members page.
+      </p>
+      <NavLink to="/dashboard" className="btn-secondary mt-6 inline-flex">
+        Back to the dashboard
+      </NavLink>
+    </div>
+  )
+}

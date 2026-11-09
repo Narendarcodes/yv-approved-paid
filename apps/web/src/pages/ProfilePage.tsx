@@ -20,6 +20,7 @@ import { useToast } from '../components/toast'
 import { updateSessionUser } from '../lib/auth'
 import { API_ORIGIN, updateMe, uploadProfilePhoto, removeProfilePhoto } from '../services/api'
 import { useProjects, useTeam, useReviews, useMe } from '../lib/data'
+import { PAGE_LINE } from '../lib/copy'
 
 const roleLabel: Record<string, string> = {
   admin: 'Admin',
@@ -263,6 +264,7 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-3xl">
       <header className="mb-7">
         <h1 className="t-display">Profile</h1>
+        <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/profile']}</p>
       </header>
 
       <section className="card overflow-hidden">

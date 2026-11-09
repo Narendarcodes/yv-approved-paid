@@ -57,7 +57,7 @@ Judges should not need a sandbox buyer login, so the demo (`DEMO_MODE=1`, `PAYPA
 - **Storage:** MongoDB collection `paypalauthpools` (`pool.cts`). A row exists only for an order PayPal itself reports as ours (`custom_id` starts with `yv-auth-pool`), intent `AUTHORIZE` and approved by a buyer.
 - **Per seed:** one $400 authorization (reel 1) and one $300 authorization (reel 2), oldest first, each still valid for 2+ more days. Before use, the gateway re-checks each one with PayPal (status `CREATED`); a dead row is marked invalid and skipped.
 - **Reboots:** an untouched real-sandbox demo deal is kept across API restarts, so a Render free-tier reboot doesn't use up a pair. A reboot can still use one when the stored demo has already been touched.
-- **Reset:** `POST /api/v1/demo/deal/reset` (signed in as the demo judge; at most once every 2 minutes for everyone) rebuilds "Diwali launch reels" on a fresh pair and answers `{ holds, real }`. **Each reset uses one pair.**
+- **Reset:** `POST /api/v1/demo/deal/reset` (signed in as the demo judge; at most once every 2 minutes for everyone) rebuilds Lumen Coffee's "Autumn launch reels" on a fresh pair and answers `{ holds, real }`. **Each reset uses one pair.**
 - **Empty pool:** the seed falls back to the labelled `SIM-` ids above. Nothing breaks; the timeline just says it is simulated.
 - **Status:** `GET /api/v1/paypal/pool` returns ready/used counts per amount (no ids).
 - `PAYPAL_SANDBOX_POOL=0` turns the pool off.

@@ -13,40 +13,47 @@ const config = require('../config');
 const { localParts } = require('../utils/tz');
 const analytics = require('./analytics.service');
 
-const STAGES = [
-  { key: 'idea', label: 'Idea', statuses: ['IDEA', 'APPROVED_CONCEPT'] },
-  { key: 'brief', label: 'Brief', statuses: ['ASSIGNED', 'WAITING_FOR_INPUTS', 'INPUTS_READY'] },
-  { key: 'production', label: 'Production', statuses: ['IN_PROGRESS', 'REVISION_REQUESTED', 'REVISION_IN_PROGRESS'] },
-  { key: 'review', label: 'Review', statuses: ['FIRST_DRAFT_SUBMITTED', 'UNDER_REVIEW', 'REVISION_SUBMITTED'] },
-  { key: 'publish', label: 'Publish', statuses: ['APPROVED', 'SCHEDULED'] },
-  { key: 'live', label: 'Live', statuses: ['PUBLISHED'] },
-];
+// One stage table for the dashboard and the stage gates.
+const { STAGES } = require('./stageGates.service');
 
 const ROLE_LABEL = { reviewer: 'Reviewers', publisher: 'Publishers', admin: 'Admins' };
 
 async function pipeline({ organizationId, now = new Date() }) {
   const [projects, openConcepts, members, failed] = await Promise.all([
     // "Team Chat" is the hidden container project for chat channels, not work
-    Project.find({ organizationId, status: { $nin: ['CANCELLED', 'CLOSED'] }, title: { $ne: 'Team Chat' } })
+    Project.find({
+      organizationId,
+      status: { $nin: ['CANCELLED', 'CLOSED'] },
+      title: { $ne: 'Team Chat' },
+    })
       .populate('assignee', 'name')
       .sort({ updatedAt: -1 })
       .lean(),
     Concept.countDocuments({ organizationId, status: 'IDEA' }),
-    Membership.find({ organizationId, disabled: { $ne: true } }).populate('userId', 'name').lean(),
-    Publication.find({ organizationId, status: 'failed' }, { projectId: 1, failureReason: 1, platform: 1 }).lean(),
+    Membership.find({ organizationId, disabled: { $ne: true } })
+      .populate('userId', 'name')
+      .lean(),
+    Publication.find(
+      { organizationId, status: 'failed' },
+      { projectId: 1, failureReason: 1, platform: 1 },
+    ).lean(),
   ]);
-  const byRole = (role) => members.filter((m) => m.role === role && m.userId).map((m) => m.userId.name);
+  const byRole = (role) =>
+    members.filter((m) => m.role === role && m.userId).map((m) => m.userId.name);
   const roleOwner = (role) => {
     const names = byRole(role);
     if (names.length === 1) return { kind: 'user', name: names[0] };
     return { kind: 'role', name: ROLE_LABEL[role] || role };
   };
   const failedByProject = new Map();
-  for (const f of failed) failedByProject.set(String(f.projectId), (failedByProject.get(String(f.projectId)) || 0) + 1);
+  for (const f of failed)
+    failedByProject.set(String(f.projectId), (failedByProject.get(String(f.projectId)) || 0) + 1);
 
   const waitingInputs = projects.filter((p) => p.status === 'WAITING_FOR_INPUTS').map((p) => p._id);
   const pendingInputs = waitingInputs.length
-    ? await Input.find({ projectId: { $in: waitingInputs }, state: { $ne: 'received' } }).populate('owner', 'name').lean()
+    ? await Input.find({ projectId: { $in: waitingInputs }, state: { $ne: 'received' } })
+        .populate('owner', 'name')
+        .lean()
     : [];
   const inputsByProject = new Map();
   for (const i of pendingInputs) {
@@ -55,20 +62,30 @@ async function pipeline({ organizationId, now = new Date() }) {
   }
 
   const assigneeOr = (p, fallback) =>
-    p.assignee ? { kind: 'user', id: p.assignee._id, name: p.assignee.name } : fallback || { kind: 'unassigned', name: 'Unassigned' };
+    p.assignee
+      ? { kind: 'user', id: p.assignee._id, name: p.assignee.name }
+      : fallback || { kind: 'unassigned', name: 'Unassigned' };
 
   function blockedOn(p) {
     switch (p.status) {
       case 'IDEA':
       case 'APPROVED_CONCEPT':
-        return { ...assigneeOr(p, { kind: 'unassigned', name: 'Needs an owner' }), action: 'Assign and write the brief' };
+        return {
+          ...assigneeOr(p, { kind: 'unassigned', name: 'Needs an owner' }),
+          action: 'Assign and write the brief',
+        };
       case 'ASSIGNED':
         return { ...assigneeOr(p), action: 'Finish the brief / request inputs' };
       case 'WAITING_FOR_INPUTS': {
         const ins = inputsByProject.get(String(p._id)) || [];
         const owner = ins.find((i) => i.owner);
-        const who = owner ? { kind: 'user', id: owner.owner._id, name: owner.owner.name } : { kind: 'client', name: (ins[0] && ins[0].source) || p.client || 'Client' };
-        return { ...who, action: `${ins.length || 'Some'} input${ins.length === 1 ? '' : 's'} outstanding` };
+        const who = owner
+          ? { kind: 'user', id: owner.owner._id, name: owner.owner.name }
+          : { kind: 'client', name: (ins[0] && ins[0].source) || p.client || 'Client' };
+        return {
+          ...who,
+          action: `${ins.length || 'Some'} input${ins.length === 1 ? '' : 's'} outstanding`,
+        };
       }
       case 'INPUTS_READY':
       case 'IN_PROGRESS':
@@ -83,7 +100,8 @@ async function pipeline({ organizationId, now = new Date() }) {
       case 'APPROVED':
         return { ...roleOwner('publisher'), action: 'Schedule it' };
       case 'SCHEDULED':
-        if (failedByProject.get(String(p._id))) return { ...roleOwner('publisher'), action: 'Fix a failed post' };
+        if (failedByProject.get(String(p._id)))
+          return { ...roleOwner('publisher'), action: 'Fix a failed post' };
         return { kind: 'system', name: 'Scheduler', action: 'Goes live on schedule' };
       default:
         return null;
@@ -93,7 +111,8 @@ async function pipeline({ organizationId, now = new Date() }) {
   const liveSince = new Date(now.getTime() - 30 * 86400000);
   const stages = STAGES.map((s) => {
     let items = projects.filter((p) => s.statuses.includes(p.status));
-    if (s.key === 'live') items = items.filter((p) => p.publishedAt && new Date(p.publishedAt) >= liveSince);
+    if (s.key === 'live')
+      items = items.filter((p) => p.publishedAt && new Date(p.publishedAt) >= liveSince);
     return {
       key: s.key,
       label: s.label,
@@ -132,8 +151,18 @@ async function pipeline({ organizationId, now = new Date() }) {
     organizationId,
     status: { $in: ['scheduled', 'published', 'failed'] },
     $or: [
-      { scheduledFor: { $gte: new Date(now.getTime() - 36 * 3600000), $lte: new Date(now.getTime() + 36 * 3600000) } },
-      { publishedAt: { $gte: new Date(now.getTime() - 36 * 3600000), $lte: new Date(now.getTime() + 36 * 3600000) } },
+      {
+        scheduledFor: {
+          $gte: new Date(now.getTime() - 36 * 3600000),
+          $lte: new Date(now.getTime() + 36 * 3600000),
+        },
+      },
+      {
+        publishedAt: {
+          $gte: new Date(now.getTime() - 36 * 3600000),
+          $lte: new Date(now.getTime() + 36 * 3600000),
+        },
+      },
     ],
   }).lean();
   const todays = window.filter((p) => {
@@ -144,9 +173,12 @@ async function pipeline({ organizationId, now = new Date() }) {
   const chans = await SocialChannel.find({ _id: { $in: chIds } }, { platform: 1, name: 1 }).lean();
   const chById = new Map(chans.map((c) => [String(c._id), c]));
   const pTitle = new Map(projects.map((p) => [String(p._id), p.title]));
-  const missingTitles = todays.filter((p) => !pTitle.has(String(p.projectId))).map((p) => p.projectId);
+  const missingTitles = todays
+    .filter((p) => !pTitle.has(String(p.projectId)))
+    .map((p) => p.projectId);
   if (missingTitles.length) {
-    for (const p of await Project.find({ _id: { $in: missingTitles } }, { title: 1 }).lean()) pTitle.set(String(p._id), p.title);
+    for (const p of await Project.find({ _id: { $in: missingTitles } }, { title: 1 }).lean())
+      pTitle.set(String(p._id), p.title);
   }
   const goingLiveToday = todays
     .map((p) => ({
@@ -155,7 +187,8 @@ async function pipeline({ organizationId, now = new Date() }) {
       title: pTitle.get(String(p.projectId)) || 'Untitled',
       status: p.status,
       at: p.status === 'published' ? p.publishedAt : p.scheduledFor,
-      platform: (chById.get(String(p.channelId)) || {}).platform || String(p.platform).toLowerCase(),
+      platform:
+        (chById.get(String(p.channelId)) || {}).platform || String(p.platform).toLowerCase(),
       channel: (chById.get(String(p.channelId)) || {}).name || p.platform,
       failureReason: p.failureReason || '',
     }))
@@ -170,7 +203,12 @@ async function pipeline({ organizationId, now = new Date() }) {
     goingLiveToday,
     failedPosts: failed.length,
     lastWeekBest: best ? { ...best, simulated: week.simulated } : null,
-    lastWeek: { views: week.totals.views, engagementRate: week.totals.engagementRate, change: week.change.views, simulated: week.simulated },
+    lastWeek: {
+      views: week.totals.views,
+      engagementRate: week.totals.engagementRate,
+      change: week.change.views,
+      simulated: week.simulated,
+    },
   };
 }
 

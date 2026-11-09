@@ -34,6 +34,10 @@ body {
   outline-offset: 2px;
   border-radius: var(--radius-card);
 }
+/* Chat composer: the form's border carries focus (focus-within), so the textarea draws no second ring */
+.composer-input:focus-visible {
+  outline: none;
+}
 
 /* Custom scrollbars from the palette */
 * {

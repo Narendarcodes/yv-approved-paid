@@ -89,10 +89,13 @@ export function ErrorBanner({ onRetry, message }: { onRetry?: () => void; messag
 /** Genuine "nothing here yet" state. */
 export function EmptyState({
   title,
+  description,
   action,
   illustration,
 }: {
   title: string
+  /** One helpful line: what fills this, or what to do next. */
+  description?: string
   action?: ReactNode
   /** An illustrated empty state for the few places that earn one (deals, payables, my money, projects, review). */
   illustration?: IllustrationName
@@ -108,6 +111,9 @@ export function EmptyState({
       )}
       <div>
         <p className="text-sm font-medium text-ink">{title}</p>
+        {description && (
+          <p className="mx-auto mt-1 max-w-[42ch] text-[13px] text-umber">{description}</p>
+        )}
       </div>
       {action}
     </div>

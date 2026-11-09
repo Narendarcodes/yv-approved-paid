@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarClock, Check, Film, ImageIcon, Plug, Send, FileText } from 'lucide-react'
+import { CalendarClock, Check, Film, ImageIcon, Send, FileText } from 'lucide-react'
 import Chip, { EmptyState } from '../../components/primitives'
 import { PageHeader } from '../../components/ui'
 import { ErrorBanner, ListSkeleton } from '../../components/states'
@@ -33,6 +33,7 @@ import {
   type FieldError,
 } from '../../components/PlatformSettingsPanel'
 import { PlatformIcon, StatusChip } from '../../components/status'
+import { PAGE_LINE, EMPTY_LINE, PUBLISHING_IN_BUILD, PUBLISHING_PREVIEW } from '../../lib/copy'
 
 const LIMITS: Partial<Record<PlatformKey, number>> = {
   x: 280,
@@ -207,12 +208,20 @@ export default function ComposerPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Compose"
+        subtitle={PAGE_LINE['/publishing/compose']}
         actions={
           <Link to="/publishing/calendar" className="btn-secondary">
             <CalendarClock size={14} strokeWidth={1.75} /> Calendar
           </Link>
         }
       />
+      <p
+        className="flex items-center gap-2 text-[13px] text-umber"
+        data-testid="publishing-preview"
+      >
+        <Chip label="Preview" />
+        {PUBLISHING_PREVIEW}
+      </p>
       {(channelError || projectError) && (
         <ErrorBanner message={channelError || projectError || ''} />
       )}
@@ -222,6 +231,7 @@ export default function ComposerPage() {
         <EmptyState
           icon={<FileText size={22} strokeWidth={1.5} />}
           title="No approved projects yet"
+          description={EMPTY_LINE.compose}
           action={
             <Link to="/projects" className="btn-primary">
               Go to projects
@@ -285,10 +295,7 @@ export default function ComposerPage() {
               <StepTitle n={2} title="Channels" />
               {!channels.length ? (
                 <div className="mt-3 flex items-center justify-between gap-3 rounded-[10px] border border-dashed border-line-strong px-4 py-3">
-                  <p className="text-sm text-umber">No channels connected yet.</p>
-                  <Link to="/publishing/channels" className="btn-secondary">
-                    <Plug size={14} strokeWidth={1.75} /> Connect channels
-                  </Link>
+                  <p className="text-sm text-umber">{PUBLISHING_IN_BUILD}</p>
                 </div>
               ) : (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -300,11 +307,7 @@ export default function ComposerPage() {
                         key={c.id}
                         onClick={() => !expired && toggle(c.id)}
                         disabled={expired}
-                        title={
-                          expired
-                            ? `${c.name} needs to be reconnected on the Channels page`
-                            : undefined
-                        }
+                        title={expired ? `${c.name} needs a refresh on our side` : undefined}
                         aria-pressed={on}
                         data-testid="composer-channel"
                         className={`flex items-center gap-3 rounded-[10px] border px-3 py-2.5 text-left transition-colors ${
@@ -321,12 +324,11 @@ export default function ComposerPage() {
                             {c.name}
                           </span>
                           <span className="micro-label block truncate">
-                            {PLATFORMS[c.platform].label} ·{' '}
-                            {c.mode === 'postiz' ? 'Postiz' : 'Demo'}
+                            {PLATFORMS[c.platform].label}
                           </span>
                         </span>
                         {expired ? (
-                          <StatusChip status="failed" label="Reconnect needed" />
+                          <StatusChip status="failed" label="Unavailable" />
                         ) : (
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ${on ? 'border-teal bg-teal text-white' : 'border-line-strong'}`}
@@ -503,11 +505,7 @@ export default function ComposerPage() {
               </p>
             )}
             {status && (
-              <p className="text-center text-xs leading-relaxed text-umber">
-                {status.mode === 'postiz'
-                  ? 'Postiz channels are handed to Postiz; demo channels use the built-in scheduler.'
-                  : 'Demo mode: the built-in scheduler publishes at the chosen time with a demo link.'}
-              </p>
+              <p className="text-center text-xs leading-relaxed text-umber">{PUBLISHING_PREVIEW}</p>
             )}
           </aside>
         </div>

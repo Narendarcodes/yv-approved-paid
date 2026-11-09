@@ -42,6 +42,7 @@ import {
   type Invoice,
 } from '../services/api'
 import type { DealView } from '../contracts/types'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 /** Major units -> currency (kept as an export: ContractsPage uses it). */
 export function money(amount: number, currency = 'INR') {
@@ -327,6 +328,7 @@ export default function InvoicesPage() {
     <div className="fade-in">
       <PageHeader
         title="Invoices"
+        subtitle={PAGE_LINE['/invoices']}
         actions={
           <button className="btn-primary" onClick={openNew} data-testid="new-invoice">
             <Plus size={15} strokeWidth={1.75} /> New invoice
@@ -368,6 +370,7 @@ export default function InvoicesPage() {
         <EmptyState
           icon={<Receipt size={22} strokeWidth={1.75} />}
           title="No invoices yet"
+          description={EMPTY_LINE.invoices}
           action={
             <button className="btn-primary" onClick={openNew}>
               New invoice

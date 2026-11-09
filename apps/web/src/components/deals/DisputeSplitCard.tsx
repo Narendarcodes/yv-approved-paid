@@ -14,8 +14,9 @@ import { useToast } from '../toast'
 import * as api from '../../services/api'
 import type { DealView } from '../../contracts/types'
 import { milestonePair, money, roleWord } from '../../lib/deals'
-import { DealCardShell, PassPill } from './common'
+import { DealCardShell } from './common'
 import PolicyBlockedChip from './PolicyBlockedChip'
+import { HINT } from '../../lib/copy'
 
 export default function DisputeSplitCard({
   deal,
@@ -75,10 +76,15 @@ export default function DisputeSplitCard({
       }
       footer={
         canAccept ? (
-          <button className="btn-primary" disabled={busy} onClick={accept}>
-            <Scale size={15} strokeWidth={2} />
-            Accept {money(p!.workerMinor, cur)} to the editor
-          </button>
+          <>
+            <button className="btn-primary" disabled={busy} onClick={accept}>
+              <Scale size={15} strokeWidth={2} />
+              Accept {money(p!.workerMinor, cur)} to the editor
+            </button>
+            <span className="text-[12px] text-umber" data-testid="decision-hint">
+              {HINT.disputeSplit}
+            </span>
+          </>
         ) : undefined
       }
     >
@@ -109,8 +115,12 @@ export default function DisputeSplitCard({
 
           <ul className="mt-4 divide-y divide-line">
             {p.evidence.checks.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 py-2">
-                <PassPill passed={c.passed} />
+              <li key={c.id} className="flex min-h-9 items-center gap-3 py-1.5">
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${c.passed ? 'bg-success' : 'bg-danger'}`}
+                  role="img"
+                  aria-label={c.passed ? 'Passed' : 'Failed'}
+                />
                 <span className="text-[13px] text-ink">{c.text}</span>
               </li>
             ))}

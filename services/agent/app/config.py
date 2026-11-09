@@ -27,6 +27,13 @@ class Settings:
     llm_api_key: str | None = field(default_factory=lambda: os.environ.get("LLM_API_KEY") or None)
     llm_max_tokens: int = field(default_factory=lambda: int(os.environ.get("LLM_MAX_TOKENS", "700")))
     llm_timeout_s: float = field(default_factory=lambda: _f("LLM_TIMEOUT_S", "90"))
+    # A provider that sends no visible text within LLM_FIRST_TOKEN_S is skipped; past LLM_DEADLINE_S
+    # no further provider is tried and the flow answers from the brand hub's own text (flows.py).
+    llm_first_token_s: float = field(default_factory=lambda: _f("LLM_FIRST_TOKEN_S", "12"))
+    llm_deadline_s: float = field(default_factory=lambda: _f("LLM_DEADLINE_S", "22"))
+    # Once text flows: a gap longer than LLM_STALL_S, or an answer longer than LLM_ANSWER_MAX_S, ends it.
+    llm_stall_s: float = field(default_factory=lambda: _f("LLM_STALL_S", "10"))
+    llm_answer_max_s: float = field(default_factory=lambda: _f("LLM_ANSWER_MAX_S", "45"))
     org_daily_token_budget: int = field(default_factory=lambda: int(os.environ.get("ORG_DAILY_TOKEN_BUDGET", "200000")))
     # vectors
     qdrant_url: str = field(default_factory=lambda: os.environ.get("QDRANT_URL", ":memory:"))

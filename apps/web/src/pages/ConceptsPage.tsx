@@ -18,6 +18,7 @@ import { compact } from '../lib/publishing'
 import { SimulatedBadge, pctText } from '../components/charts'
 import { PlatformIcon } from '../components/status'
 import { initialsOf } from '../lib/initials'
+import { PAGE_LINE } from '../lib/copy'
 
 const TYPE_LABEL: Record<Concept['type'], string> = {
   'New Concept': 'New Concept',
@@ -165,6 +166,8 @@ export default function ConceptsPage() {
     <div className="fade-in space-y-8">
       <PageHeader
         title="Concepts"
+        tour="concepts"
+        subtitle={PAGE_LINE['/concepts']}
         actions={
           mayManage ? (
             <button className="btn-primary" onClick={() => setOpen(true)}>

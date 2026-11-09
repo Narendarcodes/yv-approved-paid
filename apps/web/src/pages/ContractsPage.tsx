@@ -13,6 +13,7 @@ import {
   type Contract,
 } from '../services/api'
 import { money } from './InvoicesPage'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 const STEPS: Contract['status'][] = ['draft', 'sent', 'viewed', 'signed']
 
@@ -105,6 +106,7 @@ export default function ContractsPage() {
     <div className="fade-in">
       <PageHeader
         title="Contracts"
+        subtitle={PAGE_LINE['/contracts']}
         actions={
           <button
             className="btn-primary"
@@ -133,6 +135,7 @@ export default function ContractsPage() {
         <EmptyState
           icon={<FileSignature size={22} strokeWidth={1.75} />}
           title="No contracts yet"
+          description={EMPTY_LINE.contracts}
         />
       ) : (
         <div className="space-y-3">

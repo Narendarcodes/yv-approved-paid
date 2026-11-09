@@ -22,6 +22,7 @@ import TeamPayoutCard from './TeamPayoutCard'
 import MoneyTimeline from './MoneyTimeline'
 import DealSection from './DealSection'
 import { useFundMilestone } from './DealCard'
+import { HINT } from '../../lib/copy'
 
 export type SectionId = 'checks' | 'payout' | 'changes' | 'money' | 'terms'
 
@@ -63,7 +64,16 @@ function stateLine(deal: DealView, key: string): string {
   }
 }
 
-/** The delivered cut: the first evidence frame of the latest checked version, or a quiet placeholder. */
+/** A same-site path to the cut's file, when the version carries one (the demo reels do). */
+function mediaOf(v: unknown): string | null {
+  const url = (v as { mediaUrl?: unknown } | undefined)?.mediaUrl
+  return typeof url === 'string' && /^\/[A-Za-z0-9/_.-]+\.mp4$/.test(url) ? url : null
+}
+
+/**
+ * The delivered cut: a player when the latest version has its file (the check
+ * time chips seek it), otherwise the first evidence frame or a quiet placeholder.
+ */
 function CutTile({ deal, orgId, mkey }: { deal: DealView; orgId: string; mkey: string }) {
   const r = deal.milestones.find((m) => m.key === mkey)
   const versions = r?.versions ?? []
@@ -73,6 +83,33 @@ function CutTile({ deal, orgId, mkey }: { deal: DealView; orgId: string; mkey: s
     .flatMap((v) => v.checks?.results ?? [])
     .flatMap((x) => x.evidence ?? [])
     .find((e) => e.screenshot)?.screenshot
+  const media = mediaOf(latest)
+  if (media)
+    return (
+      <div
+        className="relative aspect-[9/16] w-[96px] shrink-0 overflow-hidden rounded-lg border border-line bg-ink sm:w-[124px]"
+        data-testid="reel-cut"
+      >
+        <video
+          key={media}
+          data-reel-player
+          src={media}
+          poster={frame ? api.dealEvidenceUrl(orgId, deal.id, frame) : undefined}
+          controls
+          muted
+          playsInline
+          preload="metadata"
+          className="h-full w-full object-cover"
+          aria-label={`Delivered cut, ${latest!.id}`}
+        />
+        <span
+          className="pointer-events-none absolute left-1 top-1 rounded bg-ink/70 px-1.5 py-px text-xs text-on-accent"
+          title={latest!.sha256}
+        >
+          {latest!.id} · {shortHash(latest!.sha256, 6)}
+        </span>
+      </div>
+    )
   return (
     <div
       className="relative flex aspect-video w-[120px] shrink-0 sm:w-[168px] items-center justify-center overflow-hidden rounded-lg border border-line bg-canvas"
@@ -129,7 +166,11 @@ export default function ReelPanel({
   const showPayout =
     !!deal.termsHash && t.payees.length > 0 && (r.payouts.length > 0 || deal.me === 'worker')
   const latest = r.versions[r.versions.length - 1]
-  const failed = latest?.checks ? latest.checks.failed.length : null
+  const machineN = t.checklist.filter((c) => c.kind !== 'taste').length
+  const passedN = latest?.checks
+    ? (latest.checks.results?.filter((x) => x.passed && x.status === 'ok').length ??
+      machineN - latest.checks.failed.length)
+    : null
   const canFund = deal.me === 'client' && r.state === 'SIGNED'
   const reviewPending = !!r.proposals?.review || (r.state === 'IN_REVIEW' && !clocked)
   // a merged review is the next action only while the reel is still in review; after that it is history under Checks
@@ -189,6 +230,11 @@ export default function ReelPanel({
             )}
           </div>
         )}
+        {canFund && (
+          <p className="-mt-1 px-1 text-[12px] text-umber" data-testid="decision-hint">
+            {HINT.fund}
+          </p>
+        )}
         {reviewNow && (
           <div id={`review-${mkey}`} className="scroll-mt-20">
             <ReviewMergeCard deal={deal} orgId={orgId} milestoneKey={mkey} onChanged={onChanged} />
@@ -203,7 +249,7 @@ export default function ReelPanel({
         <DealSection
           id="checks"
           title="Checks"
-          meta={failed === null ? undefined : failed ? `${failed} failed` : 'All passed'}
+          meta={passedN === null ? undefined : `${passedN} of ${machineN} passed`}
           open={open.has('checks')}
           onToggle={() => onToggle('checks')}
         >

@@ -56,8 +56,19 @@ export const ROLES: RoleInfo[] = [
     desk: 'Team overview',
     blurb: 'Full access - manages the organization and every project.',
     permissions: [
-      'view', 'create', 'upload', 'comment', 'approve', 'schedule',
-      'publish', 'metrics', 'manage_members', 'assign', 'manage_concepts', 'review_concepts', 'settings',
+      'view',
+      'create',
+      'upload',
+      'comment',
+      'approve',
+      'schedule',
+      'publish',
+      'metrics',
+      'manage_members',
+      'assign',
+      'manage_concepts',
+      'review_concepts',
+      'settings',
     ],
   },
   {
@@ -66,8 +77,16 @@ export const ROLES: RoleInfo[] = [
     desk: 'Production desk',
     blurb: 'Creates and produces projects, uploads versions, requests review.',
     permissions: [
-      'view', 'create', 'upload', 'comment', 'approve', 'schedule',
-      'metrics', 'assign', 'manage_concepts', 'settings',
+      'view',
+      'create',
+      'upload',
+      'comment',
+      'approve',
+      'schedule',
+      'metrics',
+      'assign',
+      'manage_concepts',
+      'settings',
     ],
   },
   {
@@ -99,6 +118,9 @@ export const ROLES: RoleInfo[] = [
     permissions: ['view', 'comment'],
   },
 ]
+
+/** Roles the API seeds and can assign (apps/api/src/seed/roles.js). Designer and member exist only as a web fallback. */
+export const ASSIGNABLE_ROLES: Role[] = ['admin', 'editor', 'reviewer', 'publisher']
 
 const ROLE_ALIASES: Record<string, Role> = {
   admin: 'admin',

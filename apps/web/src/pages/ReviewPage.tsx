@@ -7,6 +7,7 @@ import { AssigneeAvatar } from '../components/ui'
 import { useProjects, useReviews, useTeam } from '../lib/data'
 import { projectStatusLabel } from '../lib/format'
 import { StatusChip } from '../components/status'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 const IN_REVIEW = ['FIRST_DRAFT_SUBMITTED', 'UNDER_REVIEW', 'REVISION_SUBMITTED']
 
@@ -25,7 +26,7 @@ export default function ReviewPage() {
 
   return (
     <div className="fade-in space-y-8">
-      <PageHeader title="Review" />
+      <PageHeader title="Review" subtitle={PAGE_LINE['/review']} tour="review" />
 
       {loading && !projects.length ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
@@ -86,6 +87,7 @@ export default function ReviewPage() {
       ) : (
         <EmptyState
           title="All caught up"
+          description={EMPTY_LINE.review}
           illustration="review"
           action={
             <Link to="/publishing/calendar" className="btn-secondary btn-sm">

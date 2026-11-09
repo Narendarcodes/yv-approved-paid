@@ -14,6 +14,7 @@ const { mintServiceToken, READ_SCOPES } = require('../agent/serviceToken');
 const streams = require('../agent/streams');
 const { Post, Insight, AgentJob } = require('../models/agent');
 const { latestMetrics, postDTO } = require('./internal');
+const { buildChatContext } = require('../agent/chatContext');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -57,22 +58,43 @@ router.post(
     if (message.length > 4000) return res.status(400).json({ error: { code: 'validation_error', message: 'message too long' } });
     const orgId = req.params.organizationId;
     const token = mintServiceToken({ orgId, userId: req.user._id, scopes: READ_SCOPES, ttlSec: config.agent.chatTokenTtlSec });
+    const context = await buildChatContext(orgId);
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), config.agent.chatTimeoutMs);
+    // The agent answers its first SSE event (meta) at once; past this it is asleep or stuck, and the
+    // reader gets a readable error instead of a long "Thinking...".
+    let waking = false;
+    const firstByte = setTimeout(() => {
+      waking = true;
+      ac.abort();
+    }, config.agent.chatFirstByteMs);
     res.on('close', () => ac.abort());
+    const headers = { 'content-type': 'application/json', accept: 'text/event-stream', authorization: `Bearer ${token}` };
+    if (config.agent.sharedSecret) headers['x-agent-secret'] = config.agent.sharedSecret;
     let upstream;
     try {
       upstream = await fetch(`${config.agent.url}/v1/chat`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'text/event-stream', authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message, postId: req.body.postId || null, history: Array.isArray(req.body.history) ? req.body.history.slice(-6) : [] }),
+        headers,
+        body: JSON.stringify({
+          message,
+          postId: req.body.postId || null,
+          history: Array.isArray(req.body.history) ? req.body.history.slice(-6) : [],
+          context,
+        }),
         signal: ac.signal,
       });
     } catch (err) {
       clearTimeout(timer);
-      logger.warn({ err: err.message }, 'agent unreachable');
+      clearTimeout(firstByte);
+      logger.warn({ err: err.message, waking }, 'agent unreachable');
+      if (waking)
+        return res.status(504).json({
+          error: { code: 'agent_timeout', message: 'The agent service is waking up. Try again in a minute.' },
+        });
       return res.status(502).json({ error: { code: 'agent_unavailable', message: 'Agent service unavailable' } });
     }
+    clearTimeout(firstByte);
     if (!upstream.ok || !upstream.body) {
       clearTimeout(timer);
       const text = await upstream.text().catch(() => '');

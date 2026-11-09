@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { useViewer } from '../lib/viewer'
-import { ROLES, PERMISSION_LABELS } from '../lib/roles'
+import { ROLES, PERMISSION_LABELS, ASSIGNABLE_ROLES } from '../lib/roles'
 import { useToast } from '../components/toast'
 import { useTeam } from '../lib/data'
+import { PAGE_LINE } from '../lib/copy'
 
 function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -87,6 +88,7 @@ export default function SettingsPage() {
     <div className="fade-in mx-auto max-w-2xl">
       <header className="mb-6">
         <h1 className="t-display">Settings</h1>
+        <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/settings']}</p>
       </header>
 
       <div className="space-y-6">
@@ -121,7 +123,7 @@ export default function SettingsPage() {
             <h2 className="card-title">Roles & permissions</h2>
           </header>
           <div className="divide-y divide-line">
-            {ROLES.map((r) => (
+            {ROLES.filter((r) => ASSIGNABLE_ROLES.includes(r.role)).map((r) => (
               <div
                 key={r.role}
                 className={`px-6 py-5 transition-colors ${r.role === viewer.role ? 'bg-tint/40' : 'hover:bg-canvas/40'}`}

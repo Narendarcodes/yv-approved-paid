@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Info, Send, Plus, WifiOff, X, Hash, Users } from 'lucide-react'
+import { Info, Plus, WifiOff, X, Hash, Users } from 'lucide-react'
 import Avatar from '../components/ui'
 import { Skeleton, ErrorBanner } from '../components/states'
 import { useViewer } from '../lib/viewer'
 import { useTeam } from '../lib/data'
 import { useChat } from '../lib/chat'
 import type { ChatChannel } from '../lib/chat'
+import { Composer, JumpToLatest, UserBubble, useStickToBottom } from '../components/chat/Thread'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 export default function ChatPage() {
   const viewer = useViewer()
@@ -21,16 +23,14 @@ export default function ChatPage() {
   const [creatingChannel, setCreatingChannel] = useState(false)
   const [channelError, setChannelError] = useState<string | null>(null)
   const [infoOpen, setInfoOpen] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
 
   const active: ChatChannel | undefined = channels_of(chat.channels, channelId) ?? chat.channels[0]
   const messages = active ? (chat.messagesByChannel[active.id] ?? []) : []
   const memberOf = (id: string) => team.find((m) => m.id === id)
 
-  // Auto-scroll to newest message.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [messages.length, active?.id])
+  // Auto-scroll to the newest message while the reader is at the bottom.
+  const { endRef, atBottom, jump } = useStickToBottom(`${active?.id}:${messages.length}`)
+  useEffect(() => jump(false), [active?.id, jump])
 
   const submit = async () => {
     if (!draft.trim() || !active || sending) return
@@ -38,6 +38,7 @@ export default function ChatPage() {
     try {
       await chat.send(active.id, active.projectId, draft)
       setDraft('')
+      requestAnimationFrame(() => jump(false))
     } finally {
       setSending(false)
     }
@@ -86,9 +87,10 @@ export default function ChatPage() {
 
   return (
     <div className="fade-in">
-      <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="t-display">Team chat</h1>
+          <p className="mt-1 text-[14px] text-umber">{PAGE_LINE['/chat']}</p>
         </div>
       </header>
       {/* Mobile channel bar: the channel list is hidden below sm */}
@@ -122,9 +124,9 @@ export default function ChatPage() {
           <div className="mt-2 rounded-[8px] border border-line">{createForm}</div>
         )}
       </div>
-      <div className="flex h-[calc(100vh-210px)] min-h-[420px] gap-4">
+      <div className="flex gap-8">
         {/* Channel list */}
-        <aside className="card hidden w-60 shrink-0 flex-col p-0 sm:flex">
+        <aside className="card sticky top-20 hidden max-h-[calc(100dvh-7rem)] w-56 shrink-0 flex-col self-start p-0 sm:flex">
           <header className="flex items-center justify-between border-b border-line px-4 py-3">
             <h2 className="card-title">Channels</h2>
             <button
@@ -173,14 +175,17 @@ export default function ChatPage() {
           </ul>
         </aside>
 
-        {/* Messages */}
-        <section className="card flex min-w-0 flex-1 flex-col p-0">
-          <header className="card-head justify-between">
-            <div>
-              <h2 className="card-title">
+        {/* Messages: a full-height thread the page scrolls, composer pinned to the bottom */}
+        <section
+          className="mx-auto flex min-h-[calc(100dvh-220px)] w-full min-w-0 max-w-[720px] flex-1 flex-col"
+          data-testid="chat-thread"
+        >
+          <header className="flex items-center justify-between gap-3 border-b border-line pb-3">
+            <div className="min-w-0">
+              <h2 className="truncate font-mono text-[14px] font-medium text-ink">
                 {chat.loading ? 'Loading…' : (active?.name ?? 'No channel')}
               </h2>
-              {active && <p className="text-xs text-umber">Live · updates in real time</p>}
+              {active && <p className="text-[12px] text-umber">Live · updates in real time</p>}
             </div>
             <button
               onClick={() => setInfoOpen(true)}
@@ -194,7 +199,7 @@ export default function ChatPage() {
             </button>
           </header>
 
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+          <div className="flex-1 space-y-5 py-5" aria-live="polite">
             {chat.loading ? (
               <div className="space-y-4">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -212,43 +217,50 @@ export default function ChatPage() {
             ) : !chat.channels.length ? (
               <div className="py-10 text-center" data-testid="chat-empty">
                 <p className="text-sm text-umber">No channels yet.</p>
+                <p className="mt-1 text-[13px] text-umber">{EMPTY_LINE.chatChannels}</p>
                 <button className="btn-primary mt-3" onClick={() => setNewChannelOpen(true)}>
                   <Plus size={14} strokeWidth={2} /> Create the first one
                 </button>
               </div>
             ) : messages.length === 0 ? (
-              <p className="text-center text-sm text-label">
+              <p className="py-10 text-center text-sm text-umber">
                 No messages yet{active ? ` — say hi in ${active.name}` : ''}.
               </p>
             ) : (
               messages.map((m) => {
                 const mine = m.author === viewer.id || m.author === 'me'
                 const author = memberOf(m.author)
+                if (mine)
+                  return (
+                    <UserBubble
+                      key={m.id}
+                      meta={
+                        <span className="t-num">
+                          {m.time}
+                          {m.pending && ' · sending…'}
+                          {m.failed && (
+                            <span className="inline-flex items-center gap-1 text-danger">
+                              {' '}
+                              · <WifiOff size={10} strokeWidth={2} /> failed
+                            </span>
+                          )}
+                        </span>
+                      }
+                    >
+                      <span className={m.failed ? 'text-danger' : ''}>{m.text}</span>
+                    </UserBubble>
+                  )
                 return (
-                  <div key={m.id} className="flex items-start gap-3 rise-in">
-                    <Avatar
-                      initials={mine ? viewer.initials : (author?.initials ?? '?')}
-                      size="sm"
-                      tone={mine ? 'ink' : 'tint'}
-                    />
-                    <div className="min-w-0">
+                  <div key={m.id} className="flex items-start gap-3">
+                    <Avatar initials={author?.initials ?? '?'} size="sm" tone="tint" />
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
                         <span className="text-[13px] font-medium text-ink">
-                          {mine ? 'You' : (author?.name ?? m.author)}
+                          {author?.name ?? m.author}
                         </span>
-                        <span className="font-mono text-xs text-label">{m.time}</span>
-                        {m.pending && (
-                          <span className="font-mono text-xs text-label">sending…</span>
-                        )}
-                        {m.failed && (
-                          <span className="inline-flex items-center gap-1 font-mono text-xs text-danger">
-                            <WifiOff size={10} strokeWidth={2} /> failed
-                          </span>
-                        )}
+                        <span className="t-num text-[12px] text-umber">{m.time}</span>
                       </div>
-                      <p
-                        className={`mt-0.5 text-sm leading-relaxed ${m.failed ? 'text-danger' : 'text-ink/85'}`}
-                      >
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[14px] leading-6 text-ink/90">
                         {m.text}
                       </p>
                     </div>
@@ -256,38 +268,19 @@ export default function ChatPage() {
                 )
               })
             )}
+            <div ref={endRef} />
           </div>
 
-          {/* Composer */}
-          <footer className="border-t border-line p-3">
-            <div className="flex items-center gap-2 rounded-[8px] border border-line bg-canvas/50 px-3 py-2 focus-within:border-teal/50">
-              <input
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    void submit()
-                  }
-                }}
-                placeholder={active ? `Message ${active.name}` : 'Select a channel first'}
-                disabled={!active}
-                name="message"
-                type="text"
-                autoComplete="off"
-                aria-label="Message"
-                className="flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-label touch-manipulation focus-visible:ring-2 focus-visible:ring-teal/20"
-              />
-              <button
-                onClick={() => void submit()}
-                disabled={!draft.trim() || !active || sending}
-                className="btn-primary btn-xs !px-3 touch-manipulation focus-visible:ring-2 focus-visible:ring-teal/20"
-                aria-label="Send"
-              >
-                <Send size={14} strokeWidth={1.75} aria-hidden="true" />
-              </button>
-            </div>
-          </footer>
+          <JumpToLatest show={!atBottom && messages.length > 0} onClick={() => jump()} />
+          <Composer
+            value={draft}
+            onChange={setDraft}
+            onSend={() => void submit()}
+            placeholder={active ? `Message ${active.name}` : 'Select a channel first'}
+            disabled={!active}
+            busy={sending}
+            label="Message"
+          />
         </section>
 
         {/* Channel info drawer — portal so it escapes card overflow */}

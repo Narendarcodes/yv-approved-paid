@@ -42,7 +42,7 @@ async function start() {
     // Money Agent: keeps holds alive, auto-approves lapsed reviews, captures, pays out.
     require('./modules/deals/service.cts').startMoneyAgent(logger);
 
-    // Judge demo: DEMO_MODE=1 rebuilds "Diwali launch reels" in this process, so the
+    // Judge demo: DEMO_MODE=1 rebuilds Lumen Coffee's "Autumn launch reels" in this process, so the
     // gateway holding its authorizations is the one the Money Agent uses. Works on
     // PAYPAL_MODE=mock and on PAYPAL_MODE=sandbox (real sandbox orders and invoices;
     // the buyer's approval is simulated and labelled so).

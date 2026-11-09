@@ -24,6 +24,7 @@ import {
   when,
 } from '../../lib/deals'
 import { DealCardShell, PaypalInvoiceId } from './common'
+import { HINT } from '../../lib/copy'
 
 export default function ChangeOrderCard({
   deal,
@@ -100,6 +101,9 @@ export default function ChangeOrderCard({
         <X size={15} strokeWidth={2} />
         Decline
       </button>
+      <span className="text-[12px] text-umber" data-testid="decision-hint">
+        {HINT.changeOrder}
+      </span>
     </div>
   ) : co.status === 'invoiced' ? (
     <div className="flex w-full flex-wrap items-center gap-2">

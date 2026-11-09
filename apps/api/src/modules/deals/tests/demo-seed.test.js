@@ -1,5 +1,5 @@
 /**
- * The judge demo seed (Phase 4 gap 4): "Diwali launch reels" on the mock gateway,
+ * The judge demo seed (Phase 4 gap 4): Lumen Coffee's "Autumn launch reels" on the mock gateway,
  * with every state from docs/phase4-ui-plan.md section 6, built through the deal
  * service (policy, ledger, lock). Idempotent: a second run rebuilds the same deal.
  */
@@ -31,7 +31,8 @@ describe('seed-deal-demo', () => {
   test('fixed deal id, signed by both sides, both reels held on PayPal', async () => {
     expect(seeded.dealId).toBe(DEMO.dealId);
     const d = await dealService().get(DEMO.dealId, seeded.orgId);
-    expect(d.terms.title).toBe('Diwali launch reels');
+    expect(d.terms.title).toBe('Autumn launch reels');
+    expect(d.terms.client.country).toBe('US'); // US clock calendar (Thanksgiving, Veterans Day)
     expect(d.signatures).toHaveLength(2);
     expect(ms(d, 'reel1').funding.authorizationId).toBeTruthy();
     expect(ms(d, 'reel2').funding.authorizationId).toBeTruthy();
@@ -44,12 +45,12 @@ describe('seed-deal-demo', () => {
     expect(v1.checks.passed).toBe(false);
     const loud = v1.checks.results.find((r) => r.checklistId === 'loud');
     expect(loud).toMatchObject({ measured: -20.1, passed: false });
-    expect(loud.evidence[0].screenshot).toMatch(/^loud_v1_\d{3}\.\d{2}\.png$/);
+    expect(loud.evidence[0].screenshot).toMatch(/^reel1_loud_v1_\d{3}\.\d{2}\.png$/);
     expect(fs.existsSync(path.join(dir, DEMO.dealId, loud.evidence[0].screenshot))).toBe(true);
 
     expect(m.proposals.review.items.map((i) => [i.text, i.tag])).toEqual([
       ['too quiet', 'fix'],
-      ['make it more festive', 'taste'],
+      ['make it feel cozier', 'taste'],
     ]);
     expect(m.proposals.review.items[0].checklistId).toBe('loud');
     expect(m.changeRequests).toHaveLength(1);
@@ -206,7 +207,7 @@ describe('seed-deal-demo', () => {
       expect(wrote).toBeGreaterThanOrEqual(11);
       const files = fs.readdirSync(path.join(cold, DEMO.dealId));
       expect(files).toHaveLength(wrote);
-      const loud = files.find((f) => /^loud_v1_/.test(f));
+      const loud = files.find((f) => /^reel1_loud_v1_/.test(f));
       expect(
         fs
           .readFileSync(path.join(cold, DEMO.dealId, loud))
@@ -268,11 +269,120 @@ describe('seed-deal-demo', () => {
     // a re-seed neither duplicates the projects nor overwrites a reassignment
     await Project.updateOne({ _id: projects[0]._id }, { $set: { assignee: seeded.judge.userId } });
     await seedDealDemo({ evidenceDir: false });
-    expect(await Project.countDocuments({ organizationId: seeded.orgId })).toBe(projects.length);
+    expect(
+      await Project.countDocuments({ organizationId: seeded.orgId, title: { $ne: 'Team Chat' } }),
+    ).toBe(projects.length);
     expect(String((await Project.findById(projects[0]._id).lean()).assignee)).toBe(
       seeded.judge.userId,
     );
     expect((await dealService().get(DEMO.teamDealId, seeded.orgId)).signatures).toEqual([]);
+  });
+
+  test('stage gates: every demo project meets the gates of its stage; reel 2 can move on, reel 1 waits on a post, the team draft is locked on the deal', async () => {
+    const Project = require('../../../models/project.model');
+    const gates = require('../../../services/stageGates.service');
+    const { DEMO_PROJECTS } = require('../demo.cts');
+    const byTitle = async (t) => Project.findOne({ organizationId: seeded.orgId, title: t }).lean();
+    const p = {};
+    for (const [k, t] of Object.entries(DEMO_PROJECTS)) p[k] = await byTitle(t);
+    for (const k of ['reel1', 'reel2', 'reel3', 'reel4'])
+      expect([p[k].dealId, p[k].milestoneKey]).toEqual([DEMO.dealId, k]);
+    expect([p.team.dealId, p.team.milestoneKey]).toEqual([DEMO.teamDealId, 'greeting']);
+    // no project from the earlier demo brand is left
+    expect(await Project.countDocuments({ organizationId: seeded.orgId, title: /Diwali/ })).toBe(0);
+    // every gate up to the stage each project sits in is met
+    for (const x of Object.values(p)) {
+      const upTo = gates.STAGES.slice(1, gates.stageIndex(x.status) + 1).map((s) => s.key);
+      for (const stage of upTo) {
+        const missing = (await gates.checklist(x, stage)).filter((i) => !i.done).map((i) => i.key);
+        expect({ title: x.title, stage, missing }).toEqual({ title: x.title, stage, missing: [] });
+      }
+    }
+    // reel 1: approved (Publish); scheduling is the next move, and Live waits on Mei's post
+    expect(await gates.evaluate(p.reel1)).toMatchObject({
+      from: 'publish',
+      to: 'publish',
+      ready: true,
+    });
+    const live = (await gates.checklist(p.reel1, 'live')).filter((i) => !i.done).map((i) => i.key);
+    expect(live).toEqual(['post_scheduled']);
+    // reel 2: changes requested (Production); the Review gate (a version, checks ran) is already met
+    expect(await gates.evaluate(p.reel2)).toMatchObject({ from: 'production', ready: true });
+    expect((await gates.checklist(p.reel2, 'review')).filter((i) => !i.done)).toEqual([]);
+    expect(gates.stageIndex(p.reel3.status)).toBe(gates.stageIndex('UNDER_REVIEW'));
+    expect(gates.stageIndex(p.reel4.status)).toBe(gates.stageIndex('UNDER_REVIEW'));
+    const g3 = await gates.evaluate(p.team);
+    expect(g3).toMatchObject({ from: 'brief', to: 'production', ready: false });
+    expect(g3.missing.map((m) => m.key)).toEqual(['deal_signed', 'money_held']);
+  });
+
+  test('team, chat, review trail and Brand Brain memory: five people, #general + #autumn-launch, versions, comments, notifications', async () => {
+    const User = require('../../../models/user.model');
+    const Membership = require('../../../models/membership.model');
+    const Channel = require('../../../models/channel.model');
+    const ChatMessage = require('../../../models/chatMessage.model');
+    const Comment = require('../../../models/comment.model');
+    const ProjectVersion = require('../../../models/projectVersion.model');
+    const Notification = require('../../../models/notification.model');
+    const Organization = require('../../../models/organization.model');
+    const { BrandRule } = require('../../../models/agent');
+    const org = await Organization.findById(seeded.orgId).lean();
+    expect(org.name).toBe('Lumen Coffee');
+    const people = {};
+    for (const k of ['judge', 'editor', 'motion', 'reviewer', 'publisher']) {
+      const u = await User.findOne({ email: DEMO[k].email }).lean();
+      const m = await Membership.findOne({ userId: u._id, organizationId: seeded.orgId }).lean();
+      people[k] = [u.name, m.role];
+    }
+    expect(people).toEqual({
+      judge: ['Priya Shah', 'admin'],
+      editor: ['Ravi Kumar', 'editor'],
+      motion: ['Sana Lee', 'editor'],
+      reviewer: ['Alex Morgan', 'reviewer'],
+      publisher: ['Mei Tan', 'publisher'],
+    });
+    const chans = await Channel.find({ organizationId: seeded.orgId })
+      .sort({ createdAt: 1 })
+      .lean();
+    expect(chans.map((c) => c.name)).toEqual(['general', 'autumn-launch']);
+    const msgs = await ChatMessage.find({ organizationId: seeded.orgId }).lean();
+    expect(msgs.length).toBeGreaterThanOrEqual(15);
+    expect(new Set(msgs.map((m) => String(m.author))).size).toBe(5);
+    expect(await ProjectVersion.countDocuments({ organizationId: seeded.orgId })).toBe(5);
+    const cs = await Comment.find({ organizationId: seeded.orgId }).lean();
+    expect(cs.some((c) => /Captions on, bottom third/.test(c.body) && c.timecode === 4)).toBe(true);
+    expect(
+      await Notification.countDocuments({ userId: seeded.judge.userId, 'payload.demoSeed': true }),
+    ).toBeGreaterThanOrEqual(5);
+    const rules = await BrandRule.find({ organizationId: seeded.orgId }).lean();
+    expect(rules.map((r) => r.kind)).toEqual(
+      expect.arrayContaining(['voice', 'do', 'dont', 'visual', 'audience', 'resource']),
+    );
+    expect(rules.filter((r) => /^Past campaign learning/.test(r.title))).toHaveLength(3);
+    expect(rules.find((r) => r.title === 'Product list').body).toMatch(
+      /Ember Roast.*Harvest Blend.*Cold Brew Cans/s,
+    );
+    expect(org.settings.brandBrainSample.length).toBeGreaterThanOrEqual(3);
+    // re-seeding replaces the seeded records instead of stacking them
+    await seedDealDemo({ evidenceDir: false });
+    expect(await ChatMessage.countDocuments({ organizationId: seeded.orgId })).toBe(msgs.length);
+    expect(await Comment.countDocuments({ organizationId: seeded.orgId })).toBe(cs.length);
+    expect(await BrandRule.countDocuments({ organizationId: seeded.orgId })).toBe(rules.length);
+    // the reels point at their demo cuts (display only)
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    for (const k of ['reel1', 'reel2', 'reel3', 'reel4']) {
+      const m = ms(d, k);
+      expect(m.versions[m.versions.length - 1].mediaUrl).toBe(`/demo/reels/lumen-${k}.mp4`);
+    }
+  });
+
+  test('evidence frames are real stills from the demo reels when bundled', async () => {
+    const d = await dealService().get(DEMO.dealId, seeded.orgId);
+    const caps = ms(d, 'reel2').versions[0].checks.results.find((r) => r.checklistId === 'caps');
+    const name = caps.evidence[0].screenshot;
+    expect(name).toBe('reel2_caps_v1_000.00.png');
+    const bundled = fs.readFileSync(path.join(__dirname, '..', 'demo-media', name));
+    expect(fs.readFileSync(path.join(dir, DEMO.dealId, name)).equals(bundled)).toBe(true);
   });
 
   test('refuses to run on a real PayPal gateway', async () => {

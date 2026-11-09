@@ -82,7 +82,7 @@ Each card is a plain React component taking `{ deal, milestoneKey }` (or the age
 
 ## 6. Demo flow judges will click
 
-1. **Try the demo** on the login page -> lands on `/deals`, opens "Diwali launch reels" (seeded). DealCard: both sides signed the hash-locked terms; reel 1 is **held** on PayPal (a real sandbox authorization from the pre-approved pool, not a charge).
+1. **Try the demo** on the login page -> lands on `/deals`, opens the seeded demo deal (now Lumen Coffee's "Autumn launch reels"). DealCard: both sides signed the hash-locked terms; reel 1 is **held** on PayPal (a real sandbox authorization from the pre-approved pool, not a charge).
 2. Editor submits v1 -> **LiveChecksCard** fills in: length, hook, logo window, loudness. Loudness fails at -20.1 LUFS with a timestamped screenshot; "feels festive" is marked Taste for people.
 3. Client types two notes ("too quiet", "make it more festive") -> **ReviewMergeCard** tags "too quiet" as Fix (cites the failed loudness line) and "more festive" as Taste (costs a revision round, not pay).
 4. Client asks for an extra 15s cut -> **ChangeOrderCard** prices it from the signed rate card ($60 x 1); one tap accepts it and a PayPal invoice is drafted.

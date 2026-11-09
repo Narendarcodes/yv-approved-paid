@@ -44,6 +44,8 @@ import {
 } from '../lib/payablesFilter'
 import * as api from '../services/api'
 import type { BulkDryRun, BulkResult, PayableRow } from '../services/api'
+import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
+import { SandboxChip } from '../components/Sponsors'
 
 const SUGGESTIONS = [
   'held over $300',
@@ -589,6 +591,8 @@ export default function PayablesPage() {
     <div className="fade-in" data-testid="payables-page">
       <PageHeader
         title="Payables"
+        tour="payables"
+        subtitle={PAGE_LINE['/payables']}
         actions={
           <>
             <button
@@ -625,6 +629,7 @@ export default function PayablesPage() {
       ) : !rows.length ? (
         <EmptyState
           title="Nothing held"
+          description={EMPTY_LINE.payables}
           illustration="wallet"
           action={
             <Link to="/deals" className="btn-secondary !h-9 text-[13px]">
@@ -726,6 +731,7 @@ export default function PayablesPage() {
             <span className="t-num text-ink">{shown.length}</span> of {rows.length} milestones ·{' '}
             <span className="t-num text-ink">{heldTotal}</span> held ·{' '}
             <span className="t-num text-ink">{ready}</span> ready for your approval
+            <SandboxChip className="ml-2 align-middle" />
           </p>
 
           {shown.length ? (
@@ -749,6 +755,7 @@ export default function PayablesPage() {
           ) : (
             <EmptyState
               title="Nothing matches these filters"
+              description={EMPTY_LINE.payablesFiltered}
               action={
                 <button className="btn-secondary !h-9 text-[13px]" onClick={() => apply([])}>
                   Clear filters

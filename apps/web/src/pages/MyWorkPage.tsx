@@ -6,6 +6,7 @@ import { projectStatusLabel } from '../lib/format'
 import { useProjects, useTeam, useMe } from '../lib/data'
 import { ListSkeleton, ErrorBanner } from '../components/states'
 import { StatusChip } from '../components/status'
+import { PAGE_LINE } from '../lib/copy'
 
 const GROUPS: { key: string; label: string; hint: string; statuses: string[] }[] = [
   {
@@ -47,6 +48,7 @@ export default function MyWorkPage() {
     <div className="space-y-8">
       <PageHeader
         title="My work"
+        subtitle={PAGE_LINE['/my-work']}
         actions={
           <Link to="/projects" className="btn-secondary">
             All projects

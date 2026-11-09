@@ -12,17 +12,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Bot } from 'lucide-react'
 import { Modal } from '../components/primitives'
-import { CardSkeleton, EmptyState, ErrorBanner } from '../components/states'
+import { CardSkeleton, EmptyState } from '../components/states'
 import { useToast } from '../components/toast'
 import DealCard from '../components/deals/DealCard'
 import DealCopilot from '../components/deals/DealCopilot'
 import DealTeamCard from '../components/deals/DealTeamCard'
-import JudgeTour, { scrollToWhenReady } from '../components/deals/JudgeTour'
 import ReelRail from '../components/deals/ReelRail'
 import ReelPanel, { type SectionId } from '../components/deals/ReelPanel'
 import * as api from '../services/api'
 import type { DealView } from '../contracts/types'
-import { DEMO_DEAL_PATH, money, useDeal, useDealRefresh } from '../lib/deals'
+import { money, useDeal, useDealRefresh } from '../lib/deals'
+import { SandboxChip } from '../components/Sponsors'
+import { scrollToWhenReady } from '../lib/scroll'
 
 const SECTIONS: SectionId[] = ['checks', 'payout', 'changes', 'money', 'terms']
 
@@ -62,8 +63,6 @@ export default function DealPage() {
   const confirmed = useRef(false)
   const [copilot, setCopilot] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
-  const [autoAsk, setAutoAsk] = useState<{ text: string; nonce: number } | null>(null)
-  const isDemoDeal = `/deals/${dealId}` === DEMO_DEAL_PATH
 
   // PayPal sent the buyer back: confirm the hold once, then drop the return path.
   useEffect(() => {
@@ -143,9 +142,19 @@ export default function DealPage() {
           <CardSkeleton lines={6} />
         </div>
       ) : isError || !orgId ? (
-        <ErrorBanner
-          message="This deal did not load. It may not exist, or you may not be a party to it."
-          onRetry={() => void refetch()}
+        <EmptyState
+          title="This deal isn't available to you"
+          description="Deals open only to the brand and the people on the deal's team. Ask the brand to add you."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Link to="/deals" className="btn-secondary">
+                All deals
+              </Link>
+              <button className="btn-ghost" onClick={() => void refetch()}>
+                Retry
+              </button>
+            </div>
+          }
         />
       ) : !deal ? (
         <EmptyState title="Deal not found" />
@@ -168,6 +177,7 @@ export default function DealPage() {
                 <span className="t-num text-ink">{money(heldOf(deal), deal.terms.currency)}</span>{' '}
                 held
               </span>
+              <SandboxChip />
               <span aria-hidden="true">·</span>
               <button
                 type="button"
@@ -179,22 +189,6 @@ export default function DealPage() {
               </button>
             </p>
             <div className="ml-auto flex items-center gap-1">
-              {isDemoDeal && (
-                <JudgeTour
-                  onMoney={() => openSection('money', '[data-testid=money-timeline]')}
-                  onDispute={() => {
-                    const k = deal.milestones.find(
-                      (m) => m.state === 'DISPUTED' || m.proposals?.dispute,
-                    )?.key
-                    setParams({ reel: k })
-                    scrollToWhenReady('[data-testid=dispute-split-card]')
-                  }}
-                  onAsk={(text) => {
-                    setCopilot(true)
-                    setAutoAsk((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
-                  }}
-                />
-              )}
               <button
                 className="btn-ghost btn-xs"
                 onClick={() => setCopilot((v) => !v)}
@@ -229,7 +223,7 @@ export default function DealPage() {
             />
             {copilot && (
               <div className="min-w-0 lg:col-span-2 xl:col-span-1">
-                <DealCopilot deal={deal} orgId={orgId} autoAsk={autoAsk} />
+                <DealCopilot deal={deal} orgId={orgId} />
               </div>
             )}
           </div>

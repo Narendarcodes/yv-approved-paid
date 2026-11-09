@@ -4,6 +4,7 @@ const Input = require('../models/input.model');
 const bus = require('../events/hub');
 const storage = require('../storage');
 const { normalizeProject } = require('../utils/normalize');
+const gates = require('./stageGates.service');
 
 const { allows } = require('../modules/access/index.cts');
 
@@ -54,7 +55,9 @@ const TRANSITIONS = Object.freeze({
 
 /** Legacy shape kept for callers that only need the targets: { from: [to, ...] }. */
 const ALLOWED_TRANSITIONS = Object.freeze(
-  Object.fromEntries(Object.entries(TRANSITIONS).map(([from, edges]) => [from, Object.keys(edges)])),
+  Object.fromEntries(
+    Object.entries(TRANSITIONS).map(([from, edges]) => [from, Object.keys(edges)]),
+  ),
 );
 
 /** The rule for one edge, or null when the move is not in the lifecycle. */
@@ -165,6 +168,11 @@ async function transitionProject({ projectId, organizationId, newStatus, actorId
       message: `Moving a project to ${newStatus} needs the ${rule.permission} permission`,
     };
   }
+  // Stage gate (409 stage_gate with the missing items): a move into a later
+  // stage needs the work of the stage it leaves. No role bypasses it. Checked
+  // after the edge's own 400s (no_version / not_approved), before any write.
+  const gate = () =>
+    gates.assertMove(project, newStatus, { canApprove: allows(permissions, PERM.approve) });
   if (rule.approvesLatestVersion) {
     // Same operation as POST /:id/approve, on the newest uploaded version.
     const latest = await ProjectVersion.findOne({ organizationId, projectId })
@@ -177,7 +185,13 @@ async function transitionProject({ projectId, organizationId, newStatus, actorId
         message: 'Upload a version before approving the project',
       };
     }
-    return approveVersion({ projectId, organizationId, versionId: latest._id, approverId: actorId });
+    await gate();
+    return approveVersion({
+      projectId,
+      organizationId,
+      versionId: latest._id,
+      approverId: actorId,
+    });
   }
   if (rule.requiresApprovedVersion) {
     const approved =
@@ -191,6 +205,7 @@ async function transitionProject({ projectId, organizationId, newStatus, actorId
       };
     }
   }
+  await gate();
   const from = project.status;
   project.status = newStatus;
   await project.save();
@@ -218,12 +233,44 @@ async function assignProject({ projectId, organizationId, assigneeId, actorId })
   project.assignee = assigneeId;
   project.assignedAt = new Date();
   if (project.status === 'IDEA' || project.status === 'APPROVED_CONCEPT') {
-    project.status = 'ASSIGNED';
+    // Only when the concept gate is met; otherwise the owner is set and the
+    // project stays in Idea until its concept is picked.
+    const g = await gates.evaluate(project, { to: 'ASSIGNED' });
+    if (g.ready) project.status = 'ASSIGNED';
   }
   await project.save();
   await bus.emitAsync('project.assigned', { projectId, assigneeId, actorId });
   await project.populate('assignee', 'name email');
   return project;
+}
+
+/**
+ * Link (or unlink with dealId null) the deal this project delivers. The deal
+ * must be in the project's organization and `milestoneKey` one of its
+ * milestones. Read-only on the deal.
+ */
+async function linkDeal({ projectId, organizationId, dealId, milestoneKey }) {
+  const project = await Project.findOne({ _id: projectId, organizationId });
+  if (!project) throw { status: 404, code: 'project_not_found', message: 'Project not found' };
+  if (!dealId) {
+    project.dealId = null;
+    project.milestoneKey = null;
+  } else {
+    const { dealService } = require('../modules/deals/service.cts');
+    const deal = await dealService()
+      .get(String(dealId), String(organizationId))
+      .catch(() => null);
+    if (!deal) throw { status: 404, code: 'deal_not_found', message: 'Deal not found' };
+    const keys = (deal.milestones || []).map((m) => m.key);
+    const key = milestoneKey || (keys.length === 1 ? keys[0] : null);
+    if (!key || !keys.includes(key)) {
+      throw { status: 422, code: 'milestone_required', message: 'Pick one of the deal milestones' };
+    }
+    project.dealId = String(dealId);
+    project.milestoneKey = key;
+  }
+  await project.save();
+  return getProject({ projectId, organizationId });
 }
 
 async function getVersions({ projectId, organizationId, limit = 100, skip = 0 }) {
@@ -267,7 +314,10 @@ async function addVersion({
   if (project) {
     const before = project.status;
     if (project.status === 'IN_PROGRESS') {
-      project.status = 'FIRST_DRAFT_SUBMITTED';
+      // Into Review only once the automated checks ran (stage gate); until
+      // then the upload stays in Production and the checklist says why.
+      const g = await gates.evaluate(project, { to: 'FIRST_DRAFT_SUBMITTED' });
+      if (g.ready) project.status = 'FIRST_DRAFT_SUBMITTED';
     } else if (project.status === 'REVISION_IN_PROGRESS') {
       project.status = 'REVISION_SUBMITTED';
     }
@@ -283,6 +333,27 @@ async function approveVersion({ projectId, organizationId, versionId, approverId
   if (!project) throw { status: 404, code: 'project_not_found', message: 'Project not found' };
   const version = await ProjectVersion.findOne({ _id: versionId, organizationId, projectId });
   if (!version) throw { status: 404, code: 'version_not_found', message: 'Version not found' };
+  // Approval is the Review -> Publish step: a project still before Review has
+  // to pass the Production -> Review gate first (no jumping a stage).
+  if (gates.stageIndex(project.status) < gates.stageIndex('FIRST_DRAFT_SUBMITTED')) {
+    const g = await gates.evaluate(project, { to: 'FIRST_DRAFT_SUBMITTED' });
+    const missing = g.gated ? g.missing : [];
+    throw {
+      status: 409,
+      code: 'stage_gate',
+      message: 'Move the project to Review before approving a version',
+      details: missing.length
+        ? missing.map(({ key, label, href, action }) => ({ key, label, href, action }))
+        : [
+            {
+              key: 'in_review',
+              label: 'Move the project to Review',
+              href: `/projects/${projectId}`,
+              action: 'Open project',
+            },
+          ],
+    };
+  }
   project.approvedVersionId = version._id;
   project.approvedBy = approverId;
   project.approvedAt = new Date();
@@ -342,6 +413,7 @@ module.exports = {
   createProject,
   transitionProject,
   assignProject,
+  linkDeal,
   getVersions,
   addVersion,
   approveVersion,

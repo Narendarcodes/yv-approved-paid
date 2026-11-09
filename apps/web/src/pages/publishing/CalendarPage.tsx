@@ -46,6 +46,7 @@ import {
   type ScheduledPost,
 } from '../../services/api'
 import { StatusChip, StatusDot, PlatformIcon, stageOf } from '../../components/status'
+import { PAGE_LINE, EMPTY_LINE, PUBLISHING_PREVIEW } from '../../lib/copy'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -108,7 +109,7 @@ export default function CalendarPage() {
     view === 'week'
       ? { from: week.toISOString(), to: weekEnd.toISOString() }
       : { from: gridStart.toISOString(), to: gridEnd.toISOString() }
-  const { orgId, status, channels, error: pubError } = usePublishing()
+  const { orgId, channels, error: pubError } = usePublishing()
   const { posts: allPosts, loading: postsLoading, error, reload, setPosts } = usePosts(orgId, range)
   const posts = projectFilter ? allPosts.filter((p) => p.projectId === projectFilter) : allPosts
   const [dragId, setDragId] = useState<string | null>(null)
@@ -199,6 +200,7 @@ export default function CalendarPage() {
     <div className="fade-in space-y-6">
       <PageHeader
         title="Publishing calendar"
+        subtitle={PAGE_LINE['/publishing/calendar']}
         actions={
           <>
             <Link to="/publishing/channels" className="btn-secondary">
@@ -242,12 +244,9 @@ export default function CalendarPage() {
                 <CalendarRange size={13} strokeWidth={1.75} /> Week
               </button>
             </div>
-            {status && (
-              <Chip
-                label={status.mode === 'postiz' ? 'Postiz' : 'Demo scheduler'}
-                tone={status.mode === 'postiz' ? 'teal' : 'warning'}
-              />
-            )}
+            <span title={PUBLISHING_PREVIEW} data-testid="publishing-preview">
+              <Chip label="Preview" />
+            </span>
             <div className="ml-auto flex items-center gap-1">
               <button
                 className="icon-btn icon-btn-sm"
@@ -435,6 +434,7 @@ export default function CalendarPage() {
               ? 'Nothing on the calendar this week'
               : 'Nothing on the calendar this month'
           }
+          description={EMPTY_LINE.calendar}
           action={
             canManage ? (
               <Link to="/publishing/compose" className="btn-primary">
@@ -742,11 +742,7 @@ function PostModal({
             <p className="truncate text-xs text-umber">
               {post.channel?.name ?? post.platform} ·{' '}
               {PLATFORMS[platform as keyof typeof PLATFORMS]?.label ?? post.platform} ·{' '}
-              {post.provider === 'postiz'
-                ? 'via Postiz'
-                : post.provider === 'local'
-                  ? 'demo scheduler'
-                  : 'recorded manually'}
+              {post.provider === 'manual' ? 'recorded manually' : 'preview'}
             </p>
           </div>
           <StatusChip status={post.status} />

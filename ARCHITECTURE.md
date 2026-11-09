@@ -28,6 +28,10 @@
   `X-Internal-Token` (`INTERNAL_API_TOKEN`) on top of the service JWT.
 - The agent **does not hold the signing secret**: it verifies an incoming token by calling `GET /internal/whoami` (cached 60 s)
   and forwards the same token on every tool call. The worker uses the token embedded in the job envelope.
+  Exception, the hosted lean agent (`app.deals_service`, Render free): it cannot reach the loopback `/internal` listener,
+  so for Brand Brain `/v1/chat` it verifies the token locally with `SERVICE_JWT_SECRET` (`app/service_token.py`) and
+  reads the org data Node pushes in the request (`apps/api/src/agent/chatContext.js`); brand memory is the in-process
+  `LiteBrandIndex`, which enforces the same per-org rule.
 - Qdrant access goes through `BrandIndex`, which refuses any operation without an `orgId` and always adds the payload filter.
 - In production the agent routes return 503 until `SERVICE_JWT_SECRET` is set.
 

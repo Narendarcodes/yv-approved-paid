@@ -2,6 +2,7 @@ const request = require('supertest');
 const app = require('../src/app');
 const mongoose = require('mongoose');
 const Role = require('../src/models/role.model');
+const { meetGates } = require('./helpers/gates');
 
 async function registerAndLogin(name, email) {
   await request(app).post('/api/v1/auth/register').send({ name, email, password: 'P@ssw0rd' });
@@ -77,6 +78,8 @@ describe('Full content-project workflow', () => {
     expect(create.statusCode).toBe(201);
     expect(create.body.data.status).toBe('IDEA');
     const projectId = create.body.data._id;
+    // stage gates: approved concept, brief items, signed + held deal with checks
+    await meetGates(projectId);
 
     // --- assign to editor (auto -> ASSIGNED) ---
     const assign = await request(app)
