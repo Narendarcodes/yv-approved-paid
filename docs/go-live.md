@@ -41,6 +41,25 @@ Existing vars stay as they are (`PAYPAL_MODE=sandbox`, `PAYPAL_CLIENT_ID`, `PAYP
 - [x] `GET https://yv-approved-paid-api.onrender.com/api/v1/health` answers OK (the free instance can take about a minute to wake).
 - [x] The log shows the demo seed finished with no "did not complete" error.
 
+## 3b. Brand Brain on the deal agent (not done yet)
+
+Brand Brain chat (`POST /v1/chat`) now runs on the same lean `yv-deals-agent` service as the deal copilot, so the API keeps its single `AGENT_URL`. The agent cannot reach the API's private `/internal` listener on Render, so the API pushes the org's brand rules, posts, metrics and review comments with each chat call and the agent verifies the service token itself. Brand memory is an in-process index; the LLM is River -> NIM over plain httpx (no litellm, no Qdrant). Measured locally: about 42-46 MB RSS after chat calls, well inside the 512 MB free instance.
+
+Set these, then redeploy both services:
+
+| Service          | Variable              | Value                                                   | Why                                                                                     |
+| ---------------- | --------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| API              | `SERVICE_JWT_SECRET`  | 32+ random characters (secret), **same value as agent** | Turns the agent routes on (`config.agent.enabled`); signs the per-chat service token    |
+| API              | `AGENT_URL`           | the `yv-deals-agent` URL (already set)                  | Copilot and Brand Brain both use it                                                     |
+| API              | `AGENT_SHARED_SECRET` | already set (same as agent)                             | Also sent on chat calls as `X-Agent-Secret`                                             |
+| yv-deals-agent   | `SERVICE_JWT_SECRET`  | the same value as on the API (secret)                   | The agent verifies the chat token locally (HS256, iss `yv-api`, aud `yv-internal`)      |
+| yv-deals-agent   | `LLM_MODEL`           | `chain`                                                 | Brand Brain uses the River -> NIM chain (`LLM_CHAIN`, `RIVER_*`, `NIM_*` already set)   |
+| yv-deals-agent   | `LLM_TIMEOUT_S`       | `30` (optional; render.yaml has `12`)                   | Per-request httpx timeout; the first-token and stall caps below stop hangs sooner anyway |
+
+Optional knobs (defaults are fine): agent `LLM_FIRST_TOKEN_S=12`, `LLM_DEADLINE_S=22` (no text by then: the answer lists the matching brand entries word for word), `LLM_STALL_S=10`, `LLM_ANSWER_MAX_S=45`, `LLM_MAX_TOKENS=400`; API `AGENT_CHAT_FIRST_BYTE_MS=30000` (no reply by then: "waking up" 504). The web gives up after 35 s of silence.
+
+Check after deploy: `GET <agent>/health` shows `"chat": {"model": "chain", "configured": true}`; on the web, Brand Brain answers "What are our logo and colour rules?" with chips like "Brand hub · Logo and colour rules". The first call after the free instance sleeps can return the "waking up" message; ask again a minute later.
+
 ## 4. Vercel: deploy the web app
 
 Build with the memory cap (the build host runs out of memory without it), copy the build into `work/webdist`, then deploy with `work/vercel_deploy.py` (it uploads `work/webdist` to the `yv-approved-paid` project as production; the token is injected on the wire, never written in the script).
