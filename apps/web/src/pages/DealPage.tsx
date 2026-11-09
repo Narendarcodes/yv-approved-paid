@@ -17,13 +17,13 @@ import { useToast } from '../components/toast'
 import DealCard from '../components/deals/DealCard'
 import DealCopilot from '../components/deals/DealCopilot'
 import DealTeamCard from '../components/deals/DealTeamCard'
-import JudgeTour, { scrollToWhenReady } from '../components/deals/JudgeTour'
 import ReelRail from '../components/deals/ReelRail'
 import ReelPanel, { type SectionId } from '../components/deals/ReelPanel'
 import * as api from '../services/api'
 import type { DealView } from '../contracts/types'
-import { DEMO_DEAL_PATH, money, useDeal, useDealRefresh } from '../lib/deals'
+import { money, useDeal, useDealRefresh } from '../lib/deals'
 import { SandboxChip } from '../components/Sponsors'
+import { scrollToWhenReady } from '../lib/scroll'
 
 const SECTIONS: SectionId[] = ['checks', 'payout', 'changes', 'money', 'terms']
 
@@ -63,8 +63,6 @@ export default function DealPage() {
   const confirmed = useRef(false)
   const [copilot, setCopilot] = useState(false)
   const [termsOpen, setTermsOpen] = useState(false)
-  const [autoAsk, setAutoAsk] = useState<{ text: string; nonce: number } | null>(null)
-  const isDemoDeal = `/deals/${dealId}` === DEMO_DEAL_PATH
 
   // PayPal sent the buyer back: confirm the hold once, then drop the return path.
   useEffect(() => {
@@ -191,22 +189,6 @@ export default function DealPage() {
               </button>
             </p>
             <div className="ml-auto flex items-center gap-1">
-              {isDemoDeal && (
-                <JudgeTour
-                  onMoney={() => openSection('money', '[data-testid=money-timeline]')}
-                  onDispute={() => {
-                    const k = deal.milestones.find(
-                      (m) => m.state === 'DISPUTED' || m.proposals?.dispute,
-                    )?.key
-                    setParams({ reel: k })
-                    scrollToWhenReady('[data-testid=dispute-split-card]')
-                  }}
-                  onAsk={(text) => {
-                    setCopilot(true)
-                    setAutoAsk((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
-                  }}
-                />
-              )}
               <button
                 className="btn-ghost btn-xs"
                 onClick={() => setCopilot((v) => !v)}
@@ -241,7 +223,7 @@ export default function DealPage() {
             />
             {copilot && (
               <div className="min-w-0 lg:col-span-2 xl:col-span-1">
-                <DealCopilot deal={deal} orgId={orgId} autoAsk={autoAsk} />
+                <DealCopilot deal={deal} orgId={orgId} />
               </div>
             )}
           </div>

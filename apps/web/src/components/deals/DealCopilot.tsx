@@ -10,7 +10,7 @@
  * renders PolicyBlockedChip with "No money moved".
  * AI checks facts, people own taste, the deal decides the money.
  */
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { JumpToLatest, useStickToBottom } from '../chat/Thread'
 import { useQuery } from '@tanstack/react-query'
 import { Bot, Send } from 'lucide-react'
@@ -286,16 +286,7 @@ function Rendered({
   }
 }
 
-export default function DealCopilot({
-  deal,
-  orgId,
-  autoAsk,
-}: {
-  deal: DealView
-  orgId: string
-  /** Ask this once per nonce (the judge tour's step 3). */
-  autoAsk?: { text: string; nonce: number } | null
-}) {
+export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: string }) {
   const [turns, setTurns] = useState<Turn[]>([])
   const [text, setText] = useState('')
   const seq = useRef(0)
@@ -393,15 +384,6 @@ export default function DealCopilot({
       offline('unreachable')
     }
   }
-  const asked = useRef(0)
-  const panel = useRef<HTMLElement>(null)
-  useEffect(() => {
-    if (!autoAsk || asked.current === autoAsk.nonce) return
-    asked.current = autoAsk.nonce
-    panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    void ask(autoAsk.text)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAsk?.nonce])
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -410,7 +392,6 @@ export default function DealCopilot({
 
   return (
     <aside
-      ref={panel}
       className="card flex max-h-[calc(100dvh-6rem)] scroll-mt-20 flex-col overflow-hidden xl:sticky xl:top-20"
       aria-label="Deal copilot"
       data-testid="deal-copilot"
