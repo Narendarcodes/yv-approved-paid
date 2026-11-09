@@ -41,7 +41,7 @@ Existing vars stay as they are (`PAYPAL_MODE=sandbox`, `PAYPAL_CLIENT_ID`, `PAYP
 - [x] `GET https://yv-approved-paid-api.onrender.com/api/v1/health` answers OK (the free instance can take about a minute to wake).
 - [x] The log shows the demo seed finished with no "did not complete" error.
 
-## 3b. Brand Brain on the deal agent (not done yet)
+## 3b. Brand Brain on the deal agent (done Nov 9, 2026)
 
 Brand Brain chat (`POST /v1/chat`) now runs on the same lean `yv-deals-agent` service as the deal copilot, so the API keeps its single `AGENT_URL`. The agent cannot reach the API's private `/internal` listener on Render, so the API pushes the org's brand rules, posts, metrics and review comments with each chat call and the agent verifies the service token itself. Brand memory is an in-process index; the LLM is River -> NIM over plain httpx (no litellm, no Qdrant). Measured locally: about 42-46 MB RSS after chat calls, well inside the 512 MB free instance.
 
@@ -78,7 +78,7 @@ cd ../../.. && python3 vercel_deploy.py      # prints id, url, readyState
 
 ## 5. Optional: Render Workflow and cron for the clock
 
-The clock already runs inside the API (Money Agent tick). The workflow is a second, observable driver with durable retries. It is code-only today; skip this step for the demo if time is short. Full guide: [workflows/fair-clock/README.md](../workflows/fair-clock/README.md).
+The clock already runs inside the API (Money Agent tick). The workflow is a second, observable driver with durable retries. It is code-only today; skip this step for the demo if time is short. **Not created (Nov 9, 2026):** Render Workflows have no free allowance (each run is billed by the second, `flex` $0.20/CPU-hour + $0.05/GB-hour, plus $0.25/GB state retention; see https://render.com/docs/workflows-limits), the Cron Job trigger is a paid service too, and the Hobby workspace has no card on file. Full guide: [workflows/fair-clock/README.md](../workflows/fair-clock/README.md).
 
 - [ ] Render > **New > Workflow**, this repo, root `workflows/fair-clock`, build `npm ci && npm run build`, start `npm start`. Env: `API_URL=https://yv-approved-paid-api.onrender.com`, `CLOCK_SHARED_SECRET` (same value as the API).
 - [ ] Render > **New > Cron Job**, root `workflows/fair-clock`, build `npm ci && npm run build`, command `npm run trigger`, schedule `*/15 * * * *`. Env: `RENDER_API_KEY`, `FAIR_CLOCK_WORKFLOW_SLUG`.
@@ -117,3 +117,11 @@ On `https://yv-approved-paid.vercel.app`:
 - **Vercel:** `dpl_EVLa4EBGg37VXGvvfwxzt9AK5BS2` (bundle `index-DBj1jEbZ.js`).
 - **Real release on live:** reel 3 approved in the web app: capture `82250670EG2217747` ($200 COMPLETED), Payouts batch `UZ6D4CNLJWKUE` (SUCCESS). Seed batches: reel 1 `CY4K8FYX7WN68` ($280 + $120), reel 4 partial `EN7Y2GCJBUQ2Y` ($52.50 + $22.50). Items are UNCLAIMED because the demo crew emails are not sandbox accounts.
 - **Smoke:** 14/14 browser checks passed (screenshots in the build workspace `work/fairpay-shots/live/`). Editor-only receipts were not checked on live (the seeded editor has no password there); covered by tests from `a93b2db`.
+
+## Done on Nov 9, 2026 (Round 2 go-live)
+
+- **Main:** merge commit `c7923fb` (`feat/polish-r2` at `a1f2c4e`, normal merge). CI green: https://github.com/Narendarcodes/yv-approved-paid/actions/runs/42552425195
+- **Render env:** API `SERVICE_JWT_SECRET` was already set and kept; `yv-deals-agent` got `SERVICE_JWT_SECRET` (same value, carried in the browser, never printed), `LLM_MODEL=chain`, `LLM_TIMEOUT_S=30`. Agent builds from `main` with `services/agent/Dockerfile.deals`. `CLOCK_SHARED_SECRET` still unset (Workflow not created, see step 5).
+- **Render deploys:** API `dep-dboj7ps9v7es73fenjag` (c7923fb, live ~08:16 IST), agent `dep-dboj8nc9v7es73feps50` (c7923fb, live 08:18 IST). `/api/v1/health` 200 with `db.connected`; agent `/health` shows `"chat": {"model": "chain", "configured": true}`.
+- **Vercel:** `dpl_53h4SCiufRmTB8UjHwjVHb9S9MA7` (bundle `index-FLF516PM.js`), READY, aliased to `yv-approved-paid.vercel.app`. Previous: `dpl_EVLa4EBGg37VXGvvfwxzt9AK5BS2`.
+- **Live checks (read-only, no approve/reset):** golive 12/12 PASS; demo login lands on the deal in ~3 s with the 13-step tour (13/13 anchored); Lumen Coffee, reels 1-4, $575.00 held; Brand Brain answered in 5.9 s with "Brand hub · Voice and tone / Logo and colour rules / Brief template"; Team chat #autumn-launch shows the seeded thread; payables 5 rows. Reel mp4s are served 200 `video/mp4` (H.264/AAC); playback was not provable in the test browser (headless shell has no H.264).
