@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import * as api from '../services/api'
+import { chatTime as fmtTime } from './format'
 
 const TEAM_CHAT_TITLE = 'Team Chat'
 
@@ -27,12 +28,6 @@ export interface ChatMessage {
   time: string
   pending?: boolean
   failed?: boolean
-}
-
-function fmtTime(iso?: string | null) {
-  const d = iso ? new Date(iso) : new Date()
-  if (isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 let socket: Socket | null = null

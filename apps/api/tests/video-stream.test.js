@@ -104,4 +104,48 @@ describe('Video stream auth (cookie, no tokens in URLs)', () => {
     expect((await request(app).get(`${fileUrl()}?token=${token}`)).statusCode).toBe(401);
     expect((await request(app).get(`${fileUrl()}?token=not-a-real-token`)).statusCode).toBe(401);
   });
+
+  describe('seeded demo reels (storageRef demo:<name>, no copy in the uploads dir)', () => {
+    const demo = require('../src/modules/deals/demo-content.cts');
+    const config = require('../src/config');
+    let demoFileId;
+    const demoUrl = (id) => `/api/v1/projects/${projectId}/versions/${versionId}/files/${id}`;
+
+    beforeAll(async () => {
+      const version = await ProjectVersion.findById(versionId);
+      version.files.push(
+        { filename: 'lumen-reel4.mp4', mimeType: 'video/mp4', storageRef: 'demo:lumen-reel4.mp4' },
+        { filename: 'x.mp4', mimeType: 'video/mp4', storageRef: 'demo:../../etc/passwd' },
+      );
+      await version.save();
+      demoFileId = String(version.files[1]._id);
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    test('served from the bundled web copy when the API has it', async () => {
+      const res = await request(app)
+        .get(demoUrl(demoFileId))
+        .set('Cookie', [`accessToken=${token}`])
+        .set('Range', 'bytes=0-9');
+      expect(res.statusCode).toBe(206);
+      expect(res.headers['content-type']).toBe('video/mp4');
+    });
+
+    test("redirected to the web's static /demo/reels when the bundle is not deployed", async () => {
+      jest.spyOn(demo, 'demoReelPath').mockReturnValue(null);
+      const res = await request(app)
+        .get(demoUrl(demoFileId))
+        .set('Cookie', [`accessToken=${token}`]);
+      expect(res.statusCode).toBe(302);
+      expect(res.headers.location).toBe(`${config.corsOrigin[0]}/demo/reels/lumen-reel4.mp4`);
+    });
+
+    test('any other demo: ref is refused', async () => {
+      const version = await ProjectVersion.findById(versionId);
+      const res = await request(app)
+        .get(demoUrl(String(version.files[2]._id)))
+        .set('Cookie', [`accessToken=${token}`]);
+      expect(res.statusCode).toBe(404);
+    });
+  });
 });

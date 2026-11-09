@@ -9,6 +9,7 @@
  */
 const ProjectVersion = require('../models/projectVersion.model');
 const logger = require('../utils/logger');
+const config = require('../config');
 
 const CHUNK_SIZE = 1024 * 1024; // 1 MiB per range chunk
 
@@ -31,8 +32,24 @@ async function streamVersionFile(req, res, next) {
       return res.status(404).json({ error: { code: 'file_not_found', message: 'File not found' } });
     }
 
-    const filePath = require('../storage').resolvePath(file.storageRef);
     const fs = require('fs');
+    let filePath;
+    const demo = require('../modules/deals/demo-content.cts');
+    const reel = demo.demoReelName(file.storageRef);
+    if (reel) {
+      // A seeded demo cut: the bundled copy when this process has it, else the web's static file.
+      filePath = demo.demoReelPath(reel);
+      if (!filePath) {
+        const web = [].concat(config.corsOrigin || [])[0];
+        if (!web)
+          return res
+            .status(404)
+            .json({ error: { code: 'file_gone', message: 'Stored file missing' } });
+        return res.redirect(302, `${String(web).replace(/\/$/, '')}/demo/reels/${reel}`);
+      }
+    } else {
+      filePath = require('../storage').resolvePath(file.storageRef);
+    }
     if (!filePath || !fs.existsSync(filePath)) {
       return res.status(404).json({ error: { code: 'file_gone', message: 'Stored file missing' } });
     }

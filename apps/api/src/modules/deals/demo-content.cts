@@ -24,7 +24,6 @@ const ProjectVersion = require('../../models/projectVersion.model');
 const Notification = require('../../models/notification.model');
 const Organization = require('../../models/organization.model');
 const { BrandRule } = require('../../models/agent');
-const storage = require('../../storage');
 
 const REEL_MEDIA: Record<string, string> = {
   reel1: '/demo/reels/lumen-reel1.mp4',
@@ -35,6 +34,7 @@ const REEL_MEDIA: Record<string, string> = {
 const MEDIA_DIR = path.join(__dirname, 'demo-media');
 /** The web's public folder, when the API runs from the monorepo (for project version files). */
 const REELS_DIR = path.resolve(__dirname, '../../../../web/public/demo/reels');
+const DEMO_REF = 'demo:';
 const FRAME = /^reel[1-4]_[a-z]{2,8}_v[0-9]_[0-9]{3}\.[0-9]{2}\.png$/;
 
 function demoFrame(name: string): Buffer | null {
@@ -347,26 +347,40 @@ const COMMENTS: CommentSeed[] = [
   },
 ];
 
-/** The demo cut as a stored project file: saved once, its ref reused while the file is on disk. */
-async function storedFile(name: string, reuse: Map<string, any>, uploader: string) {
-  const old = reuse.get(name);
-  if (old) return old;
-  const src = path.join(REELS_DIR, name);
-  if (!fs.existsSync(src)) return null;
-  const { storageRef, size } = await storage.saveFile(fs.readFileSync(src), {
-    filename: name,
-    mimeType: 'video/mp4',
-  });
-  const f = {
+/**
+ * The demo cut as a project version file. It is not copied into the uploads dir (that dir
+ * is ephemeral on the host and the web's public folder is not deployed with the API):
+ * the ref `demo:<name>` is served by the file stream route from the bundled copy when
+ * the API has one, else redirected to the web's static /demo/reels/<name>.
+ */
+function demoReelFile(name: string, uploader: string) {
+  let size = 0;
+  try {
+    size = fs.statSync(path.join(REELS_DIR, name)).size;
+  } catch {
+    size = 0;
+  }
+  return {
     _id: new mongoose.Types.ObjectId(),
     filename: name,
     mimeType: 'video/mp4',
     size,
-    storageRef,
+    storageRef: `${DEMO_REF}${name}`,
     uploadedBy: oid(uploader),
   };
-  reuse.set(name, f);
-  return f;
+}
+
+/** `demo:lumen-reelN.mp4` -> the reel's file name, or null for any other ref. */
+function demoReelName(storageRef: unknown): string | null {
+  if (typeof storageRef !== 'string' || !storageRef.startsWith(DEMO_REF)) return null;
+  const name = storageRef.slice(DEMO_REF.length);
+  return Object.values(REEL_MEDIA).some((u) => u.endsWith(`/${name}`)) ? name : null;
+}
+
+/** Absolute path of a bundled demo reel when this process has the web's public folder. */
+function demoReelPath(name: string): string | null {
+  const p = path.join(REELS_DIR, name);
+  return fs.existsSync(p) ? p : null;
 }
 
 async function seedReviewTrail(
@@ -377,22 +391,6 @@ async function seedReviewTrail(
 ) {
   const org = oid(orgId);
   const pids = Object.values(projects).map(oid);
-  // keep the stored files of the previous seed when they are still on disk
-  const reuse = new Map<string, any>();
-  for (const v of await ProjectVersion.collection
-    .find({ organizationId: org, demoSeed: true })
-    .toArray()) {
-    for (const f of v.files || []) {
-      let onDisk = false;
-      try {
-        const p = storage.resolvePath(f.storageRef);
-        onDisk = !!p && fs.existsSync(p);
-      } catch {
-        onDisk = false;
-      }
-      if (onDisk && !reuse.has(f.filename)) reuse.set(f.filename, f);
-    }
-  }
   await ProjectVersion.collection.deleteMany({ organizationId: org, demoSeed: true });
   await Comment.collection.deleteMany({ organizationId: org, demoSeed: true });
 
@@ -405,7 +403,7 @@ async function seedReviewTrail(
       versionNumber: v.n,
     });
     if (taken) continue; // a judge's own upload holds this number
-    const file = await storedFile(v.file, reuse, team[v.who]).catch(() => null);
+    const file = demoReelFile(v.file, team[v.who]);
     const at = new Date(nowMs - v.h * HOUR);
     const r = await ProjectVersion.collection.insertOne({
       organizationId: org,
@@ -414,7 +412,7 @@ async function seedReviewTrail(
       uploader: oid(team[v.who]),
       metadata: { source: 'demo seed' },
       changeSummary: v.summary,
-      files: file ? [file] : [],
+      files: [file],
       createdAt: at,
       updatedAt: at,
       demoSeed: true,
@@ -672,4 +670,12 @@ async function seedDemoTeamContent(opts: {
   await seedBrandMemory(orgId);
 }
 
-module.exports = { REEL_MEDIA, demoFrame, seedDemoTeamContent, BRAND_MEMORY, SAMPLE_THREAD };
+module.exports = {
+  REEL_MEDIA,
+  demoFrame,
+  demoReelName,
+  demoReelPath,
+  seedDemoTeamContent,
+  BRAND_MEMORY,
+  SAMPLE_THREAD,
+};

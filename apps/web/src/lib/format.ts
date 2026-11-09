@@ -49,7 +49,10 @@ export interface PublishProgress {
  * Status label that knows about multi-channel publishing: a SCHEDULED
  * project with some posts already live reads "Partially published (n/m)".
  */
-export function projectStatusLabel(p: { status: string; publishProgress?: PublishProgress | null }): string {
+export function projectStatusLabel(p: {
+  status: string
+  publishProgress?: PublishProgress | null
+}): string {
   const pp = p.publishProgress
   if (p.status === 'SCHEDULED' && pp && pp.published > 0 && pp.published < pp.total) {
     return `Partially published (${pp.published}/${pp.total})`
@@ -63,4 +66,18 @@ export function formatTime(seconds: number): string {
   const m = Math.floor(s / 60)
   const r = s % 60
   return `${m}:${r.toString().padStart(2, '0')}`
+}
+
+/** "10:42 AM" for today's messages; "Nov 5, 10:42 AM" (with the year when it differs) for older ones. */
+export function chatTime(iso?: string | null, now: Date = new Date()) {
+  const d = iso ? new Date(iso) : new Date()
+  if (isNaN(d.getTime())) return ''
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  if (d.toDateString() === now.toDateString()) return time
+  const date = d.toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+    ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' as const } : {}),
+  })
+  return `${date}, ${time}`
 }

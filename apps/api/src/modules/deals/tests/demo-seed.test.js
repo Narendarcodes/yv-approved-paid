@@ -349,6 +349,13 @@ describe('seed-deal-demo', () => {
     expect(msgs.length).toBeGreaterThanOrEqual(15);
     expect(new Set(msgs.map((m) => String(m.author))).size).toBe(5);
     expect(await ProjectVersion.countDocuments({ organizationId: seeded.orgId })).toBe(5);
+    // every seeded version carries its reel as a demo:<name> file (no copy on the host's disk)
+    const vs = await ProjectVersion.find({ organizationId: seeded.orgId }).lean();
+    for (const v of vs) {
+      expect(v.files).toHaveLength(1);
+      expect(v.files[0]).toMatchObject({ mimeType: 'video/mp4' });
+      expect(v.files[0].storageRef).toMatch(/^demo:lumen-reel[1-4]\.mp4$/);
+    }
     const cs = await Comment.find({ organizationId: seeded.orgId }).lean();
     expect(cs.some((c) => /Captions on, bottom third/.test(c.body) && c.timecode === 4)).toBe(true);
     expect(
