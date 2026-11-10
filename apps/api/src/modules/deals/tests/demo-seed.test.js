@@ -127,11 +127,11 @@ describe('seed-deal-demo', () => {
     await seedDealDemo({ evidenceDir: false }); // back to the judge's starting state
   });
 
-  test('reel3: Fair Review Clock running with about 2 business days left; the line names the exact partial amount', async () => {
+  test('reel3: Fair Review Clock running with about 2 business days left; no partial, the line names the full release', async () => {
     const d = await dealService().get(DEMO.dealId, seeded.orgId);
     expect(d.terms.milestones.find((m) => m.key === 'reel3').clock).toEqual({
       reviewWindowBusinessDays: 3,
-      partialReleasePct: 50,
+      partialReleasePct: 0,
       graceBusinessDays: 3,
       includedRevisionRounds: 2,
     });
@@ -145,12 +145,12 @@ describe('seed-deal-demo', () => {
     expect(v.state.status).toBe('running');
     expect(v.state.businessDaysLeft).toBe(2);
     expect(v.amounts).toMatchObject({
-      amountMinor: 20000,
-      partialAmountCents: 10000,
-      remainderCents: 10000,
+      amountMinor: 40000,
+      partialAmountCents: 0,
+      remainderCents: 40000,
       currency: 'USD',
     });
-    expect(v.state.line).toMatch(/^If no reply by .+, \$100\.00 \(50%\) releases to the team\.$/);
+    expect(v.state.line).toMatch(/^If no reply by .+, the grace period starts and the full \$400\.00 releases by .+\.$/);
     expect(v.doneSteps).not.toContain('release_partial');
     expect(v.timeline[0]).toMatchObject({ kind: 'action', id: 'started' });
   });

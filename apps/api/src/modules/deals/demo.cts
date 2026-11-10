@@ -25,7 +25,7 @@
  *          editor has accepted it, the client's tap is the one left. A $60 change order
  *          for +15 s (priced from the rate card) waits as a draft: the judge's
  *          tap accepts it and drafts the PayPal invoice live.
- *   reel3  Fair Review Clock (3 business days, 50% partial, 3 grace days, 2 rounds):
+ *   reel3  Fair Review Clock ($400, 70/30, 3 business days, no partial, 3 grace days, 2 rounds):
  *          held -> v1 passes every check -> clock running, ~2 business days left
  *   reel4  same clock terms: v1 passed, no reply in the window -> 50% ($75)
  *          released and paid out 70/30 -> in grace, the rest releases at its end
@@ -213,7 +213,7 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
         // Fair Review Clock: running, about 2 business days left (seedClocks)
         key: 'reel3',
         title: 'Reel 3: 15s story cut',
-        amountMinor: 20000,
+        amountMinor: 40000,
         dueAt: due(12),
         graceHours: 24,
         reviewWindowHours: 48,
@@ -231,14 +231,15 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
           { id: 'vibe', text: 'Feels warm and cozy', kind: 'taste' },
         ],
         payees: [
+          { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Leo Carter' },
           {
-            userId: editorId,
-            email: DEMO.editor.paypal,
-            shareBp: 10000,
-            displayName: 'Leo Carter',
+            userId: motionId,
+            email: DEMO.motion.paypal,
+            shareBp: 3000,
+            displayName: 'Maya Ortiz',
           },
         ],
-        clock: { ...DEMO_CLOCK },
+        clock: { ...DEMO_CLOCK, partialReleasePct: 0 },
       },
       {
         // Fair Review Clock: no reply in the window, 50% released, now in grace (seedClocks)

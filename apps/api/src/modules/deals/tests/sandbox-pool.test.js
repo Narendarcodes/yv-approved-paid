@@ -322,14 +322,14 @@ describe('judge demo on real sandbox authorizations', () => {
   test('seed draws real holds, captures reel1 for real, keeps an untouched deal on reboot, voids for real on the split; SIM- only when the pool is empty', async () => {
     const pp = fakePaypal();
     const gw = poolGateway(pp);
-    for (const amt of [40000, 30000, 40000, 30000]) await addToPool(gw, pp, amt);
+    for (const amt of [40000, 30000, 40000, 40000, 30000, 40000]) await addToPool(gw, pp, amt);
     configureDeals({ gateway: gw });
 
     const r = await seedDealDemo({ evidenceDir: false });
     let d = await dealService().get(DEMO.dealId, r.orgId);
     const pooled = await PaypalAuthPool.find({ status: 'used' }).lean();
-    expect(pooled).toHaveLength(2);
-    for (const key of ['reel1', 'reel2']) {
+    expect(pooled).toHaveLength(3); // reel1 $400, reel2 $300, reel3 $400
+    for (const key of ['reel1', 'reel2', 'reel3']) {
       const f = ms(d, key).funding;
       expect(f.authorizationId).toMatch(/^AUTH/);
       expect(pooled.map((p) => p.authorizationId)).toContain(f.authorizationId);
@@ -347,7 +347,7 @@ describe('judge demo on real sandbox authorizations', () => {
 
     // a reboot keeps the untouched deal (no pool draw); a reset takes a fresh pair
     expect((await seedDealDemo({ evidenceDir: false })).reused).toBe(true);
-    expect(await PaypalAuthPool.countDocuments({ status: 'ready' })).toBe(2);
+    expect(await PaypalAuthPool.countDocuments({ status: 'ready' })).toBe(3);
 
     // the judge (client) taps the 80% split: real partial capture, then a real void of the rest
     const reel2Auth = ms(d, 'reel2').funding.authorizationId;
