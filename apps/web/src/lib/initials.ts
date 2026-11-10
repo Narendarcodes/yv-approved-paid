@@ -1,7 +1,7 @@
 /**
  * Avatar initials from a display name: the first letter of the first two words,
  * ignoring anything in brackets and any word that does not start with a letter
- * or digit. "Ravi (demo editor)" -> "R", "Demo Judge" -> "DJ", "" -> "?".
+ * or digit. "Leo (demo editor)" -> "R", "Demo Judge" -> "DJ", "" -> "?".
  */
 export function initialsOf(name?: string | null): string {
   const words = String(name ?? '')

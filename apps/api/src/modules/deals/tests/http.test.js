@@ -36,7 +36,7 @@ function dealTerms() {
   t.client = { ...t.client, userId: U.client.userId };
   t.worker = { ...t.worker, userId: U.worker.userId };
   t.milestones = [t.milestones[0]];
-  t.milestones[0].payees = [{ userId: U.worker.userId, email: 'ravi@example.com', shareBp: 10000, displayName: 'Ravi' }];
+  t.milestones[0].payees = [{ userId: U.worker.userId, email: 'ravi@example.com', shareBp: 10000, displayName: 'Leo' }];
   return t;
 }
 function webhook(event, headers) {

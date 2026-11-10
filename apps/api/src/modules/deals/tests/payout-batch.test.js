@@ -53,8 +53,8 @@ function dealTerms({ clock, payees, amountMinor } = {}) {
     { ...t.milestones[0], styleSample: false, ...(amountMinor ? { amountMinor } : {}) },
   ];
   t.milestones[0].payees = payees || [
-    { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 7000, displayName: 'Ravi' },
-    { userId: U.motion.userId, email: 'sana@example.com', shareBp: 3000, displayName: 'Sana' },
+    { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 7000, displayName: 'Leo' },
+    { userId: U.motion.userId, email: 'sana@example.com', shareBp: 3000, displayName: 'Maya' },
   ];
   if (clock) t.milestones[0].clock = clock;
   return t;
@@ -251,13 +251,13 @@ describe('one PayPal Payouts batch per release', () => {
             userId: U.motion.userId,
             email: 'sana@example.com',
             shareBp: 3333,
-            displayName: 'Sana',
+            displayName: 'Maya',
           },
           {
             userId: U.worker.userId,
             email: 'ravi@example.com',
             shareBp: 3333,
-            displayName: 'Ravi',
+            displayName: 'Leo',
           },
           {
             userId: U.colour.userId,
@@ -280,8 +280,8 @@ describe('one PayPal Payouts batch per release', () => {
     expect(m.payoutBatches[0].senderBatchId).toBe(`payout:${dealId}:reel1:approve`);
     // floor(9999 * 33.33%) = 3332, floor(9999 * 33.34%) = 3333, the 2 cents left go to the worker (lead)
     expect(m.payoutBatches[0].items.map((i) => [i.displayName, i.amountMinor])).toEqual([
-      ['Sana', 3332],
-      ['Ravi', 3334],
+      ['Maya', 3332],
+      ['Leo', 3334],
       ['Meena', 3333],
     ]);
     expect(m.paidOutMinor).toBe(9999);
@@ -407,8 +407,8 @@ describe('GET .../payout-receipts', () => {
     expect(
       d.lines.map((l) => [l.displayName, l.amountMinor, l.shareBp, l.step, l.simulated]),
     ).toEqual([
-      ['Ravi', 28000, 7000, 'approve', true],
-      ['Sana', 12000, 3000, 'approve', true],
+      ['Leo', 28000, 7000, 'approve', true],
+      ['Maya', 12000, 3000, 'approve', true],
     ]);
     expect(new Set(d.lines.map((l) => l.batchId)).size).toBe(1);
     expect(d.batches).toHaveLength(1);
@@ -426,7 +426,7 @@ describe('GET .../payout-receipts', () => {
   test('a crew member sees only their own line, even the lead editor who can manage deals', async () => {
     const sana = (await receipts(dealId, U.motion)).body.data;
     expect(sana.scope).toBe('own');
-    expect(sana.lines.map((l) => [l.displayName, l.amountMinor])).toEqual([['Sana', 12000]]);
+    expect(sana.lines.map((l) => [l.displayName, l.amountMinor])).toEqual([['Maya', 12000]]);
     expect(sana.me).toMatchObject({
       shareBp: 3000,
       shareOfMilestoneMinor: 12000,
@@ -438,7 +438,7 @@ describe('GET .../payout-receipts', () => {
 
     const ravi = (await receipts(dealId, U.worker)).body.data;
     expect(ravi.scope).toBe('own');
-    expect(ravi.lines.map((l) => l.displayName)).toEqual(['Ravi']);
+    expect(ravi.lines.map((l) => l.displayName)).toEqual(['Leo']);
     expect(ravi.me).toMatchObject({ shareBp: 7000, shareOfMilestoneMinor: 28000, role: 'lead' });
   });
 

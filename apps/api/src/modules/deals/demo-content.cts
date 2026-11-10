@@ -58,7 +58,7 @@ const CHAT: { channel: 'general' | 'autumn-launch'; h: number; who: Who; text: s
     channel: 'general',
     h: 160,
     who: 'judge',
-    text: 'Welcome to the Lumen Coffee workspace, Alex, Ravi, Sana and Mei!',
+    text: 'Welcome to the Lumen Coffee workspace, Alex, Leo, Maya and Mei!',
   },
   {
     channel: 'general',
@@ -108,9 +108,9 @@ const CHAT: { channel: 'general' | 'autumn-launch'; h: number; who: Who; text: s
     channel: 'autumn-launch',
     h: 98.5,
     who: 'judge',
-    text: 'Approved reel 1. The payout goes out now, 70/30 Ravi and Sana as signed.',
+    text: 'Approved reel 1. The payout goes out now, 70/30 Leo and Maya as signed.',
   },
-  { channel: 'autumn-launch', h: 97.9, who: 'motion', text: 'Payday! Thank you Priya.' },
+  { channel: 'autumn-launch', h: 97.9, who: 'motion', text: 'Payday! Thank you Nora.' },
   { channel: 'autumn-launch', h: 97.6, who: 'editor', text: 'Got mine too, thanks!' },
   { channel: 'autumn-launch', h: 74, who: 'editor', text: 'Reel 2 teaser is up.' },
   {
@@ -123,14 +123,14 @@ const CHAT: { channel: 'general' | 'autumn-launch'; h: number; who: Who; text: s
     channel: 'autumn-launch',
     h: 73.0,
     who: 'editor',
-    text: "That's on me, the captions didn't export. Sana, can you burn them in?",
+    text: "That's on me, the captions didn't export. Maya, can you burn them in?",
   },
   { channel: 'autumn-launch', h: 72.6, who: 'motion', text: 'Yes, captioned version tomorrow.' },
   {
     channel: 'autumn-launch',
     h: 50,
     who: 'judge',
-    text: 'We also want an extra 15s cut for Stories. Ravi, raise it as a change order so it is priced from the rate card.',
+    text: 'We also want an extra 15s cut for Stories. Leo, raise it as a change order so it is priced from the rate card.',
   },
   {
     channel: 'autumn-launch',
@@ -326,7 +326,7 @@ const COMMENTS: CommentSeed[] = [
     h: 73.1,
     who: 'editor',
     t: 4,
-    text: 'Sana is burning them in for the next version.',
+    text: 'Maya is burning them in for the next version.',
     reply: 3,
   },
   {
@@ -482,7 +482,7 @@ async function seedReviewTrail(
       'reel3',
       25.9,
       'Reel 3 is waiting for your review',
-      'Ravi Kumar uploaded the 15s story cut. Every check passed; the review clock is running.',
+      'Leo Carter uploaded the 15s story cut. Every check passed; the review clock is running.',
     ),
     note(
       'judge',
@@ -490,7 +490,7 @@ async function seedReviewTrail(
       'reel4',
       25.7,
       'Reel 4 is waiting for your review',
-      'Sana Lee uploaded the 6s bumper. Every check passed.',
+      'Maya Ortiz uploaded the 6s bumper. Every check passed.',
     ),
     note(
       'judge',
@@ -498,7 +498,7 @@ async function seedReviewTrail(
       'reel2',
       49.4,
       'Change order on Reel 2',
-      'Ravi Kumar drafted a +15s cut at $60 from the signed rate card. It waits for your tap.',
+      'Leo Carter drafted a +15s cut at $60 from the signed rate card. It waits for your tap.',
     ),
     note(
       'judge',
@@ -523,7 +523,7 @@ async function seedReviewTrail(
       'reel1',
       98.4,
       'Reel 1 approved and paid out',
-      '$400 captured and paid 70/30 to Ravi Kumar and Sana Lee.',
+      '$400 captured and paid 70/30 to Leo Carter and Maya Ortiz.',
       true,
     ),
     note(

@@ -14,7 +14,7 @@ function terms(over = {}) {
     worker: {
       role: 'worker',
       userId: 'u_worker',
-      displayName: 'Ravi',
+      displayName: 'Leo',
       country: 'IN',
       paypalEmail: 'ravi@example.com',
     },
@@ -69,8 +69,8 @@ function terms(over = {}) {
           { id: 'vibe', text: 'Feels warm and cozy', kind: 'taste' },
         ],
         payees: [
-          { userId: 'u_worker', email: 'ravi@example.com', shareBp: 7000, displayName: 'Ravi' },
-          { userId: 'u_motion', email: 'sana@example.com', shareBp: 3000, displayName: 'Sana' },
+          { userId: 'u_worker', email: 'ravi@example.com', shareBp: 7000, displayName: 'Leo' },
+          { userId: 'u_motion', email: 'sana@example.com', shareBp: 3000, displayName: 'Maya' },
         ],
       },
       {
@@ -91,7 +91,7 @@ function terms(over = {}) {
           },
         ],
         payees: [
-          { userId: 'u_worker', email: 'ravi@example.com', shareBp: 10000, displayName: 'Ravi' },
+          { userId: 'u_worker', email: 'ravi@example.com', shareBp: 10000, displayName: 'Leo' },
         ],
       },
     ],

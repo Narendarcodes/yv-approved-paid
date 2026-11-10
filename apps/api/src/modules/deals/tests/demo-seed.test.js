@@ -244,7 +244,7 @@ describe('seed-deal-demo', () => {
     ).toBeLessThanOrEqual(2);
   });
 
-  test('team: Ravi 70% / motion designer 30% on reel1; an unsigned team draft; two demo projects with assignees', async () => {
+  test('team: Leo 70% / motion designer 30% on reel1; an unsigned team draft; two demo projects with assignees', async () => {
     const Project = require('../../../models/project.model');
     const Task = require('../../../models/task.model');
     const d = await dealService().get(DEMO.dealId, seeded.orgId);
@@ -335,9 +335,9 @@ describe('seed-deal-demo', () => {
       people[k] = [u.name, m.role];
     }
     expect(people).toEqual({
-      judge: ['Priya Shah', 'admin'],
-      editor: ['Ravi Kumar', 'editor'],
-      motion: ['Sana Lee', 'editor'],
+      judge: ['Nora Hayes', 'admin'],
+      editor: ['Leo Carter', 'editor'],
+      motion: ['Maya Ortiz', 'editor'],
       reviewer: ['Alex Morgan', 'reviewer'],
       publisher: ['Mei Tan', 'publisher'],
     });

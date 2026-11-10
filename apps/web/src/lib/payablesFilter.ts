@@ -196,7 +196,7 @@ export function parseClause(raw: string): PayableFilter {
   if (/^(?:ready to approve|approvable|needs? (?:my )?approval|to approve)$/.test(s))
     return { kind: 'approvable', text, label: 'Ready to approve' }
 
-  // editor Ravi / team Sana / by Ravi / for Ravi
+  // editor Leo / team Maya / by Leo / for Leo
   m = s.match(
     /^(?:editor|team|crew|member|by|for|from|editor is|editor named) ([\p{L}][\p{L}\s.-]{0,40})$/u,
   )

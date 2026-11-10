@@ -49,8 +49,8 @@ function dealTerms({ clock, amountMinor, title } = {}) {
     { ...t.milestones[0], styleSample: false, ...(amountMinor ? { amountMinor } : {}) },
   ];
   t.milestones[0].payees = [
-    { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 7000, displayName: 'Ravi' },
-    { userId: U.motion.userId, email: 'sana@example.com', shareBp: 3000, displayName: 'Sana' },
+    { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 7000, displayName: 'Leo' },
+    { userId: U.motion.userId, email: 'sana@example.com', shareBp: 3000, displayName: 'Maya' },
   ];
   if (clock) t.milestones[0].clock = clock;
   return t;

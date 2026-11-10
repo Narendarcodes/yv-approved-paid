@@ -3,8 +3,8 @@
  * payout-receipts endpoint: GET /deals/:id, the deal list, the ledger (and its
  * totals), Money Agent results from a tick, the payables board and the live
  * ledger socket. The brand and deal managers who are not on the crew keep the
- * full view. Ravi (lead editor, editor role = can manage deals) 70%, Sana 30%
- * of a $400 milestone: Ravi 28000, Sana 12000.
+ * full view. Leo (lead editor, editor role = can manage deals) 70%, Maya 30%
+ * of a $400 milestone: Leo 28000, Maya 12000.
  */
 const http = require('node:http');
 const request = require('supertest');
@@ -52,8 +52,8 @@ function dealTerms() {
   t.worker = { ...t.worker, userId: U.worker.userId };
   t.milestones = [{ ...t.milestones[0], styleSample: false }];
   t.milestones[0].payees = [
-    { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 7000, displayName: 'Ravi' },
-    { userId: U.motion.userId, email: 'sana@example.com', shareBp: 3000, displayName: 'Sana' },
+    { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 7000, displayName: 'Leo' },
+    { userId: U.motion.userId, email: 'sana@example.com', shareBp: 3000, displayName: 'Maya' },
   ];
   return t;
 }
@@ -99,10 +99,10 @@ async function signedFundedApproved() {
 const getDeal = (dealId, who) => request(app).get(`${base()}/${dealId}`).set(auth(who));
 const getLedger = (dealId, who) => request(app).get(`${base()}/${dealId}/ledger`).set(auth(who));
 const payoutLines = (l) => l.entries.filter((e) => e.type === 'payout');
-/** Sana's amount (12000) must not appear on any payout-shaped field Ravi receives. */
+/** Maya's amount (12000) must not appear on any payout-shaped field Leo receives. */
 const mentionsSana = (body) =>
   /"amountMinor":12000\b/.test(JSON.stringify(body)) ||
-  /Sana/.test(
+  /Maya/.test(
     JSON.stringify(body.data?.milestones?.map((m) => m.payouts) ?? body.data?.entries ?? body),
   );
 
@@ -158,8 +158,8 @@ describe('brand view (and deal managers not on the crew): every member line', ()
       expect(d.payoutScope).toBe('all');
       const m = d.milestones[0];
       expect(m.payouts.map((p) => [p.displayName, p.amountMinor])).toEqual([
-        ['Ravi', 28000],
-        ['Sana', 12000],
+        ['Leo', 28000],
+        ['Maya', 12000],
       ]);
       expect(m.paidOutMinor).toBe(40000);
       expect(m.payoutBatches).toHaveLength(1);
@@ -194,7 +194,7 @@ describe('editor view (crew): only their own payout lines', () => {
     expect(d.me).toBe('worker');
     expect(d.payoutScope).toBe('own');
     const m = d.milestones[0];
-    expect(m.payouts.map((p) => [p.displayName, p.amountMinor])).toEqual([['Ravi', 28000]]);
+    expect(m.payouts.map((p) => [p.displayName, p.amountMinor])).toEqual([['Leo', 28000]]);
     expect(m.paidOutMinor).toBe(28000);
     expect(m.payoutBatches).toEqual([]);
     expect(mentionsSana(r.body)).toBe(false);

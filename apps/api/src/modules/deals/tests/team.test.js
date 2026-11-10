@@ -76,7 +76,7 @@ describe('deal team', () => {
     expect(d.terms.milestones[0].payees).toHaveLength(1);
   });
 
-  test('the client sets Ravi 70% / Sana 30%; amounts come from the milestone, not the request', async () => {
+  test('the client sets Leo 70% / Maya 30%; amounts come from the milestone, not the request', async () => {
     const r = await request(app)
       .put(team())
       .set(auth(U.client))

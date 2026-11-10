@@ -70,17 +70,17 @@ const DEMO = {
   /** A second, unsigned deal so the judge can pick the team and the split (Deal Team card). */
   teamDealId: 'deal_demo_team_draft',
   org: { name: 'Lumen Coffee', slug: 'yv-deal-demo' },
-  /** Priya Shah, content ops lead: the brand side (client, org admin). Demo-login signs in as her. */
-  judge: { email: 'judge@yv-demo.example.com', name: 'Priya Shah' },
+  /** Nora Hayes, content ops lead: the brand side (client, org admin). Demo-login signs in as her. */
+  judge: { email: 'judge@yv-demo.example.com', name: 'Nora Hayes' },
   editor: {
     email: 'editor@yv-demo.example.com',
-    name: 'Ravi Kumar',
-    paypal: 'ravi.demo@example.com',
+    name: 'Leo Carter',
+    paypal: 'leo.demo@example.com',
   },
   motion: {
     email: 'motion@yv-demo.example.com',
-    name: 'Sana Lee',
-    paypal: 'sana.demo@example.com',
+    name: 'Maya Ortiz',
+    paypal: 'maya.demo@example.com',
   },
   /** Alex Morgan, brand reviewer (reviewer role). */
   reviewer: { email: 'reviewer@yv-demo.example.com', name: 'Alex Morgan' },
@@ -140,7 +140,7 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
     worker: {
       role: 'worker',
       userId: editorId,
-      displayName: 'Ravi Kumar',
+      displayName: 'Leo Carter',
       paypalEmail: DEMO.editor.paypal,
     },
     killFeeBp: 2500,
@@ -166,12 +166,12 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
         styleSample: false,
         checklist: [...common, { id: 'vibe', text: 'Feels warm and cozy', kind: 'taste' }],
         payees: [
-          { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Ravi Kumar' },
+          { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Leo Carter' },
           {
             userId: motionId,
             email: DEMO.motion.paypal,
             shareBp: 3000,
-            displayName: 'Sana Lee',
+            displayName: 'Maya Ortiz',
           },
         ],
       },
@@ -205,7 +205,7 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
             userId: editorId,
             email: DEMO.editor.paypal,
             shareBp: 10000,
-            displayName: 'Ravi Kumar',
+            displayName: 'Leo Carter',
           },
         ],
       },
@@ -235,7 +235,7 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
             userId: editorId,
             email: DEMO.editor.paypal,
             shareBp: 10000,
-            displayName: 'Ravi Kumar',
+            displayName: 'Leo Carter',
           },
         ],
         clock: { ...DEMO_CLOCK },
@@ -260,12 +260,12 @@ function demoTerms(clientId: string, editorId: string, motionId: string): DealTe
           common[3],
         ],
         payees: [
-          { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Ravi Kumar' },
+          { userId: editorId, email: DEMO.editor.paypal, shareBp: 7000, displayName: 'Leo Carter' },
           {
             userId: motionId,
             email: DEMO.motion.paypal,
             shareBp: 3000,
-            displayName: 'Sana Lee',
+            displayName: 'Maya Ortiz',
           },
         ],
         clock: { ...DEMO_CLOCK },
@@ -428,7 +428,7 @@ async function purgeDemoDeal(id: string) {
   await Notification.deleteMany({ 'payload.dealId': id });
 }
 
-/** Terms for the unsigned team demo: one milestone, Ravi 70% / motion designer 30%, editable by the judge (client). */
+/** Terms for the unsigned team demo: one milestone, Leo 70% / motion designer 30%, editable by the judge (client). */
 function teamDraftTerms(clientId: string, editorId: string, motionId: string): DealTerms {
   const t = demoTerms(clientId, editorId, motionId);
   const reel = t.milestones[0];

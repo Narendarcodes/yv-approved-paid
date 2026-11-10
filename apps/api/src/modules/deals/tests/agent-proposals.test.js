@@ -101,7 +101,7 @@ beforeAll(async () => {
       ...t.milestones[0],
       styleSample: false,
       payees: [
-        { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 10000, displayName: 'Ravi' },
+        { userId: U.worker.userId, email: 'ravi@example.com', shareBp: 10000, displayName: 'Leo' },
       ],
     },
   ];
