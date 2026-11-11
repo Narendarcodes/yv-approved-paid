@@ -1,3 +1,4 @@
+/* global DOMException, Response, AbortController, FormData, URL */
 // The API client's fetch timeout: a hung request fails with TimeoutError (React Query then retries) instead of spinning.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
