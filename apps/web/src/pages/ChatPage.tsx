@@ -4,6 +4,7 @@ import { Info, Plus, WifiOff, X, Hash, Users } from 'lucide-react'
 import Avatar from '../components/ui'
 import { Skeleton, ErrorBanner } from '../components/states'
 import { useViewer } from '../lib/viewer'
+import { can } from '../lib/roles'
 import { useTeam } from '../lib/data'
 import { useChat } from '../lib/chat'
 import type { ChatChannel } from '../lib/chat'
@@ -12,6 +13,8 @@ import { PAGE_LINE, EMPTY_LINE } from '../lib/copy'
 
 export default function ChatPage() {
   const viewer = useViewer()
+  // creating a channel needs chat.post (admin, editor, reviewer); publishers only read here
+  const mayCreateChannel = can(viewer, 'post_chat')
   const chat = useChat()
   const { team, loading: teamLoading } = useTeam()
 
@@ -110,17 +113,19 @@ export default function ChatPage() {
               ))}
             </select>
           )}
-          <button
-            onClick={() => setNewChannelOpen((v) => !v)}
-            className={chat.channels.length > 0 ? 'icon-btn' : 'btn-primary w-full'}
-            aria-label="New channel"
-            title="New channel"
-          >
-            <Plus size={15} strokeWidth={1.75} />
-            {chat.channels.length > 0 ? null : ' New channel'}
-          </button>
+          {mayCreateChannel && (
+            <button
+              onClick={() => setNewChannelOpen((v) => !v)}
+              className={chat.channels.length > 0 ? 'icon-btn' : 'btn-primary w-full'}
+              aria-label="New channel"
+              title="New channel"
+            >
+              <Plus size={15} strokeWidth={1.75} />
+              {chat.channels.length > 0 ? null : ' New channel'}
+            </button>
+          )}
         </div>
-        {newChannelOpen && (
+        {mayCreateChannel && newChannelOpen && (
           <div className="mt-2 rounded-[8px] border border-line">{createForm}</div>
         )}
       </div>
@@ -129,17 +134,19 @@ export default function ChatPage() {
         <aside className="card sticky top-20 hidden max-h-[calc(100dvh-7rem)] w-56 shrink-0 flex-col self-start p-0 sm:flex">
           <header className="flex items-center justify-between border-b border-line px-4 py-3">
             <h2 className="card-title">Channels</h2>
-            <button
-              onClick={() => setNewChannelOpen((v) => !v)}
-              className="icon-btn icon-btn-sm"
-              aria-label="New channel"
-              title="New channel"
-            >
-              <Plus size={15} strokeWidth={1.75} />
-            </button>
+            {mayCreateChannel && (
+              <button
+                onClick={() => setNewChannelOpen((v) => !v)}
+                className="icon-btn icon-btn-sm"
+                aria-label="New channel"
+                title="New channel"
+              >
+                <Plus size={15} strokeWidth={1.75} />
+              </button>
+            )}
           </header>
 
-          {newChannelOpen && createForm}
+          {mayCreateChannel && newChannelOpen && createForm}
 
           <ul className="flex-1 overflow-y-auto p-2">
             {chat.loading || teamLoading ? (

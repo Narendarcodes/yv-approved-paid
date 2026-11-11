@@ -28,6 +28,7 @@ export type Permission =
   | 'settings'
   | 'manage_invoices'
   | 'manage_contracts'
+  | 'post_chat'
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   view: 'View projects',
@@ -45,6 +46,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   settings: 'Workspace settings',
   manage_invoices: 'Create, send and settle invoices',
   manage_contracts: 'Create, send and sign contracts',
+  post_chat: 'Post in team chat & create channels',
 }
 
 export interface RoleInfo {
@@ -78,6 +80,7 @@ export const ROLES: RoleInfo[] = [
       'settings',
       'manage_invoices',
       'manage_contracts',
+      'post_chat',
     ],
   },
   {
@@ -86,7 +89,7 @@ export const ROLES: RoleInfo[] = [
     desk: 'Production desk',
     blurb: 'Creates and produces projects, uploads versions, requests review.',
     // crew: no approve, schedule, assign or settings (brand/admin only; the API refuses them too)
-    permissions: ['view', 'create', 'upload', 'comment', 'metrics', 'manage_concepts'],
+    permissions: ['view', 'create', 'upload', 'comment', 'metrics', 'manage_concepts', 'post_chat'],
   },
   {
     role: 'designer',
@@ -100,7 +103,7 @@ export const ROLES: RoleInfo[] = [
     label: 'Reviewer',
     desk: 'Review desk',
     blurb: 'Reviews drafts, comments on timestamps, requests revisions and approves.',
-    permissions: ['view', 'comment', 'approve', 'review_concepts'],
+    permissions: ['view', 'comment', 'approve', 'review_concepts', 'post_chat'],
   },
   {
     role: 'publisher',

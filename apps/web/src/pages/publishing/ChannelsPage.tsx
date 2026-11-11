@@ -9,12 +9,15 @@ import { AlertTriangle, ArrowRight, Hourglass } from 'lucide-react'
 import Chip from '../../components/primitives'
 import { PageHeader } from '../../components/ui'
 import { ErrorBanner, ListSkeleton } from '../../components/states'
-import { PLATFORMS, PLATFORM_ORDER, usePublishing } from '../../lib/publishing'
+import { PLATFORMS, PLATFORM_ORDER, canPublish, usePublishing } from '../../lib/publishing'
+import { useViewer } from '../../lib/viewer'
 import { PlatformIcon } from '../../components/status'
 import { PAGE_LINE, PUBLISHING_IN_BUILD } from '../../lib/copy'
 
 export default function ChannelsPage() {
   const { channels, loading, error, reload } = usePublishing()
+  // Compose is admin/publisher only (project.schedule); crew don't get a CTA into a page they can't use
+  const mayCompose = canPublish(useViewer())
 
   return (
     <div className="fade-in space-y-6">
@@ -22,9 +25,11 @@ export default function ChannelsPage() {
         title="Channels"
         subtitle={PAGE_LINE['/publishing/channels']}
         actions={
-          <Link to="/publishing/compose" className="btn-secondary" data-testid="channels-compose">
-            Draft a post <ArrowRight size={14} strokeWidth={1.75} />
-          </Link>
+          mayCompose ? (
+            <Link to="/publishing/compose" className="btn-secondary" data-testid="channels-compose">
+              Draft a post <ArrowRight size={14} strokeWidth={1.75} />
+            </Link>
+          ) : undefined
         }
       />
 

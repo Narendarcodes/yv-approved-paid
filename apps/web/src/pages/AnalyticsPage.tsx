@@ -164,9 +164,11 @@ export default function AnalyticsPage() {
           title="No performance data yet"
           description={EMPTY_LINE.analytics}
           action={
-            <Link to="/publishing/compose" className="btn-primary">
-              <Send size={14} strokeWidth={1.75} /> Schedule a post
-            </Link>
+            canPublish(viewer) ? (
+              <Link to="/publishing/compose" className="btn-primary">
+                <Send size={14} strokeWidth={1.75} /> Schedule a post
+              </Link>
+            ) : undefined
           }
         />
       ) : (
