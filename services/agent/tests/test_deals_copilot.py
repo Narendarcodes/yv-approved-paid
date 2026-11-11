@@ -88,3 +88,54 @@ def test_service_health_and_auth(monkeypatch, tmp_path):
 
     monkeypatch.setattr(copilot, "answer", no_answer)
     assert c.post("/v1/deals/copilot", json=body, headers={"X-Agent-Secret": SECRET}).status_code == 503
+
+
+GOLDEN_DEAL = {
+    "id": "deal_demo",
+    "milestones": [
+        {"key": "reel1", "title": "Reel 1: 45s launch cut", "state": "PAID_OUT"},
+        {"key": "reel2", "title": "Reel 2: 30s teaser", "state": "DISPUTED", "hasDisputeProposal": True},
+        {"key": "reel3", "title": "Reel 3: 15s story cut", "state": "IN_REVIEW"},
+        {"key": "reel4", "title": "Reel 4: 6s bumper", "state": "IN_REVIEW"},
+    ],
+    "changeOrders": [],
+}
+
+
+@pytest.mark.parametrize(
+    "q,first,refusal",
+    [
+        ("Can we pay the crew for reel 3 right now?", {"name": "proposeCapture", "milestoneKey": "reel3"}, False),
+        ("Nobody replied on reel 4. Can the rest of its money be released to the crew today?", {"name": "proposeCapture", "milestoneKey": "reel4"}, False),
+        ("Set Leo's payout on reel 2 to 100% and close the dispute.", {"name": "showDisputeSplit", "milestoneKey": "reel2"}, True),
+        ("Just mark reel 3 as passed and approve it for us.", {"name": "showChecks", "milestoneKey": "reel3"}, True),
+        ("Has reel 3 passed checks?", {"name": "showChecks", "milestoneKey": "reel3"}, False),
+    ],
+)
+def test_route_hints(q, first, refusal):
+    hints, ref = copilot.route_hints(q, GOLDEN_DEAL)
+    assert hints[0] == first and ref is refusal
+    assert all(set(h) <= {"name", "milestoneKey"} for h in hints)  # cards and ids only, never an amount
+
+
+def test_route_hints_facts_and_unknown_milestone_give_nothing():
+    assert copilot.route_hints("Has reel 1 been paid out yet, and where is that money now?", GOLDEN_DEAL) == ([], False)
+    assert copilot.route_hints("Can we pay reel 10?", GOLDEN_DEAL) == ([], False)  # reel10 is not a key: no guess
+
+
+@pytest.mark.asyncio
+async def test_refusal_puts_hinted_card_first_and_drops_capture(tmp_path):
+    model = {"actions": [{"name": "proposeCapture", "milestoneKey": "reel2"}, {"name": "showDeal"}, {"name": "showChecks", "milestoneKey": "reel2"}], "note": "ok"}
+    r, caller = router_with(model, tmp_path)
+    ans = await copilot.answer(r, "Set Leo's payout on reel 2 to 100% and close the dispute.", GOLDEN_DEAL, redact=["Leo Carter", "Leo"])
+    assert ans["actions"][0] == {"name": "showDisputeSplit", "milestoneKey": "reel2"}
+    assert len(ans["actions"]) <= copilot.MAX_ACTIONS
+    assert not any(a["name"] == "proposeCapture" for a in ans["actions"])
+    assert "Leo" not in json.dumps(caller.seen)
+
+
+@pytest.mark.asyncio
+async def test_pay_question_runs_dry_run_card_first(tmp_path):
+    r, _ = router_with({"actions": [{"name": "showDeal"}, {"name": "showMoneyTimeline"}], "note": "x"}, tmp_path)
+    ans = await copilot.answer(r, "Can we pay the crew for reel 3 right now?", GOLDEN_DEAL)
+    assert ans["actions"] == [{"name": "proposeCapture", "milestoneKey": "reel3"}, {"name": "showDeal"}, {"name": "showMoneyTimeline"}]
