@@ -21,9 +21,10 @@ import {
   fromLive,
   matchIntent,
   moneyAsk,
-  SUGGESTIONS,
   type CopilotAction,
 } from '../../lib/copilot'
+import { mayShowAction, startersFor } from '../../lib/copilotStarters'
+import { Link } from 'react-router-dom'
 import {
   blockedSummary,
   groupViolations,
@@ -41,10 +42,9 @@ import ChangeOrderCard from './ChangeOrderCard'
 import DisputeSplitCard from './DisputeSplitCard'
 import PolicyBlockedChip from './PolicyBlockedChip'
 
-// three starters, shown only before the first message: where the money is, the dispute split, and a money ask policy blocks
-const STARTERS = ['Money timeline', 'Dispute split', 'Capture $450']
-  .map((l) => SUGGESTIONS.find((s) => s.label === l))
-  .filter((s): s is (typeof SUGGESTIONS)[number] => !!s)
+// starters, shown only before the first message, chosen by deal.me (lib/copilotStarters):
+// the brand gets the money timeline, the dispute split and a money ask policy blocks;
+// crew get "Where is my money?" and the dispute split, never a money ask
 
 type Mode =
   | { kind: 'live'; provider: string | null; model: string | null; cached: boolean }
@@ -214,6 +214,22 @@ function CaptureProposal({
   )
 }
 
+/** In place of a money-moving card for anyone who is not the brand on this deal. */
+function BrandOnlyMoney() {
+  return (
+    <DealCardShell testId="brand-only-money" label="Money" title="Only the brand moves money">
+      <p className="text-[13px] text-umber">
+        The brand approves each version and the Money Agent releases the signed amount. No money
+        moved. Your share and when it lands are on{' '}
+        <Link to="/my-money" className="text-teal underline-offset-2 hover:underline">
+          My money
+        </Link>
+        .
+      </p>
+    </DealCardShell>
+  )
+}
+
 function Rendered({
   action,
   deal,
@@ -225,6 +241,8 @@ function Rendered({
   orgId: string
   onChanged: () => void
 }) {
+  // crew never get a money-moving proposal, whatever the live model or the offline replay picked
+  if (!mayShowAction(action.name, deal.me)) return <BrandOnlyMoney />
   switch (action.name) {
     case 'showDeal':
       return <DealCard deal={deal} orgId={orgId} onChanged={onChanged} />
@@ -287,6 +305,7 @@ function Rendered({
 }
 
 export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: string }) {
+  const starters = startersFor(deal.me)
   const [turns, setTurns] = useState<Turn[]>([])
   const [text, setText] = useState('')
   const seq = useRef(0)
@@ -429,7 +448,7 @@ export default function DealCopilot({ deal, orgId }: { deal: DealView; orgId: st
       >
         {turns.length === 0 && (
           <div className="flex flex-col items-start gap-1.5" data-testid="copilot-suggestions">
-            {STARTERS.map((s) => (
+            {starters.map((s) => (
               <button
                 key={s.label}
                 type="button"
