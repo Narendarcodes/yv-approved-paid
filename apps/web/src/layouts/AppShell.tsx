@@ -156,15 +156,13 @@ export default function AppShell() {
     )
   }
 
-  // A role-gated nav item opened by URL: a calm note instead of a page whose API answers 403
-  const gated = navGroups
-    .flatMap((g) => g.items)
-    .find(
-      (i) =>
-        i.roles &&
-        !i.roles.includes(viewer.role) &&
-        (location.pathname === i.to || location.pathname.startsWith(`${i.to}/`)),
-    )
+  // A role-gated nav item (or brand-only route) opened by URL: a calm note instead of a page whose API answers 403
+  const gated = [...navGroups.flatMap((g) => g.items), ...routeGates].find(
+    (i) =>
+      i.roles &&
+      !i.roles.includes(viewer.role) &&
+      (location.pathname === i.to || location.pathname.startsWith(`${i.to}/`)),
+  )
 
   const visibleGroups = navGroups
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.roles || i.roles.includes(viewer.role)) }))
@@ -553,6 +551,15 @@ const navGroups: { section: string; items: NavItem[] }[] = [
       { to: '/members', label: 'Members', icon: () => <Users {...iconProps} />, roles: ['admin'] },
     ],
   },
+]
+
+/**
+ * Brand-only routes with no sidebar entry (settings opens from the avatar
+ * menu). Checked with the nav items above, so a direct URL is blocked too.
+ * Nav-gated brand routes: /payables, /members, /publishing/compose, /review.
+ */
+const routeGates: Pick<NavItem, 'to' | 'label' | 'roles'>[] = [
+  { to: '/settings', label: 'Settings', roles: ['admin'] },
 ]
 
 /** Shown when a role opens a page its nav does not offer (the route stays; the page is not for this role). */

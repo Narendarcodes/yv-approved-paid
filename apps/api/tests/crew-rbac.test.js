@@ -6,6 +6,10 @@
  *   invoices / contracts   editor reads only what they created (invoice.view /
  *                          contract.view); every write needs *.manage (admin)
  *   project.assign         admin only
+ *   members / roles        admin only (manage_members via '*')
+ *   payables (org board)   admin only (payables.view_org via '*'); crew with
+ *                          deal.manage see only deals where they are the brand,
+ *                          and bulk approve refuses them
  */
 const request = require('supertest');
 const mongoose = require('mongoose');
@@ -13,6 +17,10 @@ const app = require('../src/app');
 const { seedDefaultRoles, DEFAULT_ROLES } = require('../src/seed/roles');
 const Invoice = require('../src/models/invoice.model');
 const Contract = require('../src/models/contract.model');
+const Membership = require('../src/models/membership.model');
+const { configureDeals } = require('../src/modules/deals/service.cts');
+const { makeMockGateway } = require('../src/modules/deals/paypal.cts');
+const { terms: baseTerms, T0, DAY } = require('../src/modules/deals/tests/fixtures');
 
 const PASSWORD = 'P@ssw0rd-crew-rbac';
 const auth = (u) => ({ Authorization: `Bearer ${u.token}` });
@@ -38,6 +46,12 @@ const ids = {};
 beforeAll(async () => {
   await require('../src/db/mongo').connect();
   await seedDefaultRoles();
+  const now = T0 + 2 * DAY;
+  configureDeals({
+    gateway: makeMockGateway({ now: () => now }),
+    now: () => new Date(now).toISOString(),
+    publicBaseUrl: 'https://app.test',
+  });
   U.admin = await user('nora');
   const org = await request(app)
     .post('/api/v1/organizations')
@@ -46,6 +60,7 @@ beforeAll(async () => {
   orgId = org.body.data._id;
   U.editor = await user('leo', 'editor');
   U.editor2 = await user('maya', 'editor');
+  U.brand = await user('kalpa', 'reviewer');
   const p = await request(app)
     .post('/api/v1/projects')
     .set(auth(U.admin))
@@ -221,5 +236,90 @@ describe('projects: assignment is brand-only', () => {
       .set(auth(U.editor))
       .send({ assigneeId: U.editor.userId });
     expect(r.statusCode).toBe(403);
+  });
+});
+
+describe('members and roles: admin only', () => {
+  test('the editor cannot invite, change a role, disable a member or list member admin data', async () => {
+    const calls = [
+      ['post', O('/members'), { email: 'new@crew-rbac.example.com', role: 'editor' }],
+      ['patch', O(`/members/${U.editor2.userId}`), { role: 'admin' }],
+      ['patch', O(`/members/${U.editor.userId}`), { role: 'admin' }], // self-promotion
+      ['patch', O(`/members/${U.editor2.userId}`), { disabled: true }],
+      [
+        'patch',
+        `/api/v1/users/organizations/${orgId}/members/${U.editor2.userId}`,
+        { role: 'admin' },
+      ],
+      ['get', `/api/v1/users/organizations/${orgId}/members`, undefined],
+    ];
+    for (const [m, url, body] of calls) {
+      const req = request(app)[m](url).set(auth(U.editor));
+      const r = body ? await req.send(body) : await req;
+      expect([m, url, r.statusCode]).toEqual([m, url, 403]);
+    }
+    const leo = await Membership.findOne({ userId: U.editor.userId, organizationId: orgId });
+    const maya = await Membership.findOne({ userId: U.editor2.userId, organizationId: orgId });
+    expect(maya.disabled).not.toBe(true);
+    expect([leo.role, maya.role]).toEqual(['editor', 'editor']);
+  });
+
+  test('the admin can still change a role', async () => {
+    const r = await request(app)
+      .patch(O(`/members/${U.editor2.userId}`))
+      .set(auth(U.admin))
+      .send({ role: 'editor' });
+    expect(r.statusCode).toBe(200);
+  });
+});
+
+describe('payables: the org-wide board is admin only', () => {
+  let dealId;
+  beforeAll(async () => {
+    const t = baseTerms();
+    t.client = { ...t.client, userId: U.brand.userId };
+    t.worker = { ...t.worker, userId: U.editor.userId };
+    t.milestones = [
+      {
+        ...t.milestones[0],
+        styleSample: false,
+        payees: [
+          { userId: U.editor.userId, email: 'leo@example.com', shareBp: 10000, displayName: 'Leo' },
+        ],
+      },
+    ];
+    const r = await request(app).post(O('/deals')).set(auth(U.editor)).send({ terms: t });
+    expect(r.statusCode).toBe(201);
+    dealId = r.body.data.id;
+  });
+
+  test('admin gets scope org with the deal; the brand gets it as the brand', async () => {
+    const a = await request(app).get(O('/deals/payables')).set(auth(U.admin)).expect(200);
+    expect(a.body.data.scope).toBe('org');
+    expect(a.body.data.rows.some((x) => x.dealId === dealId)).toBe(true);
+    const b = await request(app).get(O('/deals/payables')).set(auth(U.brand)).expect(200);
+    expect(b.body.data.scope).toBe('brand');
+    expect(b.body.data.rows.some((x) => x.dealId === dealId)).toBe(true);
+  });
+
+  test('editors (deal.manage) get scope brand and none of the org rows, on or off the crew', async () => {
+    for (const who of [U.editor, U.editor2]) {
+      const r = await request(app).get(O('/deals/payables')).set(auth(who)).expect(200);
+      expect(r.body.data.scope).toBe('brand');
+      expect(r.body.data.rows).toEqual([]);
+    }
+  });
+
+  test('bulk approve refuses the editor, dry run or real', async () => {
+    for (const dryRun of [true, false]) {
+      const r = await request(app)
+        .post(O('/deals/payables/bulk-approve'))
+        .set(auth(U.editor2))
+        .send({ items: [{ dealId, milestoneKey: 'reel1' }], dryRun })
+        .expect(200);
+      expect(
+        r.body.data.items.every((x) => x.outcome === 'refused' && x.code === 'forbidden'),
+      ).toBe(true);
+    }
   });
 });
