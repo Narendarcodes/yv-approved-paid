@@ -4,7 +4,7 @@ import { PageHeader } from '../components/primitives'
 import { AssigneeAvatar } from '../components/ui'
 import { projectStatusLabel } from '../lib/format'
 import { useProjects, useTeam, useMe } from '../lib/data'
-import { ListSkeleton, ErrorBanner } from '../components/states'
+import { ListSkeleton, ErrorBanner, WakingServer, useSlow } from '../components/states'
 import { StatusChip } from '../components/status'
 import { PAGE_LINE } from '../lib/copy'
 
@@ -36,7 +36,8 @@ const GROUPS: { key: string; label: string; hint: string; statuses: string[] }[]
 ]
 
 export default function MyWorkPage() {
-  const { projects, loading, error } = useProjects()
+  const { projects, loading, error, retry } = useProjects()
+  const slow = useSlow(loading)
   const { team } = useTeam()
   const me = useMe()
   const memberOf = (id: string) => team.find((m) => m.id === id)
@@ -57,9 +58,15 @@ export default function MyWorkPage() {
       />
 
       {loading ? (
-        <ListSkeleton rows={3} />
+        slow ? (
+          <WakingServer onRetry={retry} />
+        ) : (
+          <ListSkeleton rows={3} />
+        )
       ) : error ? (
-        <ErrorBanner onRetry={() => window.location.reload()} />
+        <div data-testid="my-work-error">
+          <ErrorBanner message="Your work did not load." onRetry={retry} />
+        </div>
       ) : (
         <>
           {GROUPS.map((g) => {

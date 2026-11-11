@@ -156,9 +156,9 @@ export async function loadProjects(): Promise<Project[]> {
     // "Team Chat" is an internal container for chat channels, not real work.
     return (projects || []).filter((p: any) => p.title !== TEAM_CHAT_TITLE).map(normalizeProject)
   }
-  projectsPromise = run().catch(() => {
+  projectsPromise = run().catch((e) => {
     projectsPromise = null // allow retry on next call
-    return [] as Project[]
+    throw e // callers show an error with Retry, not an empty list that looks like "no work"
   })
   return projectsPromise
 }
@@ -220,6 +220,7 @@ export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let active = true
     const fetchProjects = () => {
@@ -244,8 +245,8 @@ export function useProjects() {
       active = false
       projectsListeners.delete(listener)
     }
-  }, [])
-  return { projects, loading, error, retry: loadProjects }
+  }, [attempt])
+  return { projects, loading, error, retry: () => setAttempt((n) => n + 1) }
 }
 
 /** Members view-list shape (role capitalized) used by the Members screen. */

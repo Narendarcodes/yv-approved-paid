@@ -116,3 +116,81 @@ export function awaitingReview(payables: AttentionPayable[]): AttentionPayable[]
     .filter((r) => r.state === 'IN_REVIEW')
     .sort((a, b) => Number(isOverdue(b)) - Number(isOverdue(a)) || at(a) - at(b))
 }
+
+/** The my-money fields the crew strip reads (a subset of the API row). */
+export type CrewMoneyRow = AttentionMyMoney & {
+  releasedMinor: number
+  expected: { amountMinor: number; at: string | null }[]
+}
+export type CrewMoney = {
+  /** still to come to me (my share minus what is paid) */
+  expected: MoneyTotal
+  expectedCount: number
+  /** already paid to me */
+  paid: MoneyTotal
+  paidCount: number
+  /** my share releasing right now (approved, payout on its way) */
+  releasing: MoneyTotal
+  releasingCount: number
+  /** the nearest dated release still ahead (ISO), or null */
+  next: string | null
+  /** something is due on approval only (no date yet) */
+  onApproval: boolean
+}
+
+/**
+ * A crew member's own money, from GET /deals/my-money only: what is still to
+ * come, what is paid and what is releasing now. Never a teammate's amount (the
+ * API sends only the viewer's rows).
+ */
+export function crewMoneyOf(rows: CrewMoneyRow[], nowMs: number): CrewMoney {
+  const expected: MoneyTotal = {}
+  const paid: MoneyTotal = {}
+  const releasing: MoneyTotal = {}
+  let expectedCount = 0
+  let paidCount = 0
+  let releasingCount = 0
+  let next: string | null = null
+  let onApproval = false
+  for (const r of rows) {
+    if (['cancelled'].includes(r.status)) continue
+    if (r.expectedMinor > 0) {
+      add(expected, r.currency, r.expectedMinor)
+      expectedCount++
+    }
+    if (r.releasedMinor > 0) {
+      add(paid, r.currency, r.releasedMinor)
+      paidCount++
+    }
+    if (r.status === 'releasing' && r.expectedMinor > 0) {
+      add(releasing, r.currency, r.expectedMinor)
+      releasingCount++
+    }
+    for (const e of r.expected || []) {
+      if (!e.at) {
+        onApproval = true
+        continue
+      }
+      const t = Date.parse(e.at)
+      if (Number.isFinite(t) && t >= nowMs && (!next || t < Date.parse(next))) next = e.at
+    }
+  }
+  return {
+    expected,
+    expectedCount,
+    paid,
+    paidCount,
+    releasing,
+    releasingCount,
+    next,
+    onApproval,
+  }
+}
+
+/** A crew desk's own Waiting on rows: only what waits on this person (by id), never a teammate's or a role's queue. */
+export function ownBlocked<T extends { kind: string; id?: string }>(
+  blocked: T[],
+  userId: string,
+): T[] {
+  return userId ? blocked.filter((b) => b.kind === 'user' && b.id === userId) : []
+}

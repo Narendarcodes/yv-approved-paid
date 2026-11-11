@@ -23,6 +23,7 @@ import { PlatformIcon, PlatformIcons, STAGE_DOT, StatusChip, StatusDot, stageOf 
 import { Skeleton } from './states'
 import { DashSection } from './dashboard/Section'
 import { DASH_EMPTY, DASH_LINE } from '../lib/copy'
+import { ownBlocked } from '../lib/attention'
 
 const STAGE_LINK: Record<string, string> = {
   idea: '/concepts',
@@ -156,23 +157,24 @@ export function StageStrip({ data }: { data: PipelineData }) {
 
 /* ---------------- waiting on ---------------- */
 
-export function WaitingOn({ data }: { data: PipelineData }) {
-  const rows = data.blocked.slice(0, 5)
+export function WaitingOn({ data, mine }: { data: PipelineData; mine?: string }) {
+  const all = mine !== undefined ? ownBlocked(data.blocked, mine) : data.blocked
+  const rows = all.slice(0, 5)
   return (
     <DashSection
-      title="Waiting on"
+      title={mine !== undefined ? 'Waiting on you' : 'Waiting on'}
       icon={<Hourglass {...ic} />}
-      helper={DASH_LINE.waitingOn}
-      empty={DASH_EMPTY.waitingOn}
+      helper={mine !== undefined ? DASH_LINE.waitingOnYou : DASH_LINE.waitingOn}
+      empty={mine !== undefined ? DASH_EMPTY.waitingOnYou : DASH_EMPTY.waitingOn}
       isEmpty={!rows.length}
-      count={rows.length ? data.blocked.reduce((a, b) => a + b.count, 0) : undefined}
+      count={rows.length ? all.reduce((a, b) => a + b.count, 0) : undefined}
       to="/projects"
       action="Projects"
       testId="waiting-on"
     >
       <ul className="divide-y divide-line">
         {rows.map((b) => (
-          <li key={`${b.kind}:${b.name}`}>
+          <li key={b.id ? `user:${b.id}` : `${b.kind}:${b.name}`}>
             <Link
               to={b.projects[0] ? `/projects/${b.projects[0]._id}` : '/projects'}
               className="row-link flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-2.5 sm:flex-nowrap"
@@ -327,7 +329,8 @@ export function LastWeekBest({ data }: { data: PipelineData }) {
 
 /* ---------------- composition for the role desks ---------------- */
 
-export function PipelineOverview() {
+/** `mine` (the viewer's id) scopes Waiting on to the viewer's own items: the crew desks pass it. */
+export function PipelineOverview({ mine }: { mine?: string } = {}) {
   const { data, error } = usePipeline()
   if (error && !data) return null
   if (!data) return <PipelineSkeleton />
@@ -335,7 +338,7 @@ export function PipelineOverview() {
     <div className="space-y-4" data-testid="pipeline">
       <StageStrip data={data} />
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <WaitingOn data={data} />
+        <WaitingOn data={data} mine={mine} />
         <GoingLive data={data} />
       </div>
       <LastWeekBest data={data} />

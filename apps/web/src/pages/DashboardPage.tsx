@@ -666,12 +666,14 @@ function PublishedCard({ p }: { p: Project }) {
   )
 }
 
+/** Non-admin desks: money from the viewer's own payouts (my money) when they hold no brand-side rows; Waiting on is their own items only. */
 function RoleOverview() {
   const board = useMoneyBoard()
+  const viewer = useViewer()
   return (
     <div className="space-y-4">
       <AttentionStrip board={board} />
-      <PipelineOverview />
+      <PipelineOverview mine={viewer.id} />
     </div>
   )
 }

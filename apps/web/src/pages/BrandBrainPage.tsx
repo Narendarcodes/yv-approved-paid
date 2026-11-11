@@ -14,7 +14,7 @@ import {
   useStickToBottom,
 } from '../components/chat/Thread'
 import { PageHeader } from '../components/ui'
-import { ErrorBanner } from '../components/states'
+import { ErrorBanner, Skeleton } from '../components/states'
 import { useToast } from '../components/toast'
 import { primaryOrgId } from '../lib/data'
 import { getAppSocket } from '../lib/chat'
@@ -86,41 +86,66 @@ export default function BrandBrainPage() {
   const [error, setError] = useState<string | null>(null)
   const [memory, setMemory] = useState<BrandMemory | null>(null)
   const [agentOffline, setAgentOffline] = useState(false)
+  // posts + insights load state (the agent service is optional), and the org lookup itself
+  const [sideLoading, setSideLoading] = useState(true)
+  const [orgError, setOrgError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
   const titleOf = (id: string) =>
     posts.find((p) => p.id === id)?.title || (id === 'brand' ? 'Brand hub' : id.slice(-6))
 
+  const loadSide = async (id: string) => {
+    setSideLoading(true)
+    setAgentOffline(false)
+    try {
+      const [p, i] = await Promise.all([getAgentPosts(id), getAgentInsights(id)])
+      setPosts(p)
+      setInsights(i)
+    } catch {
+      // the agent service is optional: the memory and the sample still show
+      setAgentOffline(true)
+    } finally {
+      setSideLoading(false)
+    }
+  }
+
   useEffect(() => {
-    primaryOrgId().then(async (id) => {
-      if (!id) return
-      setOrgId(id)
-      getBrandMemory(id)
-        .then(setMemory)
-        .catch(() => setMemory({ rules: [], sample: [] }))
-      try {
-        const [p, i] = await Promise.all([getAgentPosts(id), getAgentInsights(id)])
-        setPosts(p)
-        setInsights(i)
-      } catch {
-        // the agent service is optional: the memory and the sample still show
-        setAgentOffline(true)
-      }
-      const sock = getAppSocket()
-      sock.emit('org:join', { organizationId: id })
-      const refresh = () =>
-        getAgentInsights(id)
-          .then(setInsights)
-          .catch(() => {})
-      sock.on('insight:new', refresh)
-      sock.on('job:update', (j: any) => {
-        toast(j.status === 'succeeded' ? 'success' : 'danger', `Agent job ${j.status}`, j.type)
-      })
-    })
+    let live = true
+    setOrgError(false)
+    primaryOrgId().then(
+      async (id) => {
+        if (!live) return
+        setOrgId(id)
+        getBrandMemory(id)
+          .then(setMemory)
+          .catch(() => setMemory({ rules: [], sample: [] }))
+        await loadSide(id)
+        if (!live) return
+        const sock = getAppSocket()
+        sock.emit('org:join', { organizationId: id })
+        const refresh = () =>
+          getAgentInsights(id)
+            .then(setInsights)
+            .catch(() => {})
+        sock.on('insight:new', refresh)
+        sock.on('job:update', (j: any) => {
+          toast(j.status === 'succeeded' ? 'success' : 'danger', `Agent job ${j.status}`, j.type)
+        })
+      },
+      () => {
+        if (!live) return
+        setOrgError(true)
+        setSideLoading(false)
+      },
+    )
     return () => {
+      live = false
       const s = getAppSocket()
       s.off('insight:new')
       s.off('job:update')
     }
-  }, [])
+    // loadSide only sets state; re-run on Retry
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt])
 
   const lastText = turns.length ? turns[turns.length - 1].text.length : 0
   const { endRef, atBottom, jump } = useStickToBottom(`${turns.length}:${lastText}`)
@@ -178,6 +203,11 @@ export default function BrandBrainPage() {
         <h2 className="text-[13px] font-medium text-ink">
           Brand memory{memory ? ` (${memory.rules.length})` : ''}
         </h2>
+        {!memory && !orgError && (
+          <p className="mt-2 text-[13px] text-umber" data-testid="brand-memory-loading">
+            Loading brand memory…
+          </p>
+        )}
         {memory && memory.rules.length === 0 && (
           <p className="mt-2 text-[13px] text-umber">No brand rules saved yet.</p>
         )}
@@ -201,11 +231,33 @@ export default function BrandBrainPage() {
       </section>
       {agentOffline && (
         <p className="text-[12px] text-umber" data-testid="agent-offline">
-          The assistant is offline right now; brand memory still shows here.
+          The assistant is offline right now; brand memory still shows here.{' '}
+          {orgId && (
+            <button
+              className="font-medium text-teal hover:underline"
+              onClick={() => void loadSide(orgId)}
+              data-testid="agent-retry"
+            >
+              Retry
+            </button>
+          )}
         </p>
       )}
       <section>
         <h2 className="text-[13px] font-medium text-ink">Posts</h2>
+        {sideLoading ? (
+          <div className="mt-2 space-y-2" aria-busy="true">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+        ) : (
+          posts.length === 0 &&
+          !agentOffline && (
+            <p className="mt-2 text-[13px] text-umber" data-testid="posts-empty">
+              No posts yet. Published posts show here once their analytics come in.
+            </p>
+          )
+        )}
         <ul className="mt-2 divide-y divide-line">
           {posts.map((p) => (
             <li key={p.id} className="py-2 text-[13px]">
@@ -230,8 +282,12 @@ export default function BrandBrainPage() {
       </section>
       <section>
         <h2 className="text-[13px] font-medium text-ink">Insights</h2>
-        {insights.length === 0 && (
-          <p className="mt-2 text-[13px] text-umber">Run Analyze on a post to get an insight.</p>
+        {!sideLoading && !agentOffline && insights.length === 0 && (
+          <p className="mt-2 text-[13px] text-umber" data-testid="insights-empty">
+            {posts.length
+              ? 'Run Analyze on a post to get an insight.'
+              : 'No insights yet. They appear after a post is analyzed.'}
+          </p>
         )}
         <ul className="mt-2 space-y-3">
           {insights.map((i) => (
@@ -255,6 +311,15 @@ export default function BrandBrainPage() {
     <div>
       <PageHeader title="Brand Brain" subtitle={PAGE_LINE['/brand-brain']} />
       {error && <ErrorBanner message={error} />}
+      {orgError && (
+        <ErrorBanner
+          message="Brand Brain did not load."
+          onRetry={() => {
+            setSideLoading(true)
+            setAttempt((n) => n + 1)
+          }}
+        />
+      )}
       <details className="mb-4 rounded-md border border-line px-3 py-2 lg:hidden">
         <summary className="cursor-pointer text-[13px] text-umber">
           Brand memory, posts and insights

@@ -38,11 +38,11 @@ async function pipeline({ organizationId, now = new Date() }) {
       { projectId: 1, failureReason: 1, platform: 1 },
     ).lean(),
   ]);
-  const byRole = (role) =>
-    members.filter((m) => m.role === role && m.userId).map((m) => m.userId.name);
+  const byRole = (role) => members.filter((m) => m.role === role && m.userId).map((m) => m.userId);
   const roleOwner = (role) => {
-    const names = byRole(role);
-    if (names.length === 1) return { kind: 'user', name: names[0] };
+    const people = byRole(role);
+    if (people.length === 1)
+      return { kind: 'user', id: String(people[0]._id), name: people[0].name };
     return { kind: 'role', name: ROLE_LABEL[role] || role };
   };
   const failedByProject = new Map();
@@ -137,8 +137,16 @@ async function pipeline({ organizationId, now = new Date() }) {
     if (p.status === 'PUBLISHED') continue;
     const b = blockedOn(p);
     if (!b || b.kind === 'system') continue;
-    const key = `${b.kind}:${b.name}`;
-    const w = waiting.get(key) || { kind: b.kind, name: b.name, count: 0, projects: [] };
+    // a person is keyed by id (two teammates can share a name); the web filters a crew desk to its own row by id
+    const id = b.kind === 'user' && b.id ? String(b.id) : undefined;
+    const key = id ? `user:${id}` : `${b.kind}:${b.name}`;
+    const w = waiting.get(key) || {
+      kind: b.kind,
+      ...(id ? { id } : {}),
+      name: b.name,
+      count: 0,
+      projects: [],
+    };
     w.count += 1;
     if (w.projects.length < 3) w.projects.push({ _id: p._id, title: p.title, action: b.action });
     waiting.set(key, w);

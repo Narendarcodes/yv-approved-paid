@@ -110,6 +110,9 @@ async function listProjects({
   return { items: items.map(normalizeProject), total, limit, skip };
 }
 
+/** The hidden per-org chat container project (web lib/chat.ts). */
+const TEAM_CHAT_TITLE = 'Team Chat';
+
 async function createProject({
   organizationId,
   title,
@@ -126,6 +129,13 @@ async function createProject({
       code: 'invalid_type',
       message: `Project type must be one of: ${VALID_TYPES.join(', ')}`,
     };
+  }
+  // "Team Chat" is the org's one hidden chat container: creating it again returns the existing one
+  if (title === TEAM_CHAT_TITLE) {
+    const existing = await Project.findOne({ organizationId, title: TEAM_CHAT_TITLE }).sort({
+      createdAt: 1,
+    });
+    if (existing) return existing;
   }
   const project = new Project({
     organizationId,

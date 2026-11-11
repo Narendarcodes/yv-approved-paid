@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ErrorBanner, WakingServer, useSlow } from '../components/states'
 import { Plus, ArrowRight } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import Chip, { Modal, PageHeader } from '../components/primitives'
@@ -63,7 +64,7 @@ export default function ConceptsPage() {
 
   useEffect(() => {
     primaryOrgId()
-      .then((orgId) => (orgId ? getTopPerformers(orgId) : null))
+      .then((orgId) => getTopPerformers(orgId))
       .then(setTop)
       .catch(() => setTop(null))
   }, [])
@@ -80,11 +81,12 @@ export default function ConceptsPage() {
     setConverting(c)
   }
 
+  const slow = useSlow(loading)
   const load = () => {
     setLoading(true)
     setLoadError(false)
     primaryOrgId()
-      .then((orgId) => (orgId ? listConcepts(orgId) : []))
+      .then((orgId) => listConcepts(orgId))
       .then((cs) => {
         setConcepts(cs)
         setLoading(false)
@@ -178,20 +180,19 @@ export default function ConceptsPage() {
         }
       />
 
-      {loadError && (
-        <div className="card flex items-center justify-between gap-4 border-danger/30 p-4">
-          <p className="text-sm text-danger">Couldn't load concepts.</p>
-          <button className="btn-secondary btn-sm" onClick={load}>
-            Retry
-          </button>
-        </div>
-      )}
-
       {loading ? (
-        <div className="space-y-3">
-          {[0, 1].map((i) => (
-            <div key={i} className="card h-24 animate-pulse bg-surface" />
-          ))}
+        slow ? (
+          <WakingServer onRetry={load} />
+        ) : (
+          <div className="space-y-3" aria-busy="true">
+            {[0, 1].map((i) => (
+              <div key={i} className="card h-24 animate-pulse bg-surface" />
+            ))}
+          </div>
+        )
+      ) : loadError ? (
+        <div data-testid="concepts-error">
+          <ErrorBanner message="Concepts did not load." onRetry={load} />
         </div>
       ) : (
         <>
@@ -288,7 +289,7 @@ export default function ConceptsPage() {
             ))}
 
             {!openIdeas.length && !decided.length && (
-              <div className="card p-12 text-center">
+              <div className="card p-12 text-center" data-testid="concepts-empty">
                 <p className="text-sm text-umber">No concepts in the pipeline right now.</p>
                 {mayManage && (
                   <button className="btn-primary mt-4" onClick={() => setOpen(true)}>

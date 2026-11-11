@@ -1,7 +1,9 @@
 /**
  * Live team chat state for yv..
  *
- * - Loads the "Team Chat" project's channels + messages from the API.
+ * - Loads the "Team Chat" project's channels, then their messages in parallel,
+ *   with a timeout; errors and an empty chat get their own states, never a stuck
+ *   "Loading…". A missing Team Chat is provisioned once (never a duplicate).
  * - Opens one Socket.IO connection, authenticated with the session JWT.
  * - Joins a room per open channel; incoming `message:new` events are merged
  *   into state in real time (no refresh needed).
@@ -12,8 +14,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import * as api from '../services/api'
 import { chatTime as fmtTime } from './format'
+import { primaryOrgId } from './data'
+import { CHAT_LOAD_TIMEOUT_MS, TEAM_CHAT_TITLE, pickChatProject, withTimeout } from './chatLoad'
 
-const TEAM_CHAT_TITLE = 'Team Chat'
+export { CHAT_LOAD_TIMEOUT_MS, withTimeout, pickChatProject }
 
 export interface ChatChannel {
   id: string
@@ -86,62 +90,99 @@ export function closeChatSocket() {
   socket = null
 }
 
+async function findChatProject(orgId: string): Promise<{ id: string } | undefined> {
+  // search by title: the plain list is capped (newest 50), so an old Team Chat would fall off it
+  return pickChatProject(await api.listProjects(orgId, { search: TEAM_CHAT_TITLE }))
+}
+
+/**
+ * One provisioning per org per session, shared by every caller (StrictMode's
+ * double effect, a retry, two tabs of the page in one app). It looks again
+ * right before creating, and the API returns the existing Team Chat instead of
+ * a second one, so a duplicate is never created.
+ */
+const provisioning: Record<string, Promise<{ id: string } | undefined>> = {}
+function provisionChat(orgId: string): Promise<{ id: string } | undefined> {
+  provisioning[orgId] ??= (async () => {
+    const again = await findChatProject(orgId)
+    if (again) return again
+    try {
+      const p = await api.createProject({ title: TEAM_CHAT_TITLE, organizationId: orgId })
+      await api.createChannel(p.id, 'general').catch(() => undefined)
+      return p
+    } catch {
+      // roles that cannot create projects see an empty channel list
+      return undefined
+    }
+  })().finally(() => {
+    // keep a success (no second create this session); let a later load retry after a failure
+    void provisioning[orgId]?.then((r) => {
+      if (!r) delete provisioning[orgId]
+    })
+  })
+  return provisioning[orgId]
+}
+
+const toMessage = (m: any): ChatMessage => ({
+  id: String(m.id),
+  author: String(m.author?._id ?? m.author),
+  text: m.body,
+  time: fmtTime(m.sentAt || m.createdAt),
+})
+
+/** Channels load first, then every channel's messages in parallel; one channel failing leaves it empty. */
+async function loadChat(): Promise<{
+  projectId: string | null
+  channels: ChatChannel[]
+  messages: Record<string, ChatMessage[]>
+}> {
+  const orgId = await primaryOrgId()
+  const chatProject = (await findChatProject(orgId)) ?? (await provisionChat(orgId))
+  if (!chatProject) return { projectId: null, channels: [], messages: {} }
+  const projectId = String(chatProject.id)
+  const chans = await api.listProjectChannels(projectId)
+  const lists = await Promise.allSettled(
+    chans.map((ch: any) => api.listChannelMessages(projectId, ch.id)),
+  )
+  const messages: Record<string, ChatMessage[]> = {}
+  chans.forEach((ch: any, i: number) => {
+    const r = lists[i]
+    messages[String(ch.id)] = r.status === 'fulfilled' ? r.value.map(toMessage) : []
+  })
+  return {
+    projectId,
+    channels: chans.map((c: any) => ({
+      id: String(c.id),
+      name: '#' + c.name,
+      projectId: String(c.projectId ?? projectId),
+    })),
+    messages,
+  }
+}
+
 export function useChat() {
   const [channels, setChannels] = useState<ChatChannel[]>([])
   const [messagesByChannel, setMessagesByChannel] = useState<Record<string, ChatMessage[]>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [chatProjectId, setChatProjectId] = useState<string | null>(null)
   const joinedRef = useRef<Set<string>>(new Set())
+  const runRef = useRef(0)
 
   const load = useCallback(async () => {
+    const run = ++runRef.current
     setLoading(true)
     setError(false)
     try {
-      const orgs = await api.listOrgs()
-      if (!orgs?.length) throw new Error('no org')
-      const projects = await api.listProjects(orgs[0].id)
-      let chatProject: { id: string } | undefined = projects.find(
-        (p: any) => p.title === TEAM_CHAT_TITLE,
-      )
-      if (!chatProject) {
-        // A fresh workspace has no chat yet: provision the hidden "Team Chat"
-        // project with a #general channel instead of showing a network error.
-        // Roles that cannot create projects simply see an empty channel list.
-        try {
-          chatProject = await api.createProject({
-            title: TEAM_CHAT_TITLE,
-            organizationId: orgs[0].id,
-          })
-          await api.createChannel(chatProject.id, 'general')
-        } catch {
-          setChannels([])
-          setMessagesByChannel({})
-          return
-        }
-      }
-      const chans = await api.listProjectChannels(chatProject.id)
-      const msgs: Record<string, ChatMessage[]> = {}
-      for (const ch of chans) {
-        const list = await api.listChannelMessages(chatProject.id, ch.id)
-        msgs[String(ch.id)] = list.map((m: any) => ({
-          id: String(m.id),
-          author: String(m.author?._id ?? m.author),
-          text: m.body,
-          time: fmtTime(m.sentAt || m.createdAt),
-        }))
-      }
-      setChannels(
-        chans.map((c: any) => ({
-          id: String(c.id),
-          name: '#' + c.name,
-          projectId: String(c.projectId ?? chatProject.id),
-        })),
-      )
-      setMessagesByChannel(msgs)
+      const out = await withTimeout(loadChat(), CHAT_LOAD_TIMEOUT_MS)
+      if (run !== runRef.current) return // a newer load (retry) owns the state
+      setChatProjectId(out.projectId)
+      setChannels(out.channels)
+      setMessagesByChannel(out.messages)
     } catch {
-      setError(true)
+      if (run === runRef.current) setError(true)
     } finally {
-      setLoading(false)
+      if (run === runRef.current) setLoading(false)
     }
   }, [])
 
@@ -218,8 +259,13 @@ export function useChat() {
   /** Create a new channel and select it. */
   const createChannel = useCallback(
     async (name: string) => {
-      const chatProject = channels[0]?.projectId
-      if (!chatProject) throw new Error('Chat is still loading — try again in a moment.')
+      const chatProject = chatProjectId ?? channels[0]?.projectId
+      if (!chatProject)
+        throw new Error(
+          loading
+            ? 'Chat is still loading — try again in a moment.'
+            : 'Team chat is not set up yet.',
+        )
       const created = await api.createChannel(chatProject, name)
       const chan: ChatChannel = {
         id: String(created.id),
@@ -230,7 +276,7 @@ export function useChat() {
       getSocket().emit('channel:join', { channelId: chan.id })
       return chan
     },
-    [channels],
+    [channels, chatProjectId, loading],
   )
 
   return { channels, messagesByChannel, loading, error, retry: load, send, createChannel }

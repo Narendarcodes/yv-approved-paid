@@ -454,11 +454,13 @@ export interface Project {
   approvedVersion?: string
 }
 
-export async function listProjects(organizationId: string): Promise<Project[]> {
-  const res = await authFetch(
-    `${API_BASE}/projects?organizationId=${encodeURIComponent(organizationId)}`,
-    { credentials: 'include' },
-  )
+export async function listProjects(
+  organizationId: string,
+  opts: { search?: string } = {},
+): Promise<Project[]> {
+  const qs = new URLSearchParams({ organizationId })
+  if (opts.search) qs.set('search', opts.search)
+  const res = await authFetch(`${API_BASE}/projects?${qs}`, { credentials: 'include' })
   if (!res.ok) throw new Error('Failed to list projects')
   const body = await res.json()
   // Backend returns { data: [...] } or { data: { items, total } }
@@ -1630,6 +1632,8 @@ export interface PipelineData {
   }[]
   blocked: {
     kind: BlockedOn['kind']
+    /** set for a person (kind 'user') */
+    id?: string
     name: string
     count: number
     projects: { _id: string; title: string; action: string }[]

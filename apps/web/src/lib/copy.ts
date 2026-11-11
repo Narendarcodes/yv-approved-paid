@@ -67,6 +67,7 @@ export const DASH_LINE = {
   attention: 'Money and deadlines to watch this week.',
   stages: 'Every reel by stage. Tap a stage to list it.',
   waitingOn: 'Who holds the next step, and on what.',
+  waitingOnYou: 'Items where the next step is yours.',
   goingLive: 'Posts going out today, then the schedule.',
   review: 'Cuts waiting on a decision, nearest deadline first.',
   best: "Last week's top post by engagement.",
@@ -76,6 +77,7 @@ export const DASH_LINE = {
 export const DASH_EMPTY = {
   attention: 'No money is held yet. It shows here once a brand funds a reel.',
   waitingOn: 'Nobody is waiting on anyone.',
+  waitingOnYou: 'Nothing is waiting on you.',
   goingLive: 'Nothing today, and nothing scheduled.',
   review: 'No cuts are waiting on review.',
   best: 'No posts went live last week.',

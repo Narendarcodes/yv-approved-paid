@@ -441,7 +441,12 @@ describe('dashboard pipeline', () => {
     expect(stage('brief').items.find((i) => i.title === 'Needs inputs').blockedOn.name).toBe(
       'Ravi Editor',
     );
-    expect(d.blocked.find((b) => b.name === 'Ravi Editor').count).toBe(2);
+    // a person's row carries their id (the crew desk shows only its own row), and is keyed by it
+    const ravi = d.blocked.filter((b) => b.name === 'Ravi Editor');
+    expect(ravi).toHaveLength(1);
+    expect(ravi[0]).toMatchObject({ kind: 'user', id: String(editor._id), count: 2 });
+    expect(d.blocked.find((b) => b.name === 'Priya Publisher')).toMatchObject({ kind: 'user' });
+    expect(d.blocked.find((b) => b.name === 'Priya Publisher').id).toEqual(expect.any(String));
     expect(d.goingLiveToday.map((g) => g.title)).toContain('Live later today');
     expect(d.lastWeekBest).not.toBeNull();
   });

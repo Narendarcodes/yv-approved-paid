@@ -155,15 +155,30 @@ export default function ChatPage() {
                   <Skeleton className="h-5 w-full" />
                 </li>
               ))
-            ) : chat.channels.length === 0 ? (
-              <li className="px-2 py-3 text-[13px] text-umber" data-testid="chat-empty-channels">
-                No channels yet.{' '}
+            ) : chat.error ? (
+              <li className="px-2 py-3 text-[13px] text-umber" data-testid="chat-channels-error">
+                Channels did not load.{' '}
                 <button
                   className="font-medium text-teal hover:underline"
-                  onClick={() => setNewChannelOpen(true)}
+                  onClick={() => void chat.retry()}
                 >
-                  Create the first one
+                  Retry
                 </button>
+              </li>
+            ) : chat.channels.length === 0 ? (
+              <li className="px-2 py-3 text-[13px] text-umber" data-testid="chat-empty-channels">
+                No channels yet.
+                {mayCreateChannel && (
+                  <>
+                    {' '}
+                    <button
+                      className="font-medium text-teal hover:underline"
+                      onClick={() => setNewChannelOpen(true)}
+                    >
+                      Create the first one
+                    </button>
+                  </>
+                )}
               </li>
             ) : (
               chat.channels.map((c) => (
@@ -190,7 +205,11 @@ export default function ChatPage() {
           <header className="flex items-center justify-between gap-3 border-b border-line pb-3">
             <div className="min-w-0">
               <h2 className="truncate font-mono text-[14px] font-medium text-ink">
-                {chat.loading ? 'Loading…' : (active?.name ?? 'No channel')}
+                {chat.loading
+                  ? 'Loading…'
+                  : chat.error
+                    ? 'Chat unavailable'
+                    : (active?.name ?? 'No channel')}
               </h2>
               {active && <p className="text-[12px] text-umber">Live · updates in real time</p>}
             </div>
@@ -220,14 +239,16 @@ export default function ChatPage() {
                 ))}
               </div>
             ) : chat.error ? (
-              <ErrorBanner onRetry={() => void chat.retry()} />
+              <ErrorBanner message="Team chat did not load." onRetry={() => void chat.retry()} />
             ) : !chat.channels.length ? (
               <div className="py-10 text-center" data-testid="chat-empty">
                 <p className="text-sm text-umber">No channels yet.</p>
                 <p className="mt-1 text-[13px] text-umber">{EMPTY_LINE.chatChannels}</p>
-                <button className="btn-primary mt-3" onClick={() => setNewChannelOpen(true)}>
-                  <Plus size={14} strokeWidth={2} /> Create the first one
-                </button>
+                {mayCreateChannel && (
+                  <button className="btn-primary mt-3" onClick={() => setNewChannelOpen(true)}>
+                    <Plus size={14} strokeWidth={2} /> Create the first one
+                  </button>
+                )}
               </div>
             ) : messages.length === 0 ? (
               <p className="py-10 text-center text-sm text-umber">
