@@ -7,7 +7,8 @@ const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'void'];
 async function assertOrg(organizationId) {
   const Organization = require('../models/organization.model');
   const org = await Organization.findById(organizationId);
-  if (!org) throw { status: 404, code: 'organization_not_found', message: 'Organization not found' };
+  if (!org)
+    throw { status: 404, code: 'organization_not_found', message: 'Organization not found' };
   return org;
 }
 
@@ -28,9 +29,10 @@ async function refreshOverdueStatus(invoice) {
   return invoice;
 }
 
-async function listInvoices({ organizationId, status, limit = 100, skip = 0 }) {
+async function listInvoices({ organizationId, status, limit = 100, skip = 0, createdBy = null }) {
   await assertOrg(organizationId);
   const q = { organizationId };
+  if (createdBy) q.createdBy = createdBy; // invoice.view: own invoices only
   if (status) q.status = status;
   const items = await Invoice.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit);
   await Promise.all(items.map(refreshOverdueStatus));
@@ -38,17 +40,42 @@ async function listInvoices({ organizationId, status, limit = 100, skip = 0 }) {
   return { items, total, limit, skip };
 }
 
-async function createInvoice({ organizationId, projectId = null, number, amount, currency = 'USD', dueDate = null, note = '', createdBy }) {
+async function createInvoice({
+  organizationId,
+  projectId = null,
+  number,
+  amount,
+  currency = 'USD',
+  dueDate = null,
+  note = '',
+  createdBy,
+}) {
   await assertOrg(organizationId);
   await assertProjectIfSet(projectId, organizationId);
-  const invoice = new Invoice({ organizationId, projectId, number, amount, currency, dueDate, note, createdBy });
+  const invoice = new Invoice({
+    organizationId,
+    projectId,
+    number,
+    amount,
+    currency,
+    dueDate,
+    note,
+    createdBy,
+  });
   await invoice.save();
-  await bus.emitAsync('invoice.created', { organizationId, projectId, invoice, actorId: createdBy });
+  await bus.emitAsync('invoice.created', {
+    organizationId,
+    projectId,
+    invoice,
+    actorId: createdBy,
+  });
   return invoice;
 }
 
-async function getInvoice({ organizationId, invoiceId }) {
-  const invoice = await Invoice.findOne({ _id: invoiceId, organizationId });
+async function getInvoice({ organizationId, invoiceId, createdBy = null }) {
+  const q = { _id: invoiceId, organizationId };
+  if (createdBy) q.createdBy = createdBy; // invoice.view: someone else's invoice is not found
+  const invoice = await Invoice.findOne(q);
   if (!invoice) throw { status: 404, code: 'invoice_not_found', message: 'Invoice not found' };
   return refreshOverdueStatus(invoice);
 }
@@ -56,7 +83,11 @@ async function getInvoice({ organizationId, invoiceId }) {
 async function updateInvoice({ organizationId, invoiceId, actorId, fields = {} }) {
   const invoice = await getInvoice({ organizationId, invoiceId });
   if (invoice.status !== 'draft') {
-    throw { status: 400, code: 'invoice_not_editable', message: 'Only draft invoices can be edited' };
+    throw {
+      status: 400,
+      code: 'invoice_not_editable',
+      message: 'Only draft invoices can be edited',
+    };
   }
   const changes = {};
   for (const k of ['number', 'amount', 'currency', 'projectId', 'dueDate', 'note']) {
@@ -82,10 +113,18 @@ async function sendInvoice({ organizationId, invoiceId, actorId }) {
   return invoice;
 }
 
-async function recordPayment({ organizationId, invoiceId, actorId, paymentMethod = '', paidAt = null }) {
+async function recordPayment({
+  organizationId,
+  invoiceId,
+  actorId,
+  paymentMethod = '',
+  paidAt = null,
+}) {
   const invoice = await getInvoice({ organizationId, invoiceId });
-  if (invoice.status === 'paid') throw { status: 400, code: 'already_paid', message: 'Invoice is already paid' };
-  if (invoice.status === 'void') throw { status: 400, code: 'invoice_void', message: 'Void invoices cannot be paid' };
+  if (invoice.status === 'paid')
+    throw { status: 400, code: 'already_paid', message: 'Invoice is already paid' };
+  if (invoice.status === 'void')
+    throw { status: 400, code: 'invoice_void', message: 'Void invoices cannot be paid' };
   invoice.status = 'paid';
   invoice.paidAt = paidAt || new Date();
   invoice.paymentMethod = paymentMethod || invoice.paymentMethod;
@@ -96,10 +135,16 @@ async function recordPayment({ organizationId, invoiceId, actorId, paymentMethod
 
 async function voidInvoice({ organizationId, invoiceId, actorId }) {
   const invoice = await getInvoice({ organizationId, invoiceId });
-  if (invoice.status === 'paid') throw { status: 400, code: 'already_paid', message: 'Paid invoices cannot be voided' };
+  if (invoice.status === 'paid')
+    throw { status: 400, code: 'already_paid', message: 'Paid invoices cannot be voided' };
   invoice.status = 'void';
   await invoice.save();
-  await bus.emitAsync('invoice.voided', { organizationId, invoiceId: invoice._id, invoice, actorId });
+  await bus.emitAsync('invoice.voided', {
+    organizationId,
+    invoiceId: invoice._id,
+    invoice,
+    actorId,
+  });
   return invoice;
 }
 
@@ -107,9 +152,11 @@ async function voidInvoice({ organizationId, invoiceId, actorId }) {
  * Outstanding revenue across unpaid invoices (Fluit Intelligence-style query):
  * sent + overdue invoices.
  */
-async function outstanding({ organizationId }) {
+async function outstanding({ organizationId, createdBy = null }) {
   await assertOrg(organizationId);
-  const invoices = await Invoice.find({ organizationId, status: { $in: ['sent', 'overdue'] } });
+  const q = { organizationId, status: { $in: ['sent', 'overdue'] } };
+  if (createdBy) q.createdBy = createdBy; // invoice.view: own invoices only
+  const invoices = await Invoice.find(q);
   const refreshed = await Promise.all(invoices.map(refreshOverdueStatus));
   const total = refreshed.reduce((sum, i) => sum + i.amount, 0);
   const byCurrency = {};

@@ -634,9 +634,9 @@ Keep `docs/openapi.yaml` in sync when routes or validators change.
 
 | Method  | Path                                            | Permission           | Description                |
 | ------- | ----------------------------------------------- | -------------------- | -------------------------- |
-| `GET`   | `/organizations/:id/contracts?status=`          | 🔒 `contract.manage` | List                       |
+| `GET` | `/organizations/:id/contracts?status=` | 🔒 `contract.manage` (org) / `contract.view` (own) | List |
 | `POST`  | `/organizations/:id/contracts`                  | 🔒 `contract.manage` | Create (draft)             |
-| `GET`   | `/organizations/:id/contracts/:contractId`      | 🔒 `contract.manage` | Detail                     |
+| `GET` | `/organizations/:id/contracts/:contractId` | 🔒 `contract.manage` (org) / `contract.view` (own) | Detail |
 | `PATCH` | `/organizations/:id/contracts/:contractId`      | 🔒 `contract.manage` | Edit (draft only)          |
 | `POST`  | `/organizations/:id/contracts/:contractId/send` | 🔒 `contract.manage` | `draft → sent`             |
 | `POST`  | `/organizations/:id/contracts/:contractId/view` | 🔒 `contract.manage` | `sent → viewed`            |
@@ -646,10 +646,10 @@ Keep `docs/openapi.yaml` in sync when routes or validators change.
 
 | Method  | Path                                          | Permission          | Description                      |
 | ------- | --------------------------------------------- | ------------------- | -------------------------------- |
-| `GET`   | `/organizations/:id/invoices/outstanding`     | 🔒 `invoice.manage` | Outstanding revenue summary      |
-| `GET`   | `/organizations/:id/invoices?status=`         | 🔒 `invoice.manage` | List                             |
+| `GET` | `/organizations/:id/invoices/outstanding` | 🔒 `invoice.manage` (org) / `invoice.view` (own) | Outstanding revenue summary |
+| `GET` | `/organizations/:id/invoices?status=` | 🔒 `invoice.manage` (org) / `invoice.view` (own) | List |
 | `POST`  | `/organizations/:id/invoices`                 | 🔒 `invoice.manage` | Create (draft)                   |
-| `GET`   | `/organizations/:id/invoices/:invoiceId`      | 🔒 `invoice.manage` | Detail                           |
+| `GET` | `/organizations/:id/invoices/:invoiceId` | 🔒 `invoice.manage` (org) / `invoice.view` (own) | Detail |
 | `PATCH` | `/organizations/:id/invoices/:invoiceId`      | 🔒 `invoice.manage` | Edit (draft only)                |
 | `POST`  | `/organizations/:id/invoices/:invoiceId/send` | 🔒 `invoice.manage` | `draft → sent` (net-30 due date) |
 | `POST`  | `/organizations/:id/invoices/:invoiceId/pay`  | 🔒 `invoice.manage` | `→ paid`                         |

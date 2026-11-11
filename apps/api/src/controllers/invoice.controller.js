@@ -6,6 +6,7 @@ async function list(req, res, next) {
     const { status, limit, skip } = req.query;
     const result = await invoiceService.listInvoices({
       organizationId,
+      createdBy: req.readScope?.createdBy || null,
       status,
       limit: parseInt(limit, 10) || 100,
       skip: parseInt(skip, 10) || 0,
@@ -39,7 +40,11 @@ async function create(req, res, next) {
 async function get(req, res, next) {
   try {
     const { organizationId, invoiceId } = req.params;
-    const invoice = await invoiceService.getInvoice({ organizationId, invoiceId });
+    const invoice = await invoiceService.getInvoice({
+      organizationId,
+      invoiceId,
+      createdBy: req.readScope?.createdBy || null,
+    });
     res.json({ data: invoice });
   } catch (err) {
     next(err);
@@ -64,7 +69,11 @@ async function update(req, res, next) {
 async function send(req, res, next) {
   try {
     const { organizationId, invoiceId } = req.params;
-    const invoice = await invoiceService.sendInvoice({ organizationId, invoiceId, actorId: req.user._id });
+    const invoice = await invoiceService.sendInvoice({
+      organizationId,
+      invoiceId,
+      actorId: req.user._id,
+    });
     res.json({ data: invoice });
   } catch (err) {
     next(err);
@@ -91,7 +100,11 @@ async function recordPayment(req, res, next) {
 async function voidInvoice(req, res, next) {
   try {
     const { organizationId, invoiceId } = req.params;
-    const invoice = await invoiceService.voidInvoice({ organizationId, invoiceId, actorId: req.user._id });
+    const invoice = await invoiceService.voidInvoice({
+      organizationId,
+      invoiceId,
+      actorId: req.user._id,
+    });
     res.json({ data: invoice });
   } catch (err) {
     next(err);
@@ -101,7 +114,10 @@ async function voidInvoice(req, res, next) {
 async function outstanding(req, res, next) {
   try {
     const { organizationId } = req.params;
-    const result = await invoiceService.outstanding({ organizationId });
+    const result = await invoiceService.outstanding({
+      organizationId,
+      createdBy: req.readScope?.createdBy || null,
+    });
     res.json({ data: result });
   } catch (err) {
     next(err);

@@ -26,6 +26,8 @@ export type Permission =
   | 'manage_concepts'
   | 'review_concepts'
   | 'settings'
+  | 'manage_invoices'
+  | 'manage_contracts'
 
 export const PERMISSION_LABELS: Record<Permission, string> = {
   view: 'View projects',
@@ -41,6 +43,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   manage_concepts: 'Manage concepts',
   review_concepts: 'Approve or decline concepts',
   settings: 'Workspace settings',
+  manage_invoices: 'Create, send and settle invoices',
+  manage_contracts: 'Create, send and sign contracts',
 }
 
 export interface RoleInfo {
@@ -72,6 +76,8 @@ export const ROLES: RoleInfo[] = [
       'manage_concepts',
       'review_concepts',
       'settings',
+      'manage_invoices',
+      'manage_contracts',
     ],
   },
   {

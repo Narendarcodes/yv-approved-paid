@@ -25,6 +25,8 @@ import { ErrorBanner, ListSkeleton } from '../components/states'
 import { useToast } from '../components/toast'
 import { PaypalInvoiceId } from '../components/deals/common'
 import { primaryOrgId, useProjects } from '../lib/data'
+import { can } from '../lib/roles'
+import { useViewer } from '../lib/viewer'
 import {
   INVOICE_STATUS,
   dateOnly,
@@ -116,6 +118,8 @@ function sumByCurrency(rows: Row[]) {
 }
 
 export default function InvoicesPage() {
+  // crew (invoice.view) read their own invoices; writes are brand/admin only (invoice.manage)
+  const mayManage = can(useViewer(), 'manage_invoices')
   const toast = useToast()
   const { projects } = useProjects()
   const [orgId, setOrgId] = useState<string | null>(null)
@@ -263,6 +267,7 @@ export default function InvoicesPage() {
       )
     const inv = r.inv!
     const busy = busyId === inv.id
+    if (!mayManage) return null
     return (
       <>
         {inv.status === 'draft' && (
@@ -330,9 +335,11 @@ export default function InvoicesPage() {
         title="Invoices"
         subtitle={PAGE_LINE['/invoices']}
         actions={
-          <button className="btn-primary" onClick={openNew} data-testid="new-invoice">
-            <Plus size={15} strokeWidth={1.75} /> New invoice
-          </button>
+          mayManage ? (
+            <button className="btn-primary" onClick={openNew} data-testid="new-invoice">
+              <Plus size={15} strokeWidth={1.75} /> New invoice
+            </button>
+          ) : undefined
         }
       />
 
@@ -372,9 +379,11 @@ export default function InvoicesPage() {
           title="No invoices yet"
           description={EMPTY_LINE.invoices}
           action={
-            <button className="btn-primary" onClick={openNew}>
-              New invoice
-            </button>
+            mayManage ? (
+              <button className="btn-primary" onClick={openNew}>
+                New invoice
+              </button>
+            ) : undefined
           }
         />
       ) : (

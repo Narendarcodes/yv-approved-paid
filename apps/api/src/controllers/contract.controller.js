@@ -6,6 +6,7 @@ async function list(req, res, next) {
     const { status, limit, skip } = req.query;
     const result = await contractService.listContracts({
       organizationId,
+      createdBy: req.readScope?.createdBy || null,
       status,
       limit: parseInt(limit, 10) || 100,
       skip: parseInt(skip, 10) || 0,
@@ -39,7 +40,11 @@ async function create(req, res, next) {
 async function get(req, res, next) {
   try {
     const { organizationId, contractId } = req.params;
-    const contract = await contractService.getContract({ organizationId, contractId });
+    const contract = await contractService.getContract({
+      organizationId,
+      contractId,
+      createdBy: req.readScope?.createdBy || null,
+    });
     res.json({ data: contract });
   } catch (err) {
     next(err);
@@ -64,7 +69,11 @@ async function update(req, res, next) {
 async function send(req, res, next) {
   try {
     const { organizationId, contractId } = req.params;
-    const contract = await contractService.sendContract({ organizationId, contractId, actorId: req.user._id });
+    const contract = await contractService.sendContract({
+      organizationId,
+      contractId,
+      actorId: req.user._id,
+    });
     res.json({ data: contract });
   } catch (err) {
     next(err);
@@ -74,7 +83,11 @@ async function send(req, res, next) {
 async function markViewed(req, res, next) {
   try {
     const { organizationId, contractId } = req.params;
-    const contract = await contractService.markViewed({ organizationId, contractId, actorId: req.user._id });
+    const contract = await contractService.markViewed({
+      organizationId,
+      contractId,
+      actorId: req.user._id,
+    });
     res.json({ data: contract });
   } catch (err) {
     next(err);

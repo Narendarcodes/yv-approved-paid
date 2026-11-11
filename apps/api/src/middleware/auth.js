@@ -84,4 +84,38 @@ function requireProjectMember(idParam = 'id') {
   return access.can(null, { from: 'project', param: idParam });
 }
 
-module.exports = { authenticate, requireOrg, requirePermission, requireProjectMember };
+/**
+ * Read access with an own-records fallback. After requireOrg: a member holding
+ * `manage` reads every record in the org; one holding only `view` reads the
+ * records they created (req.readScope.createdBy); anyone else gets 403.
+ * Controllers pass req.readScope.createdBy to the service query, so another
+ * member's record answers 404 (no existence leak). Writes stay on `manage`.
+ */
+function requireReadScope(manage, view) {
+  return function readScope(req, res, next) {
+    if (!req.ctx)
+      return res
+        .status(500)
+        .json({ error: { code: 'access_unresolved', message: 'Access context missing' } });
+    const perms = req.ctx.permissions || [];
+    if (access.allows(perms, manage)) {
+      req.readScope = { createdBy: null };
+      return next();
+    }
+    if (access.allows(perms, view)) {
+      req.readScope = { createdBy: String(req.user._id) };
+      return next();
+    }
+    return res
+      .status(403)
+      .json({ error: { code: 'forbidden', message: 'Insufficient permission' } });
+  };
+}
+
+module.exports = {
+  authenticate,
+  requireOrg,
+  requirePermission,
+  requireProjectMember,
+  requireReadScope,
+};

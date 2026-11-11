@@ -5,6 +5,8 @@ import { PageHeader } from '../components/ui'
 import { ErrorBanner, ListSkeleton } from '../components/states'
 import { useToast } from '../components/toast'
 import { primaryOrgId, useProjects } from '../lib/data'
+import { can } from '../lib/roles'
+import { useViewer } from '../lib/viewer'
 import {
   contractAction,
   createContract,
@@ -19,6 +21,8 @@ const STEPS: Contract['status'][] = ['draft', 'sent', 'viewed', 'signed']
 
 export default function ContractsPage() {
   const toast = useToast()
+  // crew (contract.view) read their own contracts; writes are brand/admin only (contract.manage)
+  const mayManage = can(useViewer(), 'manage_contracts')
   const { projects } = useProjects()
   const [orgId, setOrgId] = useState<string | null>(null)
   const [contracts, setContracts] = useState<Contract[]>([])
@@ -108,22 +112,24 @@ export default function ContractsPage() {
         title="Contracts"
         subtitle={PAGE_LINE['/contracts']}
         actions={
-          <button
-            className="btn-primary"
-            onClick={() => {
-              setForm({
-                title: '',
-                sentTo: '',
-                amount: '',
-                currency: 'INR',
-                projectId: projects[0]?.id ?? '',
-                terms: '',
-              })
-              setOpen(true)
-            }}
-          >
-            <Plus size={15} strokeWidth={1.75} /> New contract
-          </button>
+          mayManage ? (
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setForm({
+                  title: '',
+                  sentTo: '',
+                  amount: '',
+                  currency: 'INR',
+                  projectId: projects[0]?.id ?? '',
+                  terms: '',
+                })
+                setOpen(true)
+              }}
+            >
+              <Plus size={15} strokeWidth={1.75} /> New contract
+            </button>
+          ) : undefined
         }
       />
 
@@ -198,7 +204,7 @@ export default function ContractsPage() {
                   ))}
                 </ol>
                 <div className="flex gap-1.5">
-                  {c.status === 'draft' && (
+                  {mayManage && c.status === 'draft' && (
                     <button
                       className="btn-secondary btn-sm"
                       disabled={busyId === c.id}
@@ -207,7 +213,7 @@ export default function ContractsPage() {
                       <Send size={13} strokeWidth={1.75} /> Send
                     </button>
                   )}
-                  {c.status === 'sent' && (
+                  {mayManage && c.status === 'sent' && (
                     <button
                       className="btn-ghost btn-sm"
                       disabled={busyId === c.id}
@@ -216,7 +222,7 @@ export default function ContractsPage() {
                       <Eye size={13} strokeWidth={1.75} /> Mark viewed
                     </button>
                   )}
-                  {c.status !== 'signed' && c.status !== 'draft' && (
+                  {mayManage && c.status !== 'signed' && c.status !== 'draft' && (
                     <button
                       className="btn-primary btn-sm"
                       onClick={() => {
