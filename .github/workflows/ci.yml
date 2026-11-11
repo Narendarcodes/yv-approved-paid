@@ -96,14 +96,25 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - name: Install ffmpeg (video check tests need ffmpeg/ffprobe)
-        timeout-minutes: 15
-        # the default Ubuntu mirror is sometimes unreachable from hosted runners: time out, switch mirror, retry
+        timeout-minutes: 12
+        # the Ubuntu archive is often unreachable from hosted runners (the step hung or failed with
+        # every mirror): one short apt try, then the static BtbN build from GitHub releases into /usr/local/bin
         run: |
-          opts="-o Acquire::http::Timeout=20 -o Acquire::Retries=2"
-          get() { timeout 300 sudo apt-get $opts update -qq && timeout 300 sudo apt-get $opts install -y -qq ffmpeg; }
-          get && exit 0
-          sudo sed -i -E 's#https?://((azure\.)?archive|security)\.ubuntu\.com/ubuntu#http://mirrors.edge.kernel.org/ubuntu#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
-          get
+          set +e
+          opts="-o Acquire::http::Timeout=15 -o Acquire::Retries=1"
+          timeout 120 sudo apt-get $opts update -qq && timeout 180 sudo apt-get $opts install -y -qq --no-install-recommends ffmpeg
+          if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then ffmpeg -version | sed -n 1p; exit 0; fi
+          echo "apt ffmpeg unavailable; using the BtbN static build"
+          set -e
+          url=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          for i in 1 2 3; do
+            curl -fsSL --retry 3 --retry-delay 5 --max-time 240 -o /tmp/ffmpeg.tar.xz "$url" && break
+            sleep 10
+          done
+          mkdir -p /tmp/ffmpeg && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg --strip-components=1
+          sudo install -m 0755 /tmp/ffmpeg/bin/ffmpeg /tmp/ffmpeg/bin/ffprobe /usr/local/bin/
+          ffmpeg -version | sed -n 1p
+          ffprobe -version | sed -n 1p
       - run: pip install -r requirements.txt -r requirements-media.txt -r requirements-dev.txt
       - run: python -m pytest -q
       - name: Golden-question evals are well-formed
