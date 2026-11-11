@@ -416,11 +416,17 @@ describe('GET .../payout-receipts', () => {
     expect(d.me).toBeNull();
   });
 
-  test('a deal manager who is not on the crew sees every line', async () => {
-    const r = await receipts(dealId, U.manager);
+  test('an org admin who is not on the crew sees every line', async () => {
+    const r = await receipts(dealId, U.admin);
     expect(r.status).toBe(200);
     expect(r.body.data.scope).toBe('all');
     expect(r.body.data.lines).toHaveLength(2);
+  });
+
+  test('a deal manager who is not on the deal gets a plain 404 (deal.manage is a crew grant)', async () => {
+    const r = await receipts(dealId, U.manager);
+    expect(r.status).toBe(404);
+    expect(JSON.stringify(r.body)).not.toMatch(/"amountMinor":(12000|28000)\b/);
   });
 
   test('a crew member sees only their own line, even the lead editor who can manage deals', async () => {

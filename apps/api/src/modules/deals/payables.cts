@@ -1,7 +1,7 @@
 /**
  * deals/payables: the money views across an organization's deals.
  *
- *   payableRows(deals, now, names)        one row per milestone (brand / deal-manager board)
+ *   payableRows(deals, now, names)        one row per milestone (brand / admin board)
  *   myMoneyRows(deals, userId, now, names) a crew member's milestones: their share, what was
  *                                          released to them, and when the rest is expected
  *   planApproval(deal, key, userId, now)  the dry run of one approve: what would be captured,

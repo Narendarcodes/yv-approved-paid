@@ -3,7 +3,7 @@
  * read from what the engine stored when the batch ran (milestone.payouts).
  *
  *   receiptsOf(deal, key, { userId, all })
- *     all = true   the brand (client) and deal managers: every member's line
+ *     all = true   the brand (client) and org admins off the crew: every member's line
  *     all = false  a member: only their own lines, and no batch totals
  */
 import type { DealDoc, Payout } from './types.cts';
@@ -40,7 +40,9 @@ function receiptsOf(deal: DealDoc, key: string, viewer: { userId: string; all: b
   const m = deal.milestones.find((x) => x.key === key);
   if (!t || !m) return null;
   const payeeOf = (p: Payout) =>
-    t.payees.find((x) => (p.userId ? x.userId === p.userId : x.email.toLowerCase() === p.email.toLowerCase()));
+    t.payees.find((x) =>
+      p.userId ? x.userId === p.userId : x.email.toLowerCase() === p.email.toLowerCase(),
+    );
   const batchOf = (id: string) => (m.payoutBatches || []).find((b) => b.batchId === id);
   const all: ReceiptLine[] = m.payouts.map((p) => {
     const payee = payeeOf(p);

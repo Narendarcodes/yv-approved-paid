@@ -23,7 +23,13 @@ const { resolveEvidence } = require('./lib/evidence.cts');
 const { askCopilot } = require('./copilot.cts');
 const { planTeam, applyTeam, statusOf } = require('./team.cts');
 const { receiptsOf } = require('./lib/receipts.cts');
-const { seesAllPayouts, redactDeal, redactLedger, visibleTo } = require('./lib/visibility.cts');
+const {
+  seesAllPayouts,
+  canReadDeal,
+  redactDeal,
+  redactLedger,
+  visibleTo,
+} = require('./lib/visibility.cts');
 const config = require('../../config');
 const rateLimit = require('express-rate-limit');
 
@@ -38,13 +44,14 @@ const wrap = (fn: (req: Req, res: Res) => Promise<unknown>) => (req: Req, res: R
 const uid = (req: Req) => String(req.user._id);
 const org = (req: Req) => String(req.ctx.orgId);
 
-function canManage(req: Req) {
-  return access.allows(req.ctx.permissions || [], 'deal.manage');
+/** Org admin (payables.view_org, granted through '*'). deal.manage is a crew grant and opens nothing here. */
+function isAdmin(req: Req) {
+  return access.allows(req.ctx.permissions || [], 'payables.view_org');
 }
 
-/** Does this request see every crew member's payout lines on this deal (brand, or a deal manager not on the crew)? */
+/** Does this request see every crew member's payout lines on this deal (the brand, or an admin not on the crew)? */
 function seesAll(req: Req, deal: DealDoc) {
-  return seesAllPayouts(deal, uid(req), canManage(req));
+  return seesAllPayouts(deal, uid(req), isAdmin(req));
 }
 
 /**
@@ -97,10 +104,18 @@ function shape(terms: DealTerms) {
   if (JSON.stringify(terms).length > 100_000) throw bad('invalid_terms', 'terms are too large');
 }
 
+/** The deal, if this user is on it (party or crew) or is an org admin; anyone else gets a plain 404. */
 async function readable(req: Req, dealId: string): Promise<DealDoc> {
   const d = await dealService().get(dealId, org(req));
-  if (!actorRole(d, uid(req)) && !canManage(req))
-    throw bad('deal_not_found', 'deal not found', 404);
+  if (!canReadDeal(d, uid(req), isAdmin(req))) throw bad('deal_not_found', 'deal not found', 404);
+  return d;
+}
+
+/** For routes that change the deal: a party (client / worker) or an org admin. Crew who are only payees read, they do not act. */
+async function actable(req: Req, dealId: string): Promise<DealDoc> {
+  const d = await readable(req, dealId);
+  if (!actorRole(d, uid(req)) && !isAdmin(req))
+    throw bad('not_party', 'only a party to this deal can do that', 403);
   return d;
 }
 
@@ -110,10 +125,10 @@ router.use(authenticate, access.can(null, { from: 'org' }));
 router.get(
   '/',
   wrap(async (req, res) => {
-    const deals = await dealService().list(
-      org(req),
-      uid(req),
-      canManage(req) && req.query.all === '1',
+    // ?all=1 is the org-wide list for admins; everyone else gets the deals they are on (party or crew)
+    const admin = isAdmin(req);
+    const deals = (await dealService().list(org(req), uid(req), true)).filter((d: DealDoc) =>
+      admin && req.query.all === '1' ? true : canReadDeal(d, uid(req), false),
     );
     res.json({ data: deals.map((d: DealDoc) => view(d, req)) });
   }),
@@ -256,7 +271,7 @@ router.get(
 
 /**
  * A check-evidence screenshot (LiveChecksCard thumbnails). Signed-in parties
- * (or deal managers) of this org only, and only a file name that this deal's
+ * (or crew and admins) of this org only, and only a file name that this deal's
  * stored check results reference; anything else is a plain 404.
  */
 router.get(
@@ -295,7 +310,7 @@ router.get(
 router.post(
   '/:dealId/tick',
   wrap(async (req, res) => {
-    await readable(req, req.params.dealId);
+    await actable(req, req.params.dealId);
     const r = await dealService().tick(req.params.dealId, org(req));
     res.json({ data: { deal: view(r.deal, req), results: resultsFor(req, r.deal, r.out) } });
   }),
@@ -561,7 +576,7 @@ router.post(
 router.put(
   `${M}/clock-terms`,
   wrap(async (req, res) => {
-    const d = await readable(req, req.params.dealId);
+    const d = await actable(req, req.params.dealId);
     if (d.termsHash)
       throw bad(
         'deal_locked',
@@ -588,7 +603,7 @@ router.put(
 /**
  * Team payout receipts for a milestone: each member's line of every payout batch
  * (amount, share, release step, batch id, simulated or not). The brand (client)
- * and deal managers see every line; a crew member (a payee of the milestone)
+ * and org admins off the crew see every line; a crew member (a payee of the milestone)
  * sees only their own line, even when their org role can manage deals. Anyone
  * else in the org gets a plain 404, like any deal they cannot read.
  */
@@ -601,7 +616,7 @@ router.get(
     const member =
       !!t?.payees.some((p) => p.userId === me) ||
       !!d.milestones.find((x) => x.key === req.params.key)?.payouts.some((p) => p.userId === me);
-    const all = actorRole(d, me) === 'client' || (canManage(req) && !member);
+    const all = actorRole(d, me) === 'client' || (isAdmin(req) && !member);
     if (!all && !member && !actorRole(d, me)) throw bad('deal_not_found', 'deal not found', 404);
     const r = receiptsOf(d, req.params.key, { userId: me, all });
     if (!r) throw bad('milestone_not_found', `no milestone ${req.params.key}`, 404);
@@ -630,7 +645,7 @@ router.post(
 router.put(
   `${M}/team`,
   wrap(async (req, res) => {
-    const d = await readable(req, req.params.dealId);
+    const d = await actable(req, req.params.dealId);
     const plan = await planTeam(d, req.params.key, req.body || {}, {
       orgId: org(req),
       userId: uid(req),
@@ -659,7 +674,7 @@ router.put(
 router.post(
   '/:dealId/change-orders',
   wrap(async (req, res) => {
-    const d = await readable(req, req.params.dealId);
+    const d = await actable(req, req.params.dealId);
     const role = actorRole(d, uid(req));
     if (!role) throw bad('not_party', 'only a party can draft a change order', 403);
     const b = req.body || {};
@@ -678,7 +693,7 @@ for (const verb of ['accept', 'decline'] as const) {
   router.post(
     `/:dealId/change-orders/:coId/${verb}`,
     wrap(async (req, res) => {
-      await readable(req, req.params.dealId);
+      await actable(req, req.params.dealId);
       const r = await dealService().decideChangeOrder(
         req.params.dealId,
         org(req),
@@ -725,7 +740,8 @@ router.post(
     const a = config.agent;
     const reply = await askCopilot(
       { enabled: a.enabled, url: a.url, secret: a.sharedSecret, timeoutMs: a.copilotTimeoutMs },
-      d,
+      // the copilot reads the deal as this viewer may see it: crew get their own payout lines only
+      seesAll(req, d) ? d : redactDeal(d, uid(req)),
       actorRole(d, uid(req)) ?? null,
       q,
     );

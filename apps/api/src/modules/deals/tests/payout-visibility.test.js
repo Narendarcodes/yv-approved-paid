@@ -2,8 +2,11 @@
  * Crew members see only their own payout lines everywhere, not just on the
  * payout-receipts endpoint: GET /deals/:id, the deal list, the ledger (and its
  * totals), Money Agent results from a tick, the payables board and the live
- * ledger socket. The brand and deal managers who are not on the crew keep the
- * full view. Leo (lead editor, editor role = can manage deals) 70%, Maya 30%
+ * ledger socket. Strict crew scoping: only the brand (client) and org admins
+ * off the crew keep the full view. deal.manage is a crew grant: a deal manager
+ * who is not on a deal cannot open it at all (404), and a crew member (even
+ * one who is only a payee) opens the deals they are on and sees only their own
+ * payout lines. Leo (lead editor, editor role = can manage deals) 70%, Maya 30%
  * of a $400 milestone: Leo 28000, Maya 12000.
  */
 const http = require('node:http');
@@ -100,9 +103,9 @@ const getDeal = (dealId, who) => request(app).get(`${base()}/${dealId}`).set(aut
 const getLedger = (dealId, who) => request(app).get(`${base()}/${dealId}/ledger`).set(auth(who));
 const payoutLines = (l) => l.entries.filter((e) => e.type === 'payout');
 /** Maya's amount (12000) must not appear on any payout-shaped field Leo receives. */
-const mentionsSana = (body) =>
-  /"amountMinor":12000\b/.test(JSON.stringify(body)) ||
-  /Maya/.test(
+const mentionsSana = (body, amount = 12000, name = 'Maya') =>
+  new RegExp(`"amountMinor":${amount}\\b`).test(JSON.stringify(body)) ||
+  new RegExp(name).test(
     JSON.stringify(body.data?.milestones?.map((m) => m.payouts) ?? body.data?.entries ?? body),
   );
 
@@ -151,9 +154,9 @@ afterAll(async () => {
   await mongoose.disconnect();
 });
 
-describe('brand view (and deal managers not on the crew): every member line', () => {
+describe('brand view (and org admins not on the crew): every member line', () => {
   test('GET deal: both payouts, the milestone paid-out total and the batch', async () => {
-    for (const who of [U.client, U.manager]) {
+    for (const who of [U.client, U.admin]) {
       const d = (await getDeal(dealId, who)).body.data;
       expect(d.payoutScope).toBe('all');
       const m = d.milestones[0];
@@ -174,8 +177,9 @@ describe('brand view (and deal managers not on the crew): every member line', ()
     expect(payoutLines(l).map((e) => e.amountMinor)).toEqual([28000, 12000]);
     expect(l.totals.paidOutMinor).toBe(40000);
     expect(l.chain.ok).toBe(true);
-    const mgr = (await getLedger(dealId, U.manager)).body.data;
-    expect(payoutLines(mgr)).toHaveLength(2);
+    const adm = (await getLedger(dealId, U.admin)).body.data;
+    expect(adm.scope).toBe('all');
+    expect(payoutLines(adm)).toHaveLength(2);
   });
 
   test('payables board: the brand and an admin off the crew both see the row; a deal manager does not', async () => {
@@ -238,9 +242,27 @@ describe('editor view (crew): only their own payout lines', () => {
     expect(rows.find((r) => r.dealId === dealId)).toBeUndefined();
   });
 
-  test('a crew member who is not a party and cannot manage deals still cannot read the deal', async () => {
-    expect((await getDeal(dealId, U.motion)).status).toBe(404);
-    expect((await getLedger(dealId, U.motion)).status).toBe(404);
+  test('a crew member who is only a payee reads the deal they are on: own line only, cannot act', async () => {
+    const r = await getDeal(dealId, U.motion);
+    expect(r.status).toBe(200);
+    expect(r.body.data.me).toBeNull();
+    expect(r.body.data.payoutScope).toBe('own');
+    expect(r.body.data.milestones[0].payouts.map((p) => [p.displayName, p.amountMinor])).toEqual([
+      ['Maya', 12000],
+    ]);
+    expect(r.body.data.milestones[0].paidOutMinor).toBe(12000);
+    expect(mentionsSana(r.body, 28000, 'Leo')).toBe(false);
+    const l = (await getLedger(dealId, U.motion)).body.data;
+    expect(l.scope).toBe('own');
+    expect(payoutLines(l).map((e) => e.amountMinor)).toEqual([12000]);
+    expect(l.totals.paidOutMinor).toBe(12000);
+    expect(/"amountMinor":28000\b/.test(JSON.stringify(payoutLines(l)))).toBe(false);
+    const list = (await request(app).get(`${base()}?all=1`).set(auth(U.motion))).body.data;
+    expect(list.map((d) => d.id)).toContain(dealId);
+    // reading is not acting: a payee who is not a party cannot nudge the Money Agent
+    expect((await request(app).post(`${base()}/${dealId}/tick`).set(auth(U.motion))).status).toBe(
+      403,
+    );
   });
 
   test('payout-receipts agrees: own line only', async () => {
@@ -251,6 +273,65 @@ describe('editor view (crew): only their own payout lines', () => {
     ).body.data;
     expect(d.scope).toBe('own');
     expect(d.lines.map((l) => l.amountMinor)).toEqual([28000]);
+  });
+});
+
+describe('deal.manage off the deal (non-admin, non-client): no access at all', () => {
+  test('deal, ledger, receipts and evidence are a plain 404', async () => {
+    expect((await getDeal(dealId, U.manager)).status).toBe(404);
+    expect((await getLedger(dealId, U.manager)).status).toBe(404);
+    expect(
+      (
+        await request(app)
+          .get(`${M(dealId)}/payout-receipts`)
+          .set(auth(U.manager))
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await request(app)
+          .get(`${M(dealId)}/clock`)
+          .set(auth(U.manager))
+      ).status,
+    ).toBe(404);
+  });
+
+  test('the deal list (with or without ?all=1) leaves the deal out', async () => {
+    for (const q of ['', '?all=1']) {
+      const r = await request(app).get(`${base()}${q}`).set(auth(U.manager));
+      expect(r.status).toBe(200);
+      expect(r.body.data.find((x) => x.id === dealId)).toBeUndefined();
+      expect(/"amountMinor":(12000|28000)\b/.test(JSON.stringify(r.body))).toBe(false);
+    }
+  });
+
+  test('cannot nudge the Money Agent, ask the copilot or dry-run policy on it', async () => {
+    expect((await request(app).post(`${base()}/${dealId}/tick`).set(auth(U.manager))).status).toBe(
+      404,
+    );
+    expect(
+      (
+        await request(app)
+          .post(`${base()}/${dealId}/copilot`)
+          .set(auth(U.manager))
+          .send({ question: 'where is the money?' })
+      ).status,
+    ).toBe(404);
+    expect(
+      (await request(app).post(`${base()}/${dealId}/policy-check`).set(auth(U.manager)).send({}))
+        .status,
+    ).toBe(404);
+  });
+
+  test('the live ledger socket refuses to join', async () => {
+    const s = await socketClient(U.manager);
+    const ack = await join(s, dealId);
+    expect(ack.ok).toBe(false);
+  });
+
+  test('the admin list (?all=1) still has every deal', async () => {
+    const r = await request(app).get(`${base()}?all=1`).set(auth(U.admin));
+    expect(r.body.data.find((x) => x.id === dealId)).toMatchObject({ payoutScope: 'all' });
   });
 });
 

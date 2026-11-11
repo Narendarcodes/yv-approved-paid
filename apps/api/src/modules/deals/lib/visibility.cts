@@ -2,13 +2,17 @@
  * Who sees whose payout lines.
  *
  *   onCrew(deal, userId)                 a payee of any milestone (or named on a stored payout)
- *   seesAllPayouts(deal, userId, manage) the brand (client), or a deal manager who is not on the crew
+ *   onDeal(deal, userId)                 a party (client / worker) or on the crew
+ *   canReadDeal(deal, userId, admin)     on the deal, or an org admin (payables.view_org)
+ *   seesAllPayouts(deal, userId, admin)  the brand (client), or an org admin who is not on the crew
  *   redactDeal(deal, userId)             a crew member's view: only their own payouts and batch lines
  *   redactLedger(deal, entries, userId)  a crew member's ledger: their own payout lines, nobody else's
  *   ownsLedgerEntry(deal, entry, userId) is this payout ledger line the viewer's own
  *
- * Same rule as the payout-receipts endpoint: a crew member sees only their own
- * payout lines, even when their org role can manage deals. Other members'
+ * Strict crew scoping: deal.manage is a crew grant, not a brand one, so it never
+ * opens a deal the user is not on, and never shows a teammate's amount. Only the
+ * brand (client) and org admins see every line. Same rule as the payout-receipts
+ * endpoint: a crew member sees only their own payout lines. Other members'
  * payout lines are dropped (not shown as blanked rows) and payout batches
  * (totals and every member's item) are left out, as on the receipts endpoint,
  * so nothing on the page adds up to a teammate's amount. Signed terms (payees and shares) are not touched: they
@@ -26,9 +30,24 @@ function onCrew(deal: DealDoc, userId: string): boolean {
   );
 }
 
-function seesAllPayouts(deal: DealDoc, userId: string, canManage: boolean): boolean {
+/** A party to the deal (client or worker) or a payee of any milestone. */
+function onDeal(deal: DealDoc, userId: string): boolean {
+  return (
+    deal.terms.client.userId === userId ||
+    deal.terms.worker.userId === userId ||
+    onCrew(deal, userId)
+  );
+}
+
+/** May this user open the deal at all? On it, or an org admin. A deal manager off the deal may not. */
+function canReadDeal(deal: DealDoc, userId: string, admin: boolean): boolean {
+  return admin || onDeal(deal, userId);
+}
+
+/** Every crew member's payout lines: the brand (client), or an org admin who is not on the crew. */
+function seesAllPayouts(deal: DealDoc, userId: string, admin: boolean): boolean {
   if (deal.terms.client.userId === userId) return true;
-  return canManage && !onCrew(deal, userId);
+  return admin && !onCrew(deal, userId);
 }
 
 /** The viewer's payee emails on this milestone (legacy payout lines carry only an email). */
@@ -95,4 +114,13 @@ function redactLedger(deal: DealDoc, entries: LedgerEntry[], userId: string) {
   return { entries: mine, totals: totals(mine) };
 }
 
-module.exports = { onCrew, seesAllPayouts, redactDeal, redactLedger, ownsLedgerEntry, visibleTo };
+module.exports = {
+  onCrew,
+  onDeal,
+  canReadDeal,
+  seesAllPayouts,
+  redactDeal,
+  redactLedger,
+  ownsLedgerEntry,
+  visibleTo,
+};

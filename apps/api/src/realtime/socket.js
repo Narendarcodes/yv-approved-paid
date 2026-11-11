@@ -13,8 +13,8 @@
  * Rooms are named `channel:<id>` so channels are isolated per project.
  *
  * Deals: `deal:join { dealId }` joins room `deal:<id>` only when the user is an
- * active member of the deal's org AND a party to the deal or holds deal.manage
- * there (the same rule as GET /deals/:dealId). Every ledger line appended for
+ * active member of the deal's org AND on the deal (party or crew) or an org
+ * admin there (the same rule as GET /deals/:dealId). Every ledger line appended for
  * that deal is pushed as `deal:ledger { dealId, entry }`, except that a crew
  * member (a payee who is not the brand) gets only their own payout lines, never
  * a teammate's or a batch total (lib/visibility.cts). Anything else answers
@@ -35,7 +35,7 @@ let stopLedgerFeed = null;
 async function canWatchDeal(userId, dealId) {
   if (typeof dealId !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(dealId)) return false;
   const { dealService } = require('../modules/deals/service.cts');
-  const { engine, visibility } = require('../modules/deals/engine.cts');
+  const { visibility } = require('../modules/deals/engine.cts');
   let deal;
   try {
     deal = await dealService().get(dealId);
@@ -44,9 +44,10 @@ async function canWatchDeal(userId, dealId) {
   }
   const perms = await access.permissionsIn(userId, deal.orgId);
   if (!perms) return false;
-  const manage = access.allows(perms, 'deal.manage');
-  if (!engine.actorRole(deal, userId) && !manage) return false;
-  return { crew: !visibility.seesAllPayouts(deal, String(userId), manage) };
+  // org admins (payables.view_org) or anyone on the deal; deal.manage alone opens nothing
+  const admin = access.allows(perms, 'payables.view_org');
+  if (!visibility.canReadDeal(deal, String(userId), admin)) return false;
+  return { crew: !visibility.seesAllPayouts(deal, String(userId), admin) };
 }
 
 /** Crew sockets of a deal also sit in these rooms, so payout lines reach only their owner. */
