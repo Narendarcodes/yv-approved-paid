@@ -34,7 +34,7 @@
     "ioredis": "^5.11.1",
     "joi": "^17.13.9",
     "jsonwebtoken": "^9.0.0",
-    "mongoose": "^7.5.0",
+    "mongoose": "^7.8.13",
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
     "pino": "^8.21.0",

@@ -765,4 +765,4 @@ Lumen Coffee and its team are fictional.
 
 ## License
 
-Private — all rights reserved. Not licensed for public use.
+MIT. See [LICENSE](LICENSE).
