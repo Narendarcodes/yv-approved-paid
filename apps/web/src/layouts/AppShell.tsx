@@ -517,11 +517,12 @@ const navGroups: { section: string; items: NavItem[] }[] = [
     items: [
       { to: '/deals', label: 'Deals', icon: () => <Handshake {...iconProps} /> },
       {
-        // brands approve (admin, reviewer); editors manage deals (deal.manage)
+        // brand side only: admins see the org board (payables.view_org), reviewers their own deals as the brand.
+        // Crew (editor) get My money; a direct /payables URL shows NotForRole.
         to: '/payables',
         label: 'Payables',
         icon: () => <Landmark {...iconProps} />,
-        roles: ['admin', 'reviewer', 'editor'],
+        roles: ['admin', 'reviewer'],
       },
       {
         // crew members: anyone who can be named on a deal's team

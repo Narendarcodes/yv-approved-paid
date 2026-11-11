@@ -141,20 +141,27 @@ async function namesFor(deals: DealDoc[]): Promise<Record<string, string>> {
 }
 const nowIso = () => dealService().deps.now();
 
+/** Org-wide payables board: admin only (granted through '*'). deal.manage is a crew grant, not a brand one. */
+function seesOrgPayables(req: Req) {
+  return access.allows(req.ctx.permissions || [], 'payables.view_org');
+}
+
 /**
- * The payables board: one row per milestone. Deal managers see every deal in
- * the org; anyone else sees the deals they are the brand (client) on.
+ * The payables board: one row per milestone. Holders of payables.view_org
+ * (admins) see every deal in the org; anyone else, deal managers (crew)
+ * included, sees only the deals they are the brand (client) on.
  */
 router.get(
   '/payables',
   wrap(async (req, res) => {
-    const all = await dealService().list(org(req), uid(req), canManage(req));
-    // a manager who is on a deal's crew sees only their own payout lines there, so that deal is not on their board
+    const orgWide = seesOrgPayables(req);
+    const all = await dealService().list(org(req), uid(req), orgWide);
+    // an admin who is on a deal's crew sees only their own payout lines there, so that deal is not on their board
     const deals = all.filter((d: DealDoc) =>
-      canManage(req) ? seesAll(req, d) : actorRole(d, uid(req)) === 'client',
+      orgWide ? seesAllPayouts(d, uid(req), true) : actorRole(d, uid(req)) === 'client',
     );
     const rows = payables.payableRows(deals, nowIso(), await namesFor(deals), uid(req));
-    res.json({ data: { rows, asOf: nowIso(), scope: canManage(req) ? 'org' : 'brand' } });
+    res.json({ data: { rows, asOf: nowIso(), scope: orgWide ? 'org' : 'brand' } });
   }),
 );
 

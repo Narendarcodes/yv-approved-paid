@@ -1,6 +1,7 @@
 /**
- * /payables: every milestone's money across the org's deals, for the brand and
- * deal managers. AG Grid (Community) with sorting, checkbox selection and CSV
+ * /payables: every milestone's money across the org's deals, for the brand side
+ * only (admins org-wide via payables.view_org; others their own brand deals;
+ * crew use /my-money). AG Grid (Community) with sorting, checkbox selection and CSV
  * export. One box filters and searches: it suggests the plain-language filters
  * as you type; what parses becomes an editable chip, anything else is a plain
  * text search over the rows. "Approve

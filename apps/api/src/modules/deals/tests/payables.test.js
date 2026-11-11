@@ -184,14 +184,16 @@ describe('GET /payables', () => {
     });
   });
 
-  test('a deal manager sees the org; a crew member or bystander who is not the brand sees nothing', async () => {
-    const m = await request(app).get(`${base()}/payables`).set(auth(U.manager)).expect(200);
-    expect(m.body.data.rows).toHaveLength(3);
-    expect(m.body.data.scope).toBe('org');
-    expect(m.body.data.rows.every((x) => x.approvable === false)).toBe(true); // only the brand approves
-    for (const who of [U.motion, U.bystander]) {
+  test('an admin (payables.view_org via *) sees the org; a deal manager, crew member or bystander who is not the brand sees nothing', async () => {
+    const a = await request(app).get(`${base()}/payables`).set(auth(U.admin)).expect(200);
+    expect(a.body.data.rows).toHaveLength(3);
+    expect(a.body.data.scope).toBe('org');
+    expect(a.body.data.rows.every((x) => x.approvable === false)).toBe(true); // only the brand approves
+    // deal.manage (the crew editor role) is not an org-wide payables grant
+    for (const who of [U.manager, U.worker, U.motion, U.bystander]) {
       const r = await request(app).get(`${base()}/payables`).set(auth(who)).expect(200);
       expect(r.body.data.rows).toEqual([]);
+      expect(r.body.data.scope).toBe('brand');
     }
   });
 

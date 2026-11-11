@@ -178,11 +178,15 @@ describe('brand view (and deal managers not on the crew): every member line', ()
     expect(payoutLines(mgr)).toHaveLength(2);
   });
 
-  test('payables board: the brand and a manager off the crew both see the row', async () => {
-    for (const who of [U.client, U.manager]) {
+  test('payables board: the brand and an admin off the crew both see the row; a deal manager does not', async () => {
+    for (const who of [U.client, U.admin]) {
       const rows = (await request(app).get(`${base()}/payables`).set(auth(who))).body.data.rows;
       expect(rows.find((r) => r.dealId === dealId)).toMatchObject({ paidOutMinor: 40000 });
     }
+    // deal.manage is a crew grant: the org-wide board needs payables.view_org (admin)
+    const mgr = (await request(app).get(`${base()}/payables`).set(auth(U.manager))).body.data;
+    expect(mgr.scope).toBe('brand');
+    expect(mgr.rows.find((r) => r.dealId === dealId)).toBeUndefined();
   });
 });
 
