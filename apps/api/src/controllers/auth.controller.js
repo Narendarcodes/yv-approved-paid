@@ -70,7 +70,13 @@ async function login(req, res, next) {
   }
 }
 
-/** DEMO_MODE=1 only (the route 404s otherwise): one tap signs in as the seeded demo judge. */
+/**
+ * DEMO_MODE=1 only (the route 404s otherwise): one tap signs in as a seeded demo person.
+ * Body { as }: 'judge' (default) is Nora Hayes, the brand side; 'editor' is Leo Carter,
+ * the crew side (his "My money" page). Nothing else is accepted, so this can never
+ * open any other account. Same gate and per-IP rate limit for both.
+ */
+const DEMO_AS = ['judge', 'editor'];
 function demoEnabled() {
   return process.env.DEMO_MODE === '1';
 }
@@ -81,9 +87,14 @@ function demoGate(req, res, next) {
 }
 async function demoLogin(req, res, next) {
   try {
-    const { DEMO, demoJudge } = require('../modules/deals/demo.cts');
-    const judge = await demoJudge();
-    if (!judge)
+    const as = req.body && req.body.as !== undefined ? req.body.as : 'judge';
+    if (typeof as !== 'string' || !DEMO_AS.includes(as))
+      return res.status(400).json({
+        error: { code: 'validation_error', message: "as must be 'judge' or 'editor'" },
+      });
+    const { DEMO, demoJudge, demoEditor } = require('../modules/deals/demo.cts');
+    const person = as === 'editor' ? await demoEditor() : await demoJudge();
+    if (!person)
       return res.status(503).json({
         error: {
           code: 'demo_not_seeded',
@@ -91,13 +102,13 @@ async function demoLogin(req, res, next) {
             'The demo is not seeded yet (npm run seed:deals, or restart the API with DEMO_MODE=1)',
         },
       });
-    const session = await authService.startSession(judge);
+    const session = await authService.startSession(person);
     const Membership = require('../models/membership.model');
-    const m = await Membership.findOne({ userId: judge._id, disabled: { $ne: true } })
+    const m = await Membership.findOne({ userId: person._id, disabled: { $ne: true } })
       .sort({ createdAt: 1 })
       .lean();
     await sendSession(res, session, undefined, {
-      demo: { dealId: DEMO.dealId, organizationId: m ? String(m.organizationId) : null },
+      demo: { as, dealId: DEMO.dealId, organizationId: m ? String(m.organizationId) : null },
     });
   } catch (err) {
     next(err);

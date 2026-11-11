@@ -26,6 +26,7 @@ import {
   Landmark,
   Wallet,
   Compass,
+  ArrowLeftRight,
 } from 'lucide-react'
 import Avatar from '../components/ui'
 import { useViewer } from '../lib/viewer'
@@ -34,7 +35,9 @@ import { useNotifications, refreshNotifications } from '../lib/notifications'
 import { useProjects } from '../lib/data'
 import CommandPalette from '../components/CommandPalette'
 import BrandLogo from '../components/BrandLogo'
-import { API_ORIGIN } from '../services/api'
+import { API_ORIGIN, demoLogin } from '../services/api'
+import { rememberDealOrg } from '../lib/deals'
+import { DEMO_VIEWS, demoLanding, demoViewOf, otherDemoView } from '../lib/demoView'
 import Tour from '../components/Tour'
 import { TOUR_START_EVENT } from '../lib/tour'
 
@@ -90,6 +93,22 @@ export default function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const menuRef = useRef<HTMLDivElement>(null)
+  // Judge demo only: flip between Nora's brand view and Leo's crew view
+  const demoSide = demoViewOf(session?.user.email)
+  const [switching, setSwitching] = useState(false)
+  const switchDemoSide = async () => {
+    if (!demoSide || switching) return
+    setSwitching(true)
+    try {
+      const r = await demoLogin(otherDemoView(demoSide))
+      if (!r) return
+      rememberDealOrg(r.organizationId)
+      // a full load so every cached query belongs to the new person
+      window.location.assign(demoLanding(r.as, r.dealId))
+    } catch {
+      setSwitching(false)
+    }
+  }
   const segments = location.pathname.split('/').filter(Boolean)
   const crumb = CRUMBS[segments[0] ?? ''] ?? 'Overview'
 
@@ -369,6 +388,20 @@ export default function AppShell() {
                   <Compass {...iconProps} />
                   Take the tour
                 </button>
+                {demoSide && (
+                  <button
+                    role="menuitem"
+                    className="menu-item"
+                    onClick={switchDemoSide}
+                    disabled={switching}
+                    data-testid="demo-switch"
+                  >
+                    <ArrowLeftRight {...iconProps} />
+                    {switching
+                      ? 'Switching…'
+                      : `Switch to ${DEMO_VIEWS[otherDemoView(demoSide)].label}`}
+                  </button>
+                )}
                 {viewer.role === 'admin' && (
                   <button
                     role="menuitem"

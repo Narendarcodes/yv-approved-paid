@@ -8,6 +8,7 @@
  *                             voids; simulated approval only when the pool is empty)
  *                             opts.force rebuilds even an untouched real-sandbox deal (reset)
  *   demoJudge()               the seeded judge user, or null
+ *   demoEditor()              the seeded crew member (Leo Carter), or null
  *   ensureEvidenceFrames(d)   rewrite missing placeholder frames from the stored check results
  *
  * Idempotent: the demo deal always has the same id; a re-run deletes that one
@@ -1239,11 +1240,17 @@ async function demoJudge() {
   return User.findOne({ email: DEMO.judge.email, disabled: { $ne: true } });
 }
 
+/** The seeded crew member (Leo Carter, editor), or null: the crew view of the demo. */
+async function demoEditor() {
+  return User.findOne({ email: DEMO.editor.email, disabled: { $ne: true } });
+}
+
 module.exports = {
   DEMO,
   DEMO_PROJECTS,
   seedDealDemo,
   demoJudge,
+  demoEditor,
   demoTerms,
   untouchedRealDemo,
   clocksAsSeeded,

@@ -1922,18 +1922,20 @@ export function dealCopilot(
 }
 
 /**
- * One-tap judge login (DEMO_MODE=1 only). Resolves null when the API has no
+ * One-tap demo login (DEMO_MODE=1 only): `as` 'judge' (Nora, brand view, the
+ * default) or 'editor' (Leo, crew view). Resolves null when the API has no
  * demo (404) so the login page can hide the button; throws on other failures.
  */
-export async function demoLogin(): Promise<{
+export async function demoLogin(as: 'judge' | 'editor' = 'judge'): Promise<{
   session: Session
+  as: 'judge' | 'editor'
   dealId: string
   organizationId: string | null
 } | null> {
   const res = await fetch(`${API_BASE}/auth/demo-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: '{}',
+    body: JSON.stringify({ as }),
     credentials: 'include',
   })
   if (res.status === 404) return null
@@ -1954,6 +1956,7 @@ export async function demoLogin(): Promise<{
   }
   return {
     session,
+    as: body?.data?.demo?.as === 'editor' ? 'editor' : 'judge',
     dealId: String(body?.data?.demo?.dealId || 'deal_demo_diwali'),
     organizationId: body?.data?.demo?.organizationId ?? null,
   }

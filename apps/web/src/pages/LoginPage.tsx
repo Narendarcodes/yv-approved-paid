@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, PlayCircle } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, PlayCircle, Wallet } from 'lucide-react'
 import { WAKING_LABEL, useWakeState, wakeApi } from '../lib/wake'
 import { HackathonCredit } from '../components/Sponsors'
 import AuthPanel from '../components/AuthPanel'
 import { useToast } from '../components/toast'
 import { login as apiLogin, demoLogin, LoginError } from '../services/api'
 import { rememberDealOrg } from '../lib/deals'
+import { DEMO_VIEWS, demoLanding, type DemoAs } from '../lib/demoView'
 import BrandLogo from '../components/BrandLogo'
 
 export default function LoginPage() {
@@ -23,14 +24,19 @@ export default function LoginPage() {
   // null = not tried yet; false = this API has no demo (404), so the button hides
   const [demoAvailable, setDemoAvailable] = useState<boolean | null>(null)
   const [demoBusy, setDemoBusy] = useState(false)
+  const [demoSide, setDemoSide] = useState<DemoAs>('judge')
   // wake the free Render API on load; the demo button waits for it instead of failing
   const wake = useWakeState()
   useEffect(() => {
     void wakeApi()
   }, [])
 
-  /** One tap: the judge session (DEMO_MODE=1 only), then straight to the seeded deal. */
-  const tryDemo = async () => {
+  /**
+   * One tap (DEMO_MODE=1 only): Nora's brand view straight to the seeded deal, or
+   * Leo's crew view straight to his "My money".
+   */
+  const tryDemo = async (as: DemoAs = 'judge') => {
+    setDemoSide(as)
     setDemoBusy(true)
     setFormError(null)
     try {
@@ -38,15 +44,15 @@ export default function LoginPage() {
         setFormError('The server is still starting. The demo opens once it answers.')
         return
       }
-      const r = await demoLogin()
+      const r = await demoLogin(as)
       if (!r) {
         setDemoAvailable(false)
         setFormError('The demo is not switched on for this server. Sign in with your own account.')
         return
       }
       rememberDealOrg(r.organizationId)
-      toast('success', 'Signed in to the demo')
-      navigate(`/deals/${encodeURIComponent(r.dealId)}`, { replace: true })
+      toast('success', `Signed in to the demo: ${DEMO_VIEWS[r.as].label}`)
+      navigate(demoLanding(r.as, r.dealId), { replace: true })
       window.dispatchEvent(new StorageEvent('storage', { key: 'yv.session' }))
     } catch (e: any) {
       setFormError(e?.message || 'The demo could not start. Try again in a moment.')
@@ -60,7 +66,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (autoDemo.current || new URLSearchParams(location.search).get('demo') !== '1') return
     autoDemo.current = true
-    void tryDemo()
+    void tryDemo(new URLSearchParams(location.search).get('as') === 'editor' ? 'editor' : 'judge')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search])
 
@@ -210,11 +216,12 @@ export default function LoginPage() {
               <div className="mt-6 border-t border-line pt-5" data-testid="demo-login">
                 <button
                   type="button"
-                  onClick={tryDemo}
+                  onClick={() => tryDemo('judge')}
                   disabled={demoBusy || busy}
                   className="btn-secondary w-full btn-lg"
+                  data-testid="demo-judge"
                 >
-                  {demoBusy && wake === 'waking' ? (
+                  {demoBusy && demoSide === 'judge' && wake === 'waking' ? (
                     <Loader2
                       size={16}
                       strokeWidth={2}
@@ -225,17 +232,38 @@ export default function LoginPage() {
                     <PlayCircle size={16} strokeWidth={2} />
                   )}
                   <span data-testid="demo-button-label">
-                    {demoBusy && wake === 'waking'
+                    {demoBusy && demoSide === 'judge' && wake === 'waking'
                       ? WAKING_LABEL
-                      : demoBusy
+                      : demoBusy && demoSide === 'judge'
                         ? 'Opening the demo…'
                         : 'Try the demo'}
                   </span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => tryDemo('editor')}
+                  disabled={demoBusy || busy}
+                  className="btn-ghost mt-2 w-full"
+                  data-testid="demo-editor"
+                >
+                  {demoBusy && demoSide === 'editor' ? (
+                    <Loader2
+                      size={16}
+                      strokeWidth={2}
+                      className="animate-spin"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Wallet size={16} strokeWidth={2} />
+                  )}
+                  {demoBusy && demoSide === 'editor'
+                    ? 'Opening the crew view…'
+                    : `${DEMO_VIEWS.editor.label}: see his payday`}
+                </button>
                 <p className="mt-2 text-center text-xs text-umber" role="status">
                   {!demoBusy && wake === 'waking'
                     ? `${WAKING_LABEL}. You can tap now; it opens when ready.`
-                    : 'Seeded demo deal, PayPal sandbox, no real money'}
+                    : `Try the demo opens the ${DEMO_VIEWS.judge.label}. Seeded deal, PayPal sandbox, no real money.`}
                 </p>
               </div>
             )}

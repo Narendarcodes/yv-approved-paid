@@ -94,7 +94,7 @@ Code: `apps/api/src/modules/deals/lib/clock.cts` (pure clock maths), `lib/review
 
 ![Bulk approve dry run for Reels 3 and 4: $475.00 would be captured, Leo Carter $332.50 and Maya Ortiz $142.50; nothing has moved yet](docs/img/bulk-dryrun.png)
 
-![Where's my money, opened as the demo's brand lead: no payouts yet, since shares land with the crew](docs/img/my-money.png)
+![Where's my money in the Crew view, signed in as Leo Carter: reel 1 paid his 70% share ($280.00), reel 3's $280.00 held on the review clock, reel 4 half released in grace, reel 2 in dispute; $507.50 on the way, $332.50 paid (sandbox)](docs/img/my-money.png)
 
 Code: `apps/api/src/modules/deals/payables.cts`, `apps/web/src/pages/PayablesPage.tsx`, `MyMoneyPage.tsx`, `lib/payablesFilter.ts`.
 
@@ -158,6 +158,7 @@ In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal
    - **Reel 3** is on the review clock with about 2 business days left (US business days: the clock skips US holidays such as Veterans Day and Thanksgiving). **Reel 4** got no reply in its window, so 50% was released and it is now in grace.
    - Ask the copilot to "capture $450" or "pay the old version". It is dry-run and comes back **blocked** (`P3_amount` / `P6_version`) with "No money moved".
 4. Open **Payables** and **Where's my money** in the sidebar.
+   - Switch to Crew view to see Leo's payday: account menu (top right), **Switch to Crew view (Leo)**, or **Crew view (Leo)** under **Try the demo** on the login page. You land on **My money** as Leo Carter (reel 1's 70% paid, reel 3 held on the clock). The same menu item switches back to the **Brand view (Nora)**. Leo is a normal editor: he cannot approve or capture.
 5. To start over on fresh holds, the judge account can reset the demo (`POST /api/v1/demo/deal/reset`, at most once every 2 minutes for everyone).
 
 ---
@@ -345,7 +346,7 @@ yv. is my own project. I started its content-ops core (projects, tasks, briefs, 
 
 The detail behind the sections above: pages, cards, the copilot, team splits and PayPal modes.
 
-- **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded Lumen Coffee "Autumn launch reels" deal.
+- **Pages:** `/deals` (your deals) and `/deals/:dealId` (one deal as cards). On `/login`, **Try the demo** calls `POST /api/v1/auth/demo-login` (body `{ "as": "judge" }` by default; `{ "as": "editor" }` is the Crew view as Leo Carter; any other value is a 400) (only when the API runs with `DEMO_MODE=1`; the button hides itself on a 404) and opens the seeded Lumen Coffee "Autumn launch reels" deal.
 - **Cards** (`apps/web/src/components/deals/`): DealCard (terms hash, both signatures, per-milestone amount, due + grace, review window, rounds left, kill fee), LiveChecksCard (measured vs target per checklist line, screenshot evidence from `GET .../deals/:dealId/evidence/:file`; taste lines say "people decide"), ReviewMergeCard (Fix cites a failed line, Taste costs a round, never pay), MoneyTimeline (hash-chained ledger, live over Socket.IO `deal:join` -> `deal:ledger`; blocked attempts show the rule and "No money moved"), ChangeOrderCard (priced from the signed rate card; Accept drafts the PayPal invoice), DisputeSplitCard (split from checklist arithmetic; agreed only when both sides accept the same number), PolicyBlockedChip.
 - **Deal copilot:** a side panel that answers by rendering those cards. With the live agent on, an LLM picks which cards answer the question (`POST .../deals/:dealId/copilot` -> the lean deal agent); otherwise, or when the agent is slow or down, it runs as an offline replay (deterministic intent matching, no model call), so the demo always works. Every reply is labelled **live AI · <provider>** or **offline replay**. It only proposes: a "capture $450" or "pay the old version" ask is dry-run through `POST .../policy-check` and comes back as a PolicyBlockedChip. No copilot action takes an amount it wrote: the model only names cards and ids from the deal (checked by the agent, the API and the web), and a capture uses the signed amount or the number the person typed.
 - **Live AI agent (optional):** `services/agent/app/deals_service.py`, a lean FastAPI service (`Dockerfile.deals`, `requirements-deals.txt`: fastapi, uvicorn, httpx, pydantic; ~40 MB RSS) that fits a Render **free** web service (`render.yaml`, `GET /health`). LLM routing (`app/deals/llm_router.py`): River AI (`Qwen/Qwen3.8-27B-FP8`) -> NVIDIA NIM (`nvidia/nemotron-3.5-lightning-30b-a3b`) -> OmniRoute (only if `OMNIROUTE_URL` is set). Names are stripped before any prompt leaves; the model never sees amounts. The API calls it only when `AGENT_ENABLED=true`, `AGENT_URL` and `AGENT_SHARED_SECRET` (sent as `X-Agent-Secret`, same value on both services) are set; it gives up after `AGENT_COPILOT_TIMEOUT_MS` (15 s; a free instance cold-starts slowly) and answers `{ source: 'offline' }`.

@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ReactNode } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { DEMO_DEAL_PATH, isDemoJudge } from './lib/deals'
+import { demoViewOf } from './lib/demoView'
 import AppShell from './layouts/AppShell'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -75,8 +76,14 @@ function RedirectIfAuthed({ children }: { children: ReactNode }) {
   const location = useLocation()
   if (authenticated) {
     const from = (location.state as { from?: string } | null)?.from
-    // the demo judge always lands on the demo deal, whichever way they got signed in
-    const home = isDemoJudge(session?.user?.email) ? DEMO_DEAL_PATH : '/dashboard'
+    // the demo judge always lands on the demo deal, whichever way they got signed in;
+    // the demo crew member (Leo, crew view) on his "My money"
+    const email = session?.user?.email
+    const home = isDemoJudge(email)
+      ? DEMO_DEAL_PATH
+      : demoViewOf(email) === 'editor'
+        ? '/my-money'
+        : '/dashboard'
     return <Navigate to={from && from !== '/' ? from : home} replace />
   }
   return <>{children}</>
