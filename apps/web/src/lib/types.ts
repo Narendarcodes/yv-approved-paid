@@ -39,6 +39,11 @@ export interface Project {
   postUrl?: string
   publishedAt?: string
   approvedVersion?: string
+  /** Id of the version locked by approval, when one is. */
+  approvedVersionId?: string | null
+  /** The deal milestone this project delivers, when it is tied to one. */
+  dealId?: string | null
+  milestoneKey?: string | null
   publishProgress?: { published: number; total: number } | null
   conceptId?: string | null
 }

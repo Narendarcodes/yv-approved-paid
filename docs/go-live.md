@@ -11,7 +11,7 @@ Hosts today: API on Render (`https://yv-approved-paid-api.onrender.com`, deploye
 
 ## 2. Refill the PayPal sandbox pool first
 
-Do this **before** the API deploy. The demo seed now funds **4 milestones** (reel 1 $400, reel 2 $300, reel 3 $200, reel 4 $150), so every seed or demo reset takes **2 more pre-approved holds than before** (4 instead of 2). With too few ready rows, the new milestones fall back to labelled `SIM-` ids.
+Do this **before** the API deploy. The demo seed now funds **4 milestones** (reel 1 $400, reel 2 $300, reel 3 $400, reel 4 $150; reel 3 was $200 before the 70/30 team split), so every seed or demo reset takes **2 more pre-approved holds than before** (4 instead of 2). With too few ready rows, the new milestones fall back to labelled `SIM-` ids.
 
 ```bash
 cd apps/api
@@ -115,7 +115,7 @@ On `https://yv-approved-paid.vercel.app`:
 - **Render deploys:** `dep-dbnnda3m8hqs73cn1p3g` (8917483, live 00:37 IST), `dep-dbnnqgjrjlhs739cbfj0` (bd9320d, live 01:05 IST).
 - **Pool:** 24 orders created with the US app and approved by the US sandbox buyer (`sb-jjzj953715477@personal.example.com`); every return page said "ready", which also proves the deployed API holds the US credentials. The old India-app rows were re-checked by the seed and marked `invalid` on their own (no clean-up needed). Expiry of the new rows: Mon 7 Dec 2026 ~01:00 IST.
 - **Vercel:** `dpl_EVLa4EBGg37VXGvvfwxzt9AK5BS2` (bundle `index-DBj1jEbZ.js`).
-- **Real release on live:** reel 3 approved in the web app: capture `82250670EG2217747` ($200 COMPLETED), Payouts batch `UZ6D4CNLJWKUE` (SUCCESS). Seed batches: reel 1 `CY4K8FYX7WN68` ($280 + $120), reel 4 partial `EN7Y2GCJBUQ2Y` ($52.50 + $22.50). Items are UNCLAIMED because the demo crew emails are not sandbox accounts.
+- **Real sandbox release on live (earlier seed, before the 70/30 team split):** reel 3 ($200 then) approved in the web app: capture `82250670EG2217747` ($200 COMPLETED), Payouts batch `UZ6D4CNLJWKUE` (SUCCESS). Seed batches: reel 1 `CY4K8FYX7WN68` ($280 + $120), reel 4 partial `EN7Y2GCJBUQ2Y` ($52.50 + $22.50). Items are UNCLAIMED because the demo crew emails are not sandbox accounts.
 - **Smoke:** 14/14 browser checks passed (screenshots in the build workspace `work/fairpay-shots/live/`). Editor-only receipts were not checked on live (the seeded editor has no password there); covered by tests from `a93b2db`.
 
 ## Done on Nov 9, 2026 (Round 2 go-live)

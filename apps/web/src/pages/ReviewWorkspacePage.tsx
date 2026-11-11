@@ -6,6 +6,7 @@ import Avatar from '../components/ui'
 import { formatTime, projectStatusLabel } from '../lib/format'
 import { useViewer, can } from '../lib/viewer'
 import { useProject, useTeam, useMe, invalidateProjectData } from '../lib/data'
+import { useDeal } from '../lib/deals'
 import {
   listVersions,
   versionFileUrl,
@@ -37,6 +38,11 @@ export default function ReviewWorkspacePage() {
   const { id = '' } = useParams()
   const viewer = useViewer()
   const { project } = useProject(id)
+  // The deal milestone this reel delivers (if any): an approved or paid-out milestone has nothing left to approve.
+  const { data: deal } = useDeal(project?.dealId ?? undefined)
+  const milestoneState = project?.milestoneKey
+    ? deal?.milestones.find((m) => m.key === project.milestoneKey)?.state
+    : undefined
   const { team } = useTeam()
   const me = useMe()
   const toast = useToast()
@@ -166,6 +172,14 @@ export default function ReviewWorkspacePage() {
   const lockable = comments.filter((c) => !c.resolved && c.versionId === realVersionId)
   const canComment = can(viewer, 'comment')
   const canApprove = can(viewer, 'approve')
+  const paidOut = milestoneState === 'PAID_OUT'
+  const alreadyApproved =
+    approved ||
+    paidOut ||
+    milestoneState === 'APPROVED' ||
+    milestoneState === 'AUTO_APPROVED' ||
+    milestoneState === 'CAPTURED' ||
+    (!!realVersionId && project.approvedVersionId === realVersionId)
 
   const seekTo = (t: number) => {
     const v = videoRef.current
@@ -255,7 +269,7 @@ export default function ReviewWorkspacePage() {
   }
 
   const approve = async () => {
-    if (!realVersionId || !canApprove) return
+    if (!realVersionId || !canApprove || alreadyApproved) return
     try {
       await approveVersion(project.id, realVersionId)
       setApproved(true)
@@ -345,16 +359,24 @@ export default function ReviewWorkspacePage() {
           <button
             className="btn-primary"
             onClick={() => void approve()}
-            disabled={!canApprove || !version}
+            disabled={!canApprove || !version || alreadyApproved}
             title={
-              !canApprove
-                ? 'Only reviewers can approve'
-                : !version
-                  ? 'Nothing to approve yet'
-                  : undefined
+              alreadyApproved
+                ? paidOut
+                  ? 'Approved and paid out: nothing left to approve'
+                  : 'Already approved'
+                : !canApprove
+                  ? 'Only reviewers can approve'
+                  : !version
+                    ? 'Nothing to approve yet'
+                    : undefined
             }
           >
-            Approve {version ? version.label : '—'}
+            {alreadyApproved
+              ? paidOut
+                ? 'Paid'
+                : 'Approved'
+              : `Approve ${version ? version.label : '—'}`}
           </button>
         </div>
       </div>

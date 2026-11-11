@@ -117,6 +117,9 @@ function normalizeProject(p: any): Project {
     postUrl: p.postUrl,
     publishedAt: p.publishedAt ? fmtDate(p.publishedAt) : undefined,
     approvedVersion: p.approvedVersion,
+    approvedVersionId: p.approvedVersionId ? strId(p.approvedVersionId) : null,
+    dealId: p.dealId ?? null,
+    milestoneKey: p.milestoneKey ?? null,
     publishProgress: p.publishProgress ?? null,
     conceptId: p.conceptId ? strId(p.conceptId) : null,
   }
