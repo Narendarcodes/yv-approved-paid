@@ -25,8 +25,11 @@ export function ProjectPublishing({
   const [loaded, setLoaded] = useState(false)
 
   const load = useCallback(async () => {
-    const orgId = await primaryOrgId()
-    if (!orgId) return
+    const orgId = await primaryOrgId().catch(() => null)
+    if (!orgId) {
+      setLoaded(true)
+      return
+    }
     try {
       setPosts(await listScheduledPosts(orgId, { projectId }))
     } catch {

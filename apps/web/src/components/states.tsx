@@ -5,7 +5,7 @@
  * the backend is unreachable, and EmptyState explains when there is simply
  * nothing to show. Pages should never render blank content on slow networks.
  */
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { WifiOff, RefreshCw, Inbox } from 'lucide-react'
 import Illustration, { type IllustrationName } from './Illustration'
 
@@ -116,6 +116,52 @@ export function EmptyState({
         )}
       </div>
       {action}
+    </div>
+  )
+}
+
+/** True once `active` has stayed true for `ms` (a load that is taking longer than a warm server would). */
+export function useSlow(active: boolean, ms = 4000): boolean {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!active) {
+      setSlow(false)
+      return
+    }
+    const t = setTimeout(() => setSlow(true), ms)
+    return () => clearTimeout(t)
+  }, [active, ms])
+  return slow
+}
+
+/**
+ * A load that is slow or already retrying: the hosted API sleeps when idle and
+ * takes up to a minute to wake. Says so (instead of a bare skeleton) and offers a retry.
+ */
+export function WakingServer({ onRetry, attempt = 0 }: { onRetry?: () => void; attempt?: number }) {
+  return (
+    <div
+      className="fade-in flex flex-col items-center gap-3 rounded-xl border border-line bg-surface px-6 py-8 text-center"
+      role="status"
+      aria-live="polite"
+      data-testid="waking-server"
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-line bg-canvas text-umber">
+        <RefreshCw size={18} strokeWidth={1.75} className="animate-spin" />
+      </span>
+      <div>
+        <p className="text-sm font-medium text-ink">Waking the server…</p>
+        <p className="mx-auto mt-0.5 max-w-[44ch] text-[13px] text-umber">
+          It sleeps when nobody is using it and can take up to a minute to start.
+          {attempt > 0 ? ` Trying again (attempt ${attempt + 1}).` : ''}
+        </p>
+      </div>
+      {onRetry && (
+        <button onClick={onRetry} className="btn-secondary !h-9 text-[13px]">
+          <RefreshCw size={14} strokeWidth={2} />
+          Retry now
+        </button>
+      )}
     </div>
   )
 }

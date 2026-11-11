@@ -20,8 +20,11 @@ export function ProjectPerformance({ projectId, status }: { projectId: string; s
   useEffect(() => {
     let live = true
     ;(async () => {
-      const orgId = await primaryOrgId()
-      if (!orgId) return
+      const orgId = await primaryOrgId().catch(() => null)
+      if (!orgId) {
+        if (live) setLoaded(true)
+        return
+      }
       try {
         const d = await getProjectPerformance(orgId, projectId, 30)
         if (live) setData(d)
@@ -44,7 +47,11 @@ export function ProjectPerformance({ projectId, status }: { projectId: string; s
         <h2 className="card-title">Performance</h2>
         <SimulatedBadge show={!!data?.simulated && live.length > 0} />
         {live.length > 0 && (
-          <Link to={`/reports/performance?project=${projectId}`} className="btn-ghost ml-auto !h-8 text-xs" data-testid="project-report">
+          <Link
+            to={`/reports/performance?project=${projectId}`}
+            className="btn-ghost ml-auto !h-8 text-xs"
+            data-testid="project-report"
+          >
             <FileText size={13} strokeWidth={1.75} /> Client report
           </Link>
         )}
@@ -74,11 +81,19 @@ export function ProjectPerformance({ projectId, status }: { projectId: string; s
           </div>
           <ul className="divide-y divide-line">
             {live.map((r) => (
-              <li key={r.publicationId} className="flex flex-wrap items-center gap-4 px-5 py-3.5" data-testid="performance-row">
+              <li
+                key={r.publicationId}
+                className="flex flex-wrap items-center gap-4 px-5 py-3.5"
+                data-testid="performance-row"
+              >
                 <PlatformIcon platform={r.platform} size="sm" />
                 <div className="min-w-[140px] flex-1">
-                  <p className="truncate text-sm font-medium text-ink">{r.channel?.name ?? PLATFORMS[r.platform]?.label}</p>
-                  <p className="micro-label normal-case tracking-normal">Live {fmtDateTime(r.publishedAt)}</p>
+                  <p className="truncate text-sm font-medium text-ink">
+                    {r.channel?.name ?? PLATFORMS[r.platform]?.label}
+                  </p>
+                  <p className="micro-label normal-case tracking-normal">
+                    Live {fmtDateTime(r.publishedAt)}
+                  </p>
                 </div>
                 <div className="w-20 text-right">
                   <p className="font-mono text-sm text-ink">{compact(r.metrics.views)}</p>
@@ -88,13 +103,22 @@ export function ProjectPerformance({ projectId, status }: { projectId: string; s
                   <p className="font-mono text-sm text-ink">{pctText(r.engagementRate)}</p>
                   <p className="micro-label">eng.</p>
                 </div>
-                <Sparkline values={r.sparkline.map((s) => s.views)} label={`Daily views for ${r.channel?.name ?? r.platform}`} />
+                <Sparkline
+                  values={r.sparkline.map((s) => s.views)}
+                  label={`Daily views for ${r.channel?.name ?? r.platform}`}
+                />
                 <div className="w-16 text-right">
                   <Delta value={r.change.views} />
                   <p className="micro-label">{r.change.window}</p>
                 </div>
                 {r.postUrl && (
-                  <a href={r.postUrl} target="_blank" rel="noreferrer" className="icon-btn icon-btn-sm" aria-label="Open live post">
+                  <a
+                    href={r.postUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="icon-btn icon-btn-sm"
+                    aria-label="Open live post"
+                  >
                     <ExternalLink size={14} strokeWidth={1.75} />
                   </a>
                 )}
@@ -103,7 +127,8 @@ export function ProjectPerformance({ projectId, status }: { projectId: string; s
           </ul>
           {data!.pending > 0 && (
             <p className="border-t border-line px-5 py-2.5 text-xs text-umber">
-              {data!.pending} more post{data!.pending === 1 ? '' : 's'} still scheduled or needing a retry.
+              {data!.pending} more post{data!.pending === 1 ? '' : 's'} still scheduled or needing a
+              retry.
             </p>
           )}
         </>

@@ -72,11 +72,13 @@ export default function AnalyticsPage() {
   }
 
   useEffect(() => {
-    primaryOrgId().then((id) => {
-      setOrgId(id)
-      if (id) void load(id, days)
-      else setLoading(false)
-    })
+    primaryOrgId()
+      .catch(() => null)
+      .then((id) => {
+        setOrgId(id)
+        if (id) void load(id, days)
+        else setLoading(false)
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

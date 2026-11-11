@@ -47,18 +47,27 @@ export function invalidateOrgCache() {
   orgIdCache = null
 }
 /** Resolve the current user's primary org id (no orgId needed from caller). */
-export async function primaryOrgId(): Promise<string | null> {
-  if (orgIdCache) return orgIdCache
-  try {
-    const orgs = await api.listOrgs()
-    if (orgs && orgs.length) {
-      orgIdCache = orgs[0].id
-      return orgIdCache
-    }
-  } catch {
-    /* not authenticated yet - retry on next call */
+/** Thrown by primaryOrgId when the org list loaded fine but this account belongs to no workspace. */
+export class NoOrgError extends Error {
+  constructor() {
+    super('No workspace found for this account')
+    this.name = 'NoOrgError'
   }
-  return null
+}
+
+/**
+ * The user's first org. Throws (never returns null) when the org list cannot be
+ * read (cold server, timeout, signed out) or is empty, so React Query retries
+ * with backoff and never caches a null org, and callers show an error state.
+ */
+export async function primaryOrgId(): Promise<string> {
+  if (orgIdCache) return orgIdCache
+  const orgs = await api.listOrgs()
+  if (orgs && orgs.length) {
+    orgIdCache = orgs[0].id
+    return orgIdCache
+  }
+  throw new NoOrgError()
 }
 
 /** Clear all session caches (called on login/logout so data is refetched). */
@@ -260,7 +269,7 @@ export function useChat() {
   useEffect(() => {
     let active = true
     ;(async () => {
-      const orgId = await primaryOrgId()
+      const orgId = await primaryOrgId().catch(() => null)
       if (!orgId) return
       try {
         const projects = await api.listProjects(orgId)

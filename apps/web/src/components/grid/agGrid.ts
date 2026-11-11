@@ -15,6 +15,7 @@ import {
   CsvExportModule,
   CellStyleModule,
   RowStyleModule,
+  TooltipModule,
   themeQuartz,
 } from 'ag-grid-community'
 
@@ -28,6 +29,8 @@ export function registerGridModules() {
     CsvExportModule,
     CellStyleModule,
     RowStyleModule,
+    // tooltipValueGetter on the money columns (My share) needs it; without it AG Grid errors #200 and the grid renders empty
+    TooltipModule,
   ])
   registered = true
 }

@@ -15,7 +15,7 @@ import { yvGridTheme } from '../components/grid/agGrid'
 import { shortDate, StatusPill, useNarrow } from '../components/grid/moneyGrid'
 import type { Stage } from '../components/status'
 import { PageHeader } from '../components/ui'
-import { EmptyState, ErrorBanner, ListSkeleton } from '../components/states'
+import { EmptyState, ErrorBanner, ListSkeleton, WakingServer, useSlow } from '../components/states'
 import { money, useDealOrg } from '../lib/deals'
 import * as api from '../services/api'
 import type { MyMoneyRow } from '../services/api'
@@ -104,7 +104,17 @@ export default function MyMoneyPage() {
     queryKey: ['my-money', orgId],
     queryFn: () => api.getMyMoney(orgId as string),
     enabled: !!orgId,
+    retry: 3,
+    retryDelay: (n) => Math.min(1000 * 2 ** n, 10_000),
   })
+  // waiting on the org or the rows (a disabled query has no data yet, so it counts as loading too)
+  const loading = org.isPending || (!!orgId && q.isPending)
+  const attempt = Math.max(org.failureCount, q.failureCount)
+  const slow = useSlow(loading)
+  const retry = () => {
+    if (org.isError || !orgId) void org.refetch()
+    else void q.refetch()
+  }
   const rows = useMemo(() => q.data?.rows ?? [], [q.data])
 
   const summary = useMemo(() => {
@@ -183,10 +193,14 @@ export default function MyMoneyPage() {
   return (
     <div className="fade-in" data-testid="my-money-page">
       <PageHeader title="My money" subtitle={PAGE_LINE['/my-money']} />
-      {org.isLoading || q.isLoading ? (
-        <ListSkeleton rows={3} height="h-12" />
+      {loading ? (
+        slow || attempt > 0 ? (
+          <WakingServer onRetry={retry} attempt={attempt} />
+        ) : (
+          <ListSkeleton rows={3} height="h-12" />
+        )
       ) : org.isError || q.isError ? (
-        <ErrorBanner message="Your payouts did not load." onRetry={() => void q.refetch()} />
+        <ErrorBanner message="Your payouts did not load." onRetry={retry} />
       ) : !rows.length ? (
         <EmptyState title="No payouts yet" description={EMPTY_LINE.myMoney} illustration="wallet" />
       ) : (

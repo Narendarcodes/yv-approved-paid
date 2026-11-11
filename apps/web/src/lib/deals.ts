@@ -36,7 +36,7 @@ export function rememberDealOrg(orgId: string | null | undefined) {
 }
 
 /** The org deals are read from: the remembered one if the user still belongs to it, else the primary org. */
-export async function dealOrgId(): Promise<string | null> {
+export async function dealOrgId(): Promise<string> {
   let remembered: string | null = null
   try {
     remembered = localStorage.getItem(ORG_KEY)
@@ -54,8 +54,19 @@ export async function dealOrgId(): Promise<string | null> {
   return primaryOrgId()
 }
 
+/**
+ * The deal org. dealOrgId throws rather than resolving null, so a cold or slow
+ * server is retried with backoff (up to ~1 min, enough to wake a sleeping host)
+ * and a null org is never cached for five minutes.
+ */
 export function useDealOrg() {
-  return useQuery({ queryKey: ['deal-org'], queryFn: dealOrgId, staleTime: 5 * 60_000 })
+  return useQuery({
+    queryKey: ['deal-org'],
+    queryFn: dealOrgId,
+    staleTime: 5 * 60_000,
+    retry: 4,
+    retryDelay: (n) => Math.min(1000 * 2 ** n, 15_000),
+  })
 }
 
 export function useDeals() {

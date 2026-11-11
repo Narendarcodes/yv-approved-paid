@@ -8,6 +8,7 @@
  *
  * All requests include the Bearer access token obtained from the session.
  */
+import { API_TIMEOUT_MS, TimeoutError, fetchWithTimeout } from '../lib/fetchTimeout'
 import type { DealView, DealLedgerView, DealChangeOrder } from '../contracts/types'
 
 export const API_BASE: string = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/+$/, '')
@@ -63,7 +64,7 @@ async function getCsrfToken(forceFetch = false): Promise<string | null> {
     if (csrfToken) return csrfToken
   }
   try {
-    const res = await fetch(`${API_BASE}/auth/csrf`, { credentials: 'include' })
+    const res = await fetchWithTimeout(`${API_BASE}/auth/csrf`, { credentials: 'include' })
     if (!res.ok) return null
     csrfToken = (await res.json())?.data?.csrfToken ?? null
   } catch {
@@ -95,7 +96,7 @@ export async function refreshSession(): Promise<boolean> {
   refreshInFlight = (async () => {
     try {
       const csrf = await getCsrfToken()
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
+      const res = await fetchWithTimeout(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
         body: '{}',
@@ -116,6 +117,8 @@ export async function refreshSession(): Promise<boolean> {
   return refreshInFlight
 }
 
+export { API_TIMEOUT_MS, TimeoutError, fetchWithTimeout }
+
 /**
  * fetch for the API: cookies always included, X-CSRF-Token on unsafe methods,
  * one transparent retry after refreshing an expired session (401) or a stale
@@ -132,7 +135,7 @@ async function authFetch(url: string, options: RequestInit = {}): Promise<Respon
       const csrf = await getCsrfToken()
       if (csrf) headers.set('X-CSRF-Token', csrf)
     }
-    return fetch(url, { ...options, headers, credentials: 'include' })
+    return fetchWithTimeout(url, { ...options, headers, credentials: 'include' })
   }
   let res = await send()
   if (res.status === 401 && (await refreshSession())) {
