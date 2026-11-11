@@ -65,7 +65,7 @@ _The payables-board problem ("what do we owe each freelancer this month?") is al
 
 ### 1. Fair Review Clock
 
-![Review clock card: 2 business days left, 50% releases on silence](docs/img/clock-brand.png)
+![Review clock card on Reel 3 of Lumen Coffee's Autumn launch reels: running, 1 business day left, with Approve & release and Request changes](docs/img/clock-brand.png)
 
 Each milestone can carry a review clock in its signed terms. Once the delivery passes its machine checks, the brand has a set number of **business days** (2 to 10, default 3) to approve, ask for changes or dispute.
 
@@ -77,13 +77,13 @@ Each milestone can carry a review clock in its signed terms. Once the delivery p
 - **PayPal hold upkeep:** an authorization lives 29 days with a 3-day honor period. The clock reauthorizes after day 3 while money still has to move, and warns once if the hold would lapse before the work, review and grace are done.
 - **Driver:** the API's Money Agent tick advances clocks in-process. `POST /api/v1/internal/clock/advance` (header `X-Clock-Secret`) runs every due step, and each step is idempotent. The review clock runs on Render, in that API tick. A [Render Workflow](workflows/fair-clock/README.md) version that would call this endpoint with durable retries exists in code only: it is not deployed and no cron job runs it (see the table below).
 
-![Change picker: every change cites a brief item or a failed check](docs/img/change-picker.png)
+![Change picker on Reel 3: each change must cite a brief item or a failed check](docs/img/change-picker.png)
 
 Code: `apps/api/src/modules/deals/lib/clock.cts` (pure clock maths), `lib/review-clock.cts`, `lib/holidays.json`, `apps/web/src/components/deals/ReviewClockCard.tsx`.
 
 ### 2. Payables board (AG Grid)
 
-![Payables board filtered by "held over $50 and in grace"](docs/img/payables-filter-50.png)
+![Payables board filtered by "held over $50": a Held > $50 chip, 3 of 5 milestones shown](docs/img/payables-filter-50.png)
 
 `/payables` shows every milestone's money across the brand's deals in one AG Grid Community table: held amount, clock status, days left, revisions, failed checks and hold age.
 
@@ -92,15 +92,15 @@ Code: `apps/api/src/modules/deals/lib/clock.cts` (pure clock maths), `lib/review
 - **CSV export** of the current view.
 - **Where's my money** (`/my-money`): a crew member sees their signed share, what has been released to them, and when the rest is due.
 
-![Bulk approve dry run: what would be captured and who gets how much](docs/img/bulk-dryrun.png)
+![Bulk approve dry run for Reels 3 and 4: $475.00 would be captured, Leo Carter $332.50 and Maya Ortiz $142.50; nothing has moved yet](docs/img/bulk-dryrun.png)
 
-![Where's my money: a crew member's view](docs/img/my-money.png)
+![Where's my money, opened as the demo's brand lead: no payouts yet, since shares land with the crew](docs/img/my-money.png)
 
 Code: `apps/api/src/modules/deals/payables.cts`, `apps/web/src/pages/PayablesPage.tsx`, `MyMoneyPage.tsx`, `lib/payablesFilter.ts`.
 
 ### 3. Crew splits
 
-![Team payout: one batch, each member's receipt](docs/img/team-payout-brand.png)
+![Team payout for Reel 1: $400.00 paid in one batch, Leo Carter 70% $280.00 and Maya Ortiz 30% $120.00](docs/img/team-payout-brand.png)
 
 Shares are locked at signing. Each release (approve, partial or grace) pays the whole crew in **one PayPal Payouts batch**.
 
@@ -168,6 +168,16 @@ In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal
 - **Policy dry run.** Every money move is checked first against rules P1 to P9 (state, actor, exact amount, locked terms, already-ran, approved version, human tap, currency, live authorization). `POST .../deals/:dealId/policy-check` runs the same check without moving money; a blocked attempt is written to the ledger as "No money moved".
 - **People own taste.** Machine checks decide facts (length, loudness, captions). Taste lines say "people decide", and taste changes are capped by the signed rounds.
 - Only the Money Agent executes money moves, and big captures and every refund wait for one human tap.
+
+---
+
+## Agent evals
+
+| Eval | What it checks | Cases | Current result | Command |
+| --- | --- | --- | --- | --- |
+| Policy red team, `apps/api/src/modules/deals/tests/redteam.test.js` | Attacks on the money path: over-capture, double capture (sequential, stale copy, concurrent ticks), capture after void, wrong or old file version, one-sided dispute splits, capture beyond what is held, amounts supplied by an AI, replayed or forged webhooks, cross-org access. Each must be refused for the right reason, and PayPal must never be asked to move money. | 36 tests (35 attacks + 1 sanity check) | **36/36 passed** (local run, Nov 11, 2026; mock PayPal gateway + mongodb-memory-server, no LLM) | `cd apps/api && npx jest --runInBand src/modules/deals/tests/redteam.test.js` |
+| Fix vs Taste scope guard, `services/agent/evals/deals/run_fix_taste.py` with `fix_taste_cases.json` | Tags labelled reviewer comments as Fix (must cite the right checklist id) or Taste (cites none), and checks that swap pairs (same ask, names, roles or countries swapped) keep the same label. Rule layer, offline. Exits 1 below 90% accuracy or if a swap pair flips. | 23 comments, 3 swap pairs | **23/23** (accuracy 1.0, swap pairs stable; local run, Nov 11, 2026). Also 23/23 on Nov 2, 2026. | `cd services/agent && python -m evals.deals.run_fix_taste` |
+| Golden questions, `services/agent/evals/run_evals.py` with `golden.json` | Brand Brain chat over the public API (login, then SSE chat) against the seeded Little Steps demo org: routed flow, a citation for the expected post or metric, data limits stated, tokens streamed, and an expected phrase in the answer. | 6 questions | **Not run here.** The answer-phrase check needs a live LLM, and no result is recorded in the repo. CI only checks that `golden.json` has at least 6 questions. | `cd apps/api && node scripts/seed-agent-demo.js > seed.json`, then `python3 services/agent/evals/run_evals.py --api http://127.0.0.1:3000/api/v1 --seed apps/api/seed.json` (API and agent service running) |
 
 ---
 
@@ -293,6 +303,7 @@ Counts are from a local run on Nov 7, 2026. Typecheck: `npm run typecheck` at th
 - [What's real vs simulated](#whats-real-vs-simulated)
 - [Judge quick start](#judge-quick-start)
 - [AI safety](#ai-safety)
+- [Agent evals](#agent-evals)
 - [Architecture and money flow](#architecture-and-money-flow)
 - [Run it locally](#run-it-locally)
 - [Env vars (Approved = Paid)](#env-vars-approved--paid)
