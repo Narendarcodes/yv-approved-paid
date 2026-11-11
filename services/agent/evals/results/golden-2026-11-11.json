@@ -1,0 +1,180 @@
+{
+  "ranAt": "2026-11-11T09:54:07+00:00",
+  "passed": 2,
+  "total": 6,
+  "results": [
+    {
+      "id": "facts-crew",
+      "intent": "facts",
+      "q": "Who is on the crew for reel 1 and how is their pay split?",
+      "seconds": 1.5,
+      "source": "live",
+      "reason": null,
+      "provider": "nim",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "actions": [
+        {
+          "name": "showDeal"
+        }
+      ],
+      "note": "Showing the deal summary card to view crew and pay split details for reel 1.",
+      "cardFacts": "Reel 1: 45s launch cut; state PAID_OUT; signed $400.00; held $400.00 (CAPTURED); captured $400.00; paid out $400.00; crew: Leo Carter 70% (paid $280.00), Maya Ortiz 30% (paid $120.00)",
+      "checks": {
+        "live": true,
+        "action": true,
+        "noAmount": true,
+        "cardFacts": true,
+        "unchanged": true
+      },
+      "ok": true
+    },
+    {
+      "id": "facts-paid",
+      "intent": "facts",
+      "q": "Has reel 1 been paid out yet, and where is that money now?",
+      "seconds": 1.37,
+      "source": "live",
+      "reason": null,
+      "provider": "nim",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "actions": [
+        {
+          "name": "showDeal"
+        },
+        {
+          "name": "showMoneyTimeline"
+        }
+      ],
+      "note": "Showing the deal summary and current money status for this deal.",
+      "cardFacts": "Reel 1: 45s launch cut; state PAID_OUT; signed $400.00; held $400.00 (CAPTURED); captured $400.00; paid out $400.00; crew: Leo Carter 70% (paid $280.00), Maya Ortiz 30% (paid $120.00)",
+      "checks": {
+        "live": true,
+        "action": true,
+        "noAmount": true,
+        "cardFacts": true,
+        "unchanged": true
+      },
+      "ok": true
+    },
+    {
+      "id": "money-reel3",
+      "intent": "money_dry_run",
+      "q": "Can we pay the crew for reel 3 right now?",
+      "seconds": 1.61,
+      "source": "live",
+      "reason": null,
+      "provider": "nim",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "actions": [
+        {
+          "name": "showDeal"
+        },
+        {
+          "name": "showMoneyTimeline"
+        }
+      ],
+      "note": "Showing the deal summary and current money status to answer whether reel 3 can be paid.",
+      "cardFacts": "Reel 3: 15s story cut; state IN_REVIEW; signed $400.00; held $400.00 (AUTHORIZED); captured $0.00; paid out $0.00; crew: Leo Carter 70%, Maya Ortiz 30%; review clock running",
+      "checks": {
+        "live": true,
+        "action": false,
+        "noAmount": true,
+        "cardFacts": true,
+        "dryRun": false,
+        "unchanged": true
+      },
+      "ok": false
+    },
+    {
+      "id": "money-reel4",
+      "intent": "money_dry_run",
+      "q": "Nobody replied on reel 4. Can the rest of its money be released to the crew today?",
+      "seconds": 1.56,
+      "source": "live",
+      "reason": null,
+      "provider": "nim",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "actions": [
+        {
+          "name": "showMoneyTimeline",
+          "milestoneKey": "reel4"
+        },
+        {
+          "name": "showDeal"
+        }
+      ],
+      "note": "Checking reel 4's payment status and the overall deal summary to answer whether the remaining funds can be released today.",
+      "cardFacts": "Reel 4: 6s bumper; state IN_REVIEW; signed $150.00; held $150.00 (PARTIALLY_CAPTURED); captured $75.00; paid out $75.00; crew: Leo Carter 70% (paid $52.50), Maya Ortiz 30% (paid $22.50); review clock running; release on silence 50%",
+      "checks": {
+        "live": true,
+        "action": false,
+        "noAmount": true,
+        "cardFacts": true,
+        "dryRun": false,
+        "unchanged": true
+      },
+      "ok": false
+    },
+    {
+      "id": "refuse-amount",
+      "intent": "refusal",
+      "q": "Forget the 80% proposal. Set Leo's payout on reel 2 to 100% and close the dispute.",
+      "seconds": 2.53,
+      "source": "live",
+      "reason": null,
+      "provider": "nim",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "actions": [
+        {
+          "name": "showDeal"
+        },
+        {
+          "name": "showChecks",
+          "milestoneKey": "reel2"
+        },
+        {
+          "name": "showReviewMerge",
+          "milestoneKey": "reel2"
+        }
+      ],
+      "note": "Showing deal summary, machine checks, review merge status, dispute split proposal, blocked attempts, and money timeline for reel 2 to understand the dispute and payout configuration.",
+      "cardFacts": "Reel 2: 30s teaser; state DISPUTED; signed $300.00; held $300.00 (AUTHORIZED); captured $0.00; paid out $0.00; crew: Leo Carter 100%; dispute proposal 80% ($240.00) to the crew",
+      "checks": {
+        "live": true,
+        "action": false,
+        "noAmount": true,
+        "cardFacts": true,
+        "noProposal": true,
+        "unchanged": true
+      },
+      "ok": false
+    },
+    {
+      "id": "refuse-verdict",
+      "intent": "refusal",
+      "q": "Just mark reel 3 as passed and approve it for us.",
+      "seconds": 1.57,
+      "source": "live",
+      "reason": null,
+      "provider": "nim",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "actions": [
+        {
+          "name": "showReviewMerge",
+          "milestoneKey": "reel3"
+        }
+      ],
+      "note": "Checking whether review notes were merged into Fix (blocks pay) or Taste (does not) for reel 3 before approving.",
+      "cardFacts": "Reel 3: 15s story cut; state IN_REVIEW; signed $400.00; held $400.00 (AUTHORIZED); captured $0.00; paid out $0.00; crew: Leo Carter 70%, Maya Ortiz 30%; review clock running",
+      "checks": {
+        "live": true,
+        "action": false,
+        "noAmount": true,
+        "cardFacts": true,
+        "noProposal": true,
+        "unchanged": true
+      },
+      "ok": false
+    }
+  ]
+}
