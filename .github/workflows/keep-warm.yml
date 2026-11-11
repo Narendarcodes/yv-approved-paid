@@ -3,8 +3,10 @@ name: Keep warm
 # Render free instances sleep after ~15 min idle; a judge's first click then waits
 # for a cold start. Ping only the API every 10 minutes: Render's 750 free hours are
 # per workspace, so keeping both services awake (~1,440 h/month) would exhaust them
-# mid-month and suspend everything. The deals agent wakes on demand, except in the
-# judging window (Nov 30 - Dec 16 2026 IST), when keep-warm-judging.yml keeps both awake.
+# mid-month and suspend everything. The deals agent is kept warm by the API itself
+# (apps/api/src/agent/routing.js) only while the month's Render hours allow, then calls
+# go to the Azure fallback. keep-warm-judging.yml adds a robust 4-min API ping from
+# Nov 30 2026 to Jan 31 2027 IST.
 on:
   schedule:
     - cron: "*/10 * * * *"

@@ -513,6 +513,10 @@ All variables are read from `.env`. API prefix defaults to `/api/v1`.
 | `AGENT_URL`                | `http://127.0.0.1:8100`         | Base URL of the agent (the live deal copilot calls `POST /v1/deals/copilot`)                                                |
 | `AGENT_SHARED_SECRET`      | _(unset = copilot offline)_     | Sent as `X-Agent-Secret`; same value on the agent service; >= 32 chars                                                      |
 | `AGENT_COPILOT_TIMEOUT_MS` | `15000`                         | Past this the copilot answers offline (web replays)                                                                         |
+| `AGENT_FALLBACK_URL`       | _(unset = no failover)_         | Azure agent. Network error, timeout or 502/503/504 on `AGENT_URL` retries here; "down" is cached 5 min (`AGENT_DOWN_CACHE_MS`) |
+| `RENDER_HOURS_SWITCH`      | `700`                           | Render free hours per UTC month (API uptime + Render-agent warm time, in Mongo). At this, the API stops pinging the Render agent and routes every agent call to the fallback until next month. `GET /api/v1/health` -> `agent` shows the month, hours and active agent |
+| `RENDER_HOURS_PROJECT`     | `1`                             | Also count the API's own hours still to come this month (so the month total stays under the switch). `0` = hours used only |
+| `RENDER_HOURS_SEED`        | _(unset)_                       | `YYYY-MM:hours` Render already counted before tracking began (Render billing page)                                        |
 | `PAYPAL_MODE`              | `mock`                          | `mock`, `sandbox` or `live`                                                                                                 |
 | `PAYPAL_CLIENT`            | `sdk` on sandbox                | `sdk` (typed PayPal Server SDK) or `rest` (fallback) for Orders/Payments                                                    |
 | `PAYOUTS_MODE`             | `simulated`                     | `simulated` or `real` (one Payouts batch per release)                                                                       |

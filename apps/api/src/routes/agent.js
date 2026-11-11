@@ -15,11 +15,21 @@ const streams = require('../agent/streams');
 const { Post, Insight, AgentJob } = require('../models/agent');
 const { latestMetrics, postDTO } = require('./internal');
 const { buildChatContext } = require('../agent/chatContext');
+const { agentRouting } = require('../agent/routing');
 const logger = require('../utils/logger');
 
 const router = express.Router();
 router.use('/:organizationId/agent', (req, res, next) =>
-  config.agent.enabled ? next() : res.status(503).json({ error: { code: 'agent_disabled', message: 'Agent platform is not configured (set SERVICE_JWT_SECRET)' } })
+  config.agent.enabled
+    ? next()
+    : res
+        .status(503)
+        .json({
+          error: {
+            code: 'agent_disabled',
+            message: 'Agent platform is not configured (set SERVICE_JWT_SECRET)',
+          },
+        }),
 );
 const base = '/:organizationId/agent';
 const view = [authenticate, requireOrg('organizationId'), requirePermission('project.view')];
@@ -40,7 +50,10 @@ function agentErrorMessage(status, text) {
   }
   try {
     const j = JSON.parse(raw);
-    const m = (j && (j.error?.message || j.detail || j.message || (typeof j.error === 'string' && j.error))) || '';
+    const m =
+      (j &&
+        (j.error?.message || j.detail || j.message || (typeof j.error === 'string' && j.error))) ||
+      '';
     if (typeof m === 'string' && m.trim()) return m.trim().replace(/\s+/g, ' ').slice(0, 300);
   } catch {
     /* not JSON */
@@ -54,61 +67,86 @@ router.post(
   ...view,
   wrap(async (req, res) => {
     const message = String(req.body.message || '').trim();
-    if (!message) return res.status(400).json({ error: { code: 'validation_error', message: 'message is required' } });
-    if (message.length > 4000) return res.status(400).json({ error: { code: 'validation_error', message: 'message too long' } });
+    if (!message)
+      return res
+        .status(400)
+        .json({ error: { code: 'validation_error', message: 'message is required' } });
+    if (message.length > 4000)
+      return res
+        .status(400)
+        .json({ error: { code: 'validation_error', message: 'message too long' } });
     const orgId = req.params.organizationId;
-    const token = mintServiceToken({ orgId, userId: req.user._id, scopes: READ_SCOPES, ttlSec: config.agent.chatTokenTtlSec });
+    const token = mintServiceToken({
+      orgId,
+      userId: req.user._id,
+      scopes: READ_SCOPES,
+      ttlSec: config.agent.chatTokenTtlSec,
+    });
     const context = await buildChatContext(orgId);
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), config.agent.chatTimeoutMs);
-    // The agent answers its first SSE event (meta) at once; past this it is asleep or stuck, and the
+    // The agent answers its first SSE event (meta) at once; past chatFirstByteMs it is asleep
+    // or stuck: the router fails over to AGENT_FALLBACK_URL when one is set, otherwise the
     // reader gets a readable error instead of a long "Thinking...".
-    let waking = false;
-    const firstByte = setTimeout(() => {
-      waking = true;
-      ac.abort();
-    }, config.agent.chatFirstByteMs);
     res.on('close', () => ac.abort());
-    const headers = { 'content-type': 'application/json', accept: 'text/event-stream', authorization: `Bearer ${token}` };
+    const headers = {
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      authorization: `Bearer ${token}`,
+    };
     if (config.agent.sharedSecret) headers['x-agent-secret'] = config.agent.sharedSecret;
     let upstream;
     try {
-      upstream = await fetch(`${config.agent.url}/v1/chat`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message,
-          postId: req.body.postId || null,
-          history: Array.isArray(req.body.history) ? req.body.history.slice(-6) : [],
-          context,
-        }),
-        signal: ac.signal,
-      });
+      ({ res: upstream } = await agentRouting().router.fetch(
+        '/v1/chat',
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message,
+            postId: req.body.postId || null,
+            history: Array.isArray(req.body.history) ? req.body.history.slice(-6) : [],
+            context,
+          }),
+        },
+        { attemptTimeoutMs: config.agent.chatFirstByteMs, signal: ac.signal },
+      ));
     } catch (err) {
       clearTimeout(timer);
-      clearTimeout(firstByte);
-      logger.warn({ err: err.message, waking }, 'agent unreachable');
+      const waking = !!(err && err.timedOut);
+      logger.warn({ err: err && err.message, waking }, 'agent unreachable');
       if (waking)
         return res.status(504).json({
-          error: { code: 'agent_timeout', message: 'The agent service is waking up. Try again in a minute.' },
+          error: {
+            code: 'agent_timeout',
+            message: 'The agent service is waking up. Try again in a minute.',
+          },
         });
-      return res.status(502).json({ error: { code: 'agent_unavailable', message: 'Agent service unavailable' } });
+      return res
+        .status(502)
+        .json({ error: { code: 'agent_unavailable', message: 'Agent service unavailable' } });
     }
-    clearTimeout(firstByte);
     if (!upstream.ok || !upstream.body) {
       clearTimeout(timer);
       const text = await upstream.text().catch(() => '');
       return res
         .status(upstream.status === 429 ? 429 : 502)
-        .json({ error: { code: 'agent_error', message: agentErrorMessage(upstream.status, text) } });
+        .json({
+          error: { code: 'agent_error', message: agentErrorMessage(upstream.status, text) },
+        });
     }
-    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    });
     res.flushHeaders?.();
     const body = Readable.fromWeb(upstream.body);
     body.on('error', () => res.end());
     body.on('end', () => clearTimeout(timer));
     body.pipe(res);
-  })
+  }),
 );
 
 function jobRoute(path, type, payloadFn) {
@@ -117,17 +155,36 @@ function jobRoute(path, type, payloadFn) {
     ...view,
     wrap(async (req, res) => {
       if (req.params.postId) {
-        const post = await Post.findOne({ _id: req.params.postId, organizationId: req.params.organizationId }).select('_id').lean();
-        if (!post) return res.status(404).json({ error: { code: 'post_not_found', message: 'Post not found' } });
+        const post = await Post.findOne({
+          _id: req.params.postId,
+          organizationId: req.params.organizationId,
+        })
+          .select('_id')
+          .lean();
+        if (!post)
+          return res
+            .status(404)
+            .json({ error: { code: 'post_not_found', message: 'Post not found' } });
       }
-      const job = await streams.enqueue(type, { orgId: req.params.organizationId, userId: req.user._id, payload: payloadFn(req) });
+      const job = await streams.enqueue(type, {
+        orgId: req.params.organizationId,
+        userId: req.user._id,
+        payload: payloadFn(req),
+      });
       res.status(202).json({ data: job });
-    })
+    }),
   );
 }
-jobRoute('/posts/:postId/analyze', 'insights.analyze_post.v1', (req) => ({ postId: req.params.postId }));
-jobRoute('/posts/:postId/transcribe', 'ingest.transcribe.v1', (req) => ({ postId: req.params.postId, language: req.body.language || 'auto' }));
-jobRoute('/posts/:postId/review-digest', 'review.digest.v1', (req) => ({ postId: req.params.postId }));
+jobRoute('/posts/:postId/analyze', 'insights.analyze_post.v1', (req) => ({
+  postId: req.params.postId,
+}));
+jobRoute('/posts/:postId/transcribe', 'ingest.transcribe.v1', (req) => ({
+  postId: req.params.postId,
+  language: req.body.language || 'auto',
+}));
+jobRoute('/posts/:postId/review-digest', 'review.digest.v1', (req) => ({
+  postId: req.params.postId,
+}));
 jobRoute('/brand/reindex', 'brand.index.v1', () => ({}));
 
 router.get(
@@ -135,11 +192,14 @@ router.get(
   ...view,
   wrap(async (req, res) => {
     const orgId = req.params.organizationId;
-    const [posts, metrics] = await Promise.all([Post.find({ organizationId: orgId }).sort({ publishedAt: -1 }).lean(), latestMetrics(orgId)]);
+    const [posts, metrics] = await Promise.all([
+      Post.find({ organizationId: orgId }).sort({ publishedAt: -1 }).lean(),
+      latestMetrics(orgId),
+    ]);
     const byPost = {};
     for (const m of metrics) (byPost[m.postId] = byPost[m.postId] || {})[m.metric] = m.value;
     res.json({ data: posts.map((p) => ({ ...postDTO(p), metrics: byPost[String(p._id)] || {} })) });
-  })
+  }),
 );
 
 router.get(
@@ -150,17 +210,30 @@ router.get(
     if (req.query.postId) q.postId = req.query.postId;
     const items = await Insight.find(q).sort({ createdAt: -1 }).limit(50).lean();
     res.json({ data: items.map((i) => ({ ...i, id: String(i._id), postId: String(i.postId) })) });
-  })
+  }),
 );
 
 router.get(
   `${base}/jobs/:jobId`,
   ...view,
   wrap(async (req, res) => {
-    const job = await AgentJob.findOne({ jobId: req.params.jobId, organizationId: req.params.organizationId }).lean();
-    if (!job) return res.status(404).json({ error: { code: 'job_not_found', message: 'Job not found' } });
-    res.json({ data: { jobId: job.jobId, type: job.type, status: job.status, result: job.result, error: job.error, attempts: job.attempts } });
-  })
+    const job = await AgentJob.findOne({
+      jobId: req.params.jobId,
+      organizationId: req.params.organizationId,
+    }).lean();
+    if (!job)
+      return res.status(404).json({ error: { code: 'job_not_found', message: 'Job not found' } });
+    res.json({
+      data: {
+        jobId: job.jobId,
+        type: job.type,
+        status: job.status,
+        result: job.result,
+        error: job.error,
+        attempts: job.attempts,
+      },
+    });
+  }),
 );
 
 module.exports = router;

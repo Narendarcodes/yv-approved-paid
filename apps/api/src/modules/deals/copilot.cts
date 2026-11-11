@@ -12,6 +12,9 @@
  * No amount ever comes from the model: the web uses the signed amount (or the
  * number the person typed) and runs proposals as a policy DRY RUN.
  *
+ * Calls go through the agent router: AGENT_URL (Render) first, AGENT_FALLBACK_URL (Azure)
+ * on failure or when the Render hour budget is spent.
+ *
  * Enabled when AGENT_ENABLED=true (config.agent.enabled) and AGENT_URL +
  * AGENT_SHARED_SECRET are set. Disabled, unreachable, slow (AGENT_COPILOT_TIMEOUT_MS),
  * or a bad answer -> { source: 'offline', reason } and the web serves its
@@ -34,8 +37,26 @@ const NEEDS_KEY = new Set(['showChecks', 'showReviewMerge', 'showDisputeSplit', 
 
 type CopilotAction = { name: string; milestoneKey?: string; changeOrderId?: string };
 type CopilotReply =
-  | { source: 'live'; actions: CopilotAction[]; note: string | null; provider: string | null; model: string | null; cached: boolean; ms: number }
-  | { source: 'offline'; reason: 'agent_disabled' | 'rate_limited' | 'agent_unreachable' | 'agent_timeout' | 'agent_error' | 'agent_no_answer' };
+  | {
+      source: 'live';
+      actions: CopilotAction[];
+      note: string | null;
+      provider: string | null;
+      model: string | null;
+      cached: boolean;
+      ms: number;
+      agent?: string;
+    }
+  | {
+      source: 'offline';
+      reason:
+        | 'agent_disabled'
+        | 'rate_limited'
+        | 'agent_unreachable'
+        | 'agent_timeout'
+        | 'agent_error'
+        | 'agent_no_answer';
+    };
 
 type CopilotConfig = { enabled: boolean; url: string; secret: string; timeoutMs: number };
 
@@ -57,7 +78,11 @@ function redactedView(deal: DealDoc, myRole: string | null) {
         hasDisputeProposal: !!r?.proposals?.dispute,
       };
     }),
-    changeOrders: (deal.changeOrders || []).map((c) => ({ id: c.id, milestoneKey: c.milestoneKey, status: c.status })),
+    changeOrders: (deal.changeOrders || []).map((c) => ({
+      id: c.id,
+      milestoneKey: c.milestoneKey,
+      status: c.status,
+    })),
     pendingApprovals: (deal.pendingApprovals || []).length,
   };
 }
@@ -65,8 +90,10 @@ function redactedView(deal: DealDoc, myRole: string | null) {
 /** Names the agent must strip from the question before any LLM sees it. */
 function identities(deal: DealDoc): string[] {
   const out = new Set<string>();
-  for (const p of [deal.terms.client, deal.terms.worker]) if (p?.displayName) out.add(p.displayName);
-  for (const m of deal.terms.milestones) for (const p of m.payees || []) if (p.displayName) out.add(p.displayName);
+  for (const p of [deal.terms.client, deal.terms.worker])
+    if (p?.displayName) out.add(p.displayName);
+  for (const m of deal.terms.milestones)
+    for (const p of m.payees || []) if (p.displayName) out.add(p.displayName);
   return [...out].slice(0, 20);
 }
 
@@ -80,7 +107,10 @@ function sanitizeActions(raw: unknown, deal: DealDoc): CopilotAction[] {
     if (!a || typeof a !== 'object') continue;
     const name = (a as any).name;
     if (!(COPILOT_ACTIONS as readonly string[]).includes(name)) continue;
-    const mk = typeof (a as any).milestoneKey === 'string' && keys.has((a as any).milestoneKey) ? (a as any).milestoneKey : undefined;
+    const mk =
+      typeof (a as any).milestoneKey === 'string' && keys.has((a as any).milestoneKey)
+        ? (a as any).milestoneKey
+        : undefined;
     if (NEEDS_KEY.has(name) && !mk) continue;
     if (name === 'showChangeOrder') {
       const co = (a as any).changeOrderId;
@@ -94,34 +124,70 @@ function sanitizeActions(raw: unknown, deal: DealDoc): CopilotAction[] {
   return out;
 }
 
-const MONEY = /[$₹€£]|\b(usd|inr|eur|gbp|rs\.?|rupees?|dollars?|cents?|paise)\b|\d[\d,]*\.\d{2}\b|\b\d{3,}\b/i;
+const MONEY =
+  /[$₹€£]|\b(usd|inr|eur|gbp|rs\.?|rupees?|dollars?|cents?|paise)\b|\d[\d,]*\.\d{2}\b|\b\d{3,}\b/i;
 
-type FetchLike = (url: string, init: any) => Promise<{ ok: boolean; status: number; json: () => Promise<any> }>;
+type FetchLike = (
+  url: string,
+  init: any,
+) => Promise<{ ok: boolean; status: number; json: () => Promise<any> }>;
+
+type AgentRouter = {
+  fetch: (
+    path: string,
+    init: any,
+    opts: { attemptTimeoutMs: number },
+  ) => Promise<{ res: { ok: boolean; status: number; json: () => Promise<any> }; agent: string }>;
+};
+
+/** No shared router (tests, scripts): primary then optional fallback, no cached state. */
+function directRouter(
+  cfg: CopilotConfig & { fallbackUrl?: string },
+  fetchImpl: FetchLike,
+): AgentRouter {
+  const { makeAgentRouter } = require('../../agent/routing');
+  return makeAgentRouter({
+    getTargets: () => ({ primary: cfg.url, fallback: cfg.fallbackUrl || '' }),
+    fetchImpl,
+  });
+}
 
 async function askCopilot(
-  cfg: CopilotConfig,
+  cfg: CopilotConfig & { fallbackUrl?: string; router?: AgentRouter },
   deal: DealDoc,
   myRole: string | null,
   question: string,
   fetchImpl: FetchLike = (globalThis as any).fetch,
 ): Promise<CopilotReply> {
-  if (!cfg.enabled || !cfg.url || !cfg.secret) return { source: 'offline', reason: 'agent_disabled' };
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), cfg.timeoutMs);
+  if (!cfg.enabled || !cfg.url || !cfg.secret)
+    return { source: 'offline', reason: 'agent_disabled' };
   const t0 = Date.now();
+  // AGENT_URL first; a network error, a timeout or a 502/503/504 retries once on
+  // AGENT_FALLBACK_URL (src/agent/routing.js). Each attempt gets cfg.timeoutMs.
+  const router = cfg.router || directRouter(cfg, fetchImpl);
   try {
-    const r = await fetchImpl(`${cfg.url.replace(/\/+$/, '')}/v1/deals/copilot`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-agent-secret': cfg.secret },
-      body: JSON.stringify({ question: question.slice(0, 500), deal: redactedView(deal, myRole), redact: identities(deal) }),
-      signal: ac.signal,
-    });
+    const { res: r, agent } = await router.fetch(
+      '/v1/deals/copilot',
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-agent-secret': cfg.secret },
+        body: JSON.stringify({
+          question: question.slice(0, 500),
+          deal: redactedView(deal, myRole),
+          redact: identities(deal),
+        }),
+      },
+      { attemptTimeoutMs: cfg.timeoutMs },
+    );
     if (r.status === 503) return { source: 'offline', reason: 'agent_no_answer' };
     if (!r.ok) return { source: 'offline', reason: 'agent_error' };
     const body = await r.json();
     const actions = sanitizeActions(body?.actions, deal);
     if (!actions.length) return { source: 'offline', reason: 'agent_no_answer' };
-    const note = typeof body?.note === 'string' && body.note.trim() && !MONEY.test(body.note) ? body.note.trim().slice(0, 200) : null;
+    const note =
+      typeof body?.note === 'string' && body.note.trim() && !MONEY.test(body.note)
+        ? body.note.trim().slice(0, 200)
+        : null;
     return {
       source: 'live',
       actions,
@@ -130,11 +196,10 @@ async function askCopilot(
       model: typeof body?.model === 'string' ? body.model : null,
       cached: body?.cached === true,
       ms: Date.now() - t0,
+      agent,
     };
-  } catch (e) {
-    return { source: 'offline', reason: ac.signal.aborted ? 'agent_timeout' : 'agent_unreachable' };
-  } finally {
-    clearTimeout(timer);
+  } catch (e: any) {
+    return { source: 'offline', reason: e && e.timedOut ? 'agent_timeout' : 'agent_unreachable' };
   }
 }
 

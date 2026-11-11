@@ -1,12 +1,16 @@
 name: Keep warm (judging window)
 
-# Keeps BOTH Render free services (API + deals agent) awake for the judging window,
-# Dec 1-15 2026 IST, with a day of buffer each side (2026-11-30 .. 2026-12-16 IST).
+# Keeps the Render API awake from the judging window (Dec 1-15 2026 IST, with a day of
+# buffer: 2026-11-30 .. 2026-12-16 IST) through 2027-01-31 IST, in case judging is
+# postponed. The API alone is ~744 h in a 31-day month, under Render's 750 free hours.
+# The deals agent is NOT pinged here: the API's own tick (apps/api/src/agent/routing.js)
+# pings it every 4 min while the month's Render hours are under RENDER_HOURS_SWITCH, then
+# routes agent calls to the Azure fallback (AGENT_FALLBACK_URL) until the next UTC month.
 # GitHub cron can skip hours, so each run is one long job that pings every 4 minutes
 # for ~5h50m, and a new run starts every 5 hours: runs overlap, and a skipped or late
 # schedule is covered by the run still going. Outside the window every run is a quick no-op.
-# Note: two services awake 24/7 use ~48 Render free instance hours a day (750/month per
-# workspace), so the December allowance runs close to its limit by Dec 16.
+# keep-warm.yml (every 10 min, all year) keeps pinging the API too; pings are only wake-ups,
+# Render bills wall-clock instance hours, so the overlap costs nothing extra.
 on:
   schedule:
     - cron: "0 */5 * * *"
@@ -20,14 +24,14 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  WINDOW_START: "2026-11-30" # first IST day pinged
-  WINDOW_END: "2026-12-16" # last IST day pinged (stops after 23:59 IST)
+  WINDOW_START: "2026-11-30" # first IST day pinged (judging Dec 1-15, a day of buffer)
+  JUDGING_END: "2026-12-16" # end of the judging window, for the log line only
+  WINDOW_END: "2027-01-31" # last IST day pinged (stops after 23:59 IST), covers a postponed judging
   API_URL: https://yv-approved-paid-api.onrender.com/api/v1/health
-  AGENT_URL: https://yv-deals-agent.onrender.com/health
 
 jobs:
   ping:
-    name: Ping API + deals agent
+    name: Ping API
     runs-on: ubuntu-latest
     timeout-minutes: 355
     steps:
@@ -39,7 +43,11 @@ jobs:
             echo "Outside the keep-warm window ($WINDOW_START..$WINDOW_END IST); today is $today IST. Nothing to do."
             echo "active=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Inside the keep-warm window; today is $today IST."
+            if [[ "$today" > "$JUDGING_END" ]]; then
+              echo "Inside the keep-warm window, past judging ($JUDGING_END); today is $today IST."
+            else
+              echo "Inside the keep-warm window (judging); today is $today IST."
+            fi
             echo "active=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -55,7 +63,6 @@ jobs:
             fi
             now=$(TZ=Asia/Kolkata date '+%F %T IST')
             api=$(curl -sS --max-time 60 -o /dev/null -w "%{http_code} %{time_total}s" "$API_URL" 2>&1 || true)
-            agent=$(curl -sS --max-time 60 -o /dev/null -w "%{http_code} %{time_total}s" "$AGENT_URL" 2>&1 || true)
-            echo "$now  api: ${api:-no response}  agent: ${agent:-no response}"
+            echo "$now  api: ${api:-no response}"
             sleep 240
           done

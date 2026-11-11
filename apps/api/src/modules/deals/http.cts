@@ -21,6 +21,7 @@ const { verifyChain } = require('./lib/ledger.cts');
 const path = require('node:path');
 const { resolveEvidence } = require('./lib/evidence.cts');
 const { askCopilot } = require('./copilot.cts');
+const { agentRouting } = require('../../agent/routing');
 const { planTeam, applyTeam, statusOf } = require('./team.cts');
 const { receiptsOf } = require('./lib/receipts.cts');
 const {
@@ -739,7 +740,13 @@ router.post(
     const q = str(req.body?.question, 'question', 500);
     const a = config.agent;
     const reply = await askCopilot(
-      { enabled: a.enabled, url: a.url, secret: a.sharedSecret, timeoutMs: a.copilotTimeoutMs },
+      {
+        enabled: a.enabled,
+        url: a.url,
+        secret: a.sharedSecret,
+        timeoutMs: a.copilotTimeoutMs,
+        router: agentRouting().router,
+      },
       // the copilot reads the deal as this viewer may see it: crew get their own payout lines only
       seesAll(req, d) ? d : redactDeal(d, uid(req)),
       actorRole(d, uid(req)) ?? null,

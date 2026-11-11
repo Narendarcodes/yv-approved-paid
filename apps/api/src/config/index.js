@@ -122,6 +122,8 @@ module.exports = {
       process.env.AGENT_ENABLED !== 'false' &&
       (env !== 'production' || !!process.env.SERVICE_JWT_SECRET),
     url: process.env.AGENT_URL || 'http://127.0.0.1:8100',
+    // Fallback agent (Azure VM). Unset -> no failover (src/agent/routing.js).
+    fallbackUrl: process.env.AGENT_FALLBACK_URL || '',
     // HS256 secret Node signs service tokens with. The agent never holds it:
     // it only forwards the tokens Node minted (per chat call / per job).
     serviceJwtSecret:

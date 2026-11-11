@@ -42,6 +42,10 @@ async function start() {
     // Money Agent: keeps holds alive, auto-approves lapsed reviews, captures, pays out.
     require('./modules/deals/service.cts').startMoneyAgent(logger);
 
+    // Agent tick (every 4 min): counts Render hours, keeps the Render agent warm while
+    // under RENDER_HOURS_SWITCH, then routes agent calls to AGENT_FALLBACK_URL.
+    require('./agent/routing').startAgentTick(logger);
+
     // Judge demo: DEMO_MODE=1 rebuilds Lumen Coffee's "Autumn launch reels" in this process, so the
     // gateway holding its authorizations is the one the Money Agent uses. Works on
     // PAYPAL_MODE=mock and on PAYPAL_MODE=sandbox (real sandbox orders and invoices;

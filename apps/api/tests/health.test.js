@@ -13,5 +13,8 @@ describe('GET /api/v1/health', () => {
     const res = await request(app).get('/api/v1/health');
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('status', 'ok');
+    // read-only agent routing snapshot: which deal agent serves calls + the Render hour budget
+    expect(res.body.agent).toMatchObject({ active: 'render', fallbackConfigured: false });
+    expect(res.body.agent).toHaveProperty('hours');
   });
 });
