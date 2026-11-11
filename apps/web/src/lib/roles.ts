@@ -4,6 +4,9 @@
  * the API enforces. Frontend checks are a UX aid only - the backend remains
  * the real security boundary. A user's role comes from their login session,
  * never from a client-side switcher.
+ *
+ * Workspace settings and member management are admin-only (the API grants
+ * manage_members through '*' alone), so no other role lists 'settings'.
  */
 import type { RoleName, TeamMember } from './types'
 
@@ -76,39 +79,29 @@ export const ROLES: RoleInfo[] = [
     label: 'Editor',
     desk: 'Production desk',
     blurb: 'Creates and produces projects, uploads versions, requests review.',
-    permissions: [
-      'view',
-      'create',
-      'upload',
-      'comment',
-      'approve',
-      'schedule',
-      'metrics',
-      'assign',
-      'manage_concepts',
-      'settings',
-    ],
+    // crew: no approve, schedule, assign or settings (brand/admin only; the API refuses them too)
+    permissions: ['view', 'create', 'upload', 'comment', 'metrics', 'manage_concepts'],
   },
   {
     role: 'designer',
     label: 'Designer',
     desk: 'Design desk',
     blurb: 'Produces visuals and uploads design versions for review.',
-    permissions: ['view', 'upload', 'comment', 'metrics', 'manage_concepts', 'settings'],
+    permissions: ['view', 'upload', 'comment', 'metrics', 'manage_concepts'],
   },
   {
     role: 'reviewer',
     label: 'Reviewer',
     desk: 'Review desk',
     blurb: 'Reviews drafts, comments on timestamps, requests revisions and approves.',
-    permissions: ['view', 'comment', 'approve', 'review_concepts', 'settings'],
+    permissions: ['view', 'comment', 'approve', 'review_concepts'],
   },
   {
     role: 'publisher',
     label: 'Publisher',
     desk: 'Publishing desk',
     blurb: 'Schedules and publishes approved projects and records metrics.',
-    permissions: ['view', 'schedule', 'publish', 'metrics', 'settings'],
+    permissions: ['view', 'schedule', 'publish', 'metrics'],
   },
   {
     role: 'member',

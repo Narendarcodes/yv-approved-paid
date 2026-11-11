@@ -7,7 +7,6 @@ const DEFAULT_ROLES = [
     permissions: [
       'project.create',
       'project.transition',
-      'project.assign',
       'project.upload_version',
       'project.comment',
       'project.revision',
@@ -16,11 +15,12 @@ const DEFAULT_ROLES = [
       'task.update',
       'brief.manage',
       'chat.post',
-      'contract.manage',
-      'invoice.manage',
+      // deal.manage: crew create deals and run their own milestones (payables/payout paths).
+      // Brand-only capabilities stay off the crew role: project.assign, invoice.manage,
+      // contract.manage, manage_members and payables.view_org come with '*' (admin) only.
       'deal.manage',
     ],
-    description: 'Creates and works on projects',
+    description: 'Creates and works on projects (crew)',
   },
   {
     name: 'reviewer',
