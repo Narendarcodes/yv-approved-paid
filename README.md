@@ -151,7 +151,7 @@ In the web app every PayPal id carries a tag: `PayPal sandbox` (real) or `PayPal
 ## Judge quick start
 
 1. Open **https://yv-approved-paid.vercel.app** and press **Try the demo** on the login page. You don't need a PayPal account or a password.
-2. The first load can take **about a minute**: the API and the agent run on Render's free tier and sleep when idle.
+2. The first load can take **about a minute**: the API and the agent run on Render's free tier and sleep when idle, though during judging (Dec 1-15, 2026 IST) a keep-warm workflow (`.github/workflows/keep-warm-judging.yml`) pings both every 4 minutes so they stay awake.
 3. You sign in as Nora Hayes, content ops lead at **Lumen Coffee** (a fictional global coffee brand, US-based; `judge@yv-demo.example.com`), and land on its **"Autumn launch reels"** deal. The crew is Leo Carter (editor, 70%) and Maya Ortiz (motion designer, 30%), with Alex Morgan as backup brand reviewer and Mei Tan as social publisher; Team chat, Brand Brain and the project pages carry the same story:
    - **Reel 1** has been approved. Its hold was captured for the signed $400 and paid 70/30.
    - **Reel 2** failed its captions check (the brief asks for captions; the cut has none), a +15s change order waits as a draft, and the reel is in dispute. 4 of 5 checks passed, so the proposed split is 80% ($240). Accept the split and the Money Agent captures $240 and voids the rest.
