@@ -42,10 +42,16 @@ jobs:
             cache-dependency-path: "apps/api/package-lock.json",
           }
       - name: Install MongoDB deps (libcrypto.so.1.1 for mongodb-memory-server)
+        # archive.ubuntu.com is sometimes unreachable from hosted runners: try mirrors, with timeouts
         run: |
-          wget -q http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-          sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-          rm libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          deb=libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+          for base in http://archive.ubuntu.com/ubuntu http://azure.archive.ubuntu.com/ubuntu http://mirrors.edge.kernel.org/ubuntu http://mirror.math.princeton.edu/pub/ubuntu; do
+            wget -q --timeout=20 --tries=2 -O "$deb" "$base/pool/main/o/openssl/$deb" && break
+            rm -f "$deb"
+          done
+          test -s "$deb"
+          sudo dpkg -i "$deb"
+          rm "$deb"
       - run: npm ci --no-audit --no-fund
       - name: Lint (eslint)
         run: npm run lint
@@ -89,7 +95,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg  # video check tests need ffmpeg/ffprobe
+      - name: Install ffmpeg (video check tests need ffmpeg/ffprobe)
+        timeout-minutes: 15
+        # the default Ubuntu mirror is sometimes unreachable from hosted runners: time out, switch mirror, retry
+        run: |
+          opts="-o Acquire::http::Timeout=20 -o Acquire::Retries=2"
+          get() { timeout 300 sudo apt-get $opts update -qq && timeout 300 sudo apt-get $opts install -y -qq ffmpeg; }
+          get && exit 0
+          sudo sed -i -E 's#https?://((azure\.)?archive|security)\.ubuntu\.com/ubuntu#http://mirrors.edge.kernel.org/ubuntu#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          get
       - run: pip install -r requirements.txt -r requirements-media.txt -r requirements-dev.txt
       - run: python -m pytest -q
       - name: Golden-question evals are well-formed
