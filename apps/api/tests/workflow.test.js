@@ -18,7 +18,6 @@ beforeAll(async () => {
     permissions: [
       'project.create',
       'project.transition',
-      'project.assign',
       'project.upload_version',
       'project.comment',
       'project.revision',
@@ -81,10 +80,15 @@ describe('Full content-project workflow', () => {
     // stage gates: approved concept, brief items, signed + held deal with checks
     await meetGates(projectId);
 
-    // --- assign to editor (auto -> ASSIGNED) ---
-    const assign = await request(app)
+    // --- assign to editor (auto -> ASSIGNED): assignment is brand-only (admin), the crew editor is refused ---
+    const selfAssign = await request(app)
       .post(`/api/v1/projects/${projectId}/assign`)
       .set('Authorization', `Bearer ${editor.token}`)
+      .send({ assigneeId: editor.userId });
+    expect(selfAssign.statusCode).toBe(403);
+    const assign = await request(app)
+      .post(`/api/v1/projects/${projectId}/assign`)
+      .set('Authorization', `Bearer ${admin.token}`)
       .send({ assigneeId: editor.userId });
     expect(assign.statusCode).toBe(200);
     expect(assign.body.data.status).toBe('ASSIGNED');
